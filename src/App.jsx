@@ -102,7 +102,9 @@ export default function App() {
 
   const handleLogout = () => {
     setIsLoggedIn(false);
+    setUser(null);
     localStorage.removeItem('tiet_logged_in');
+    localStorage.removeItem('tiet_user');
     setActivePage('dashboard');
   };
 

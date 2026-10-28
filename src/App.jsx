@@ -8,6 +8,7 @@ import GroupDetailsPage from './pages/GroupDetailsPage';
 import MyJourneysPage from './pages/MyJourneysPage';
 import ProfilePage from './pages/ProfilePage';
 import CommunitiesPage from './pages/CommunitiesPage';
+import ErrorBoundary from './components/ErrorBoundary';
 
 import JourneyFormModal from './components/JourneyFormModal';
 import GroupChatModal from './components/GroupChatModal';
@@ -671,6 +672,7 @@ export default function App() {
 
       {/* Main View Area */}
       <main className="flex-1 pb-16">
+        <ErrorBoundary onReset={() => setActivePage('dashboard')}>
         {activePage === 'dashboard' && (
           <DashboardPage
             user={user}
@@ -780,6 +782,7 @@ export default function App() {
             }}
           />
         )}
+        </ErrorBoundary>
       </main>
 
       {/* Modals */}

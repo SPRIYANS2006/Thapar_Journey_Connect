@@ -11,7 +11,8 @@ import {
   UserPlus, 
   MessageSquare,
   ShieldCheck,
-  AlertCircle
+  AlertCircle,
+  Calendar
 } from 'lucide-react';
 import { formatTime24to12 } from '../utils/matchingEngine';
 
@@ -27,6 +28,7 @@ export default function MatchingResultsPage({
   const currentUid = currentUser?.id;
   const destName = journeyReq?.destinationName || 'Selected Transit Point';
   const filteredGroups = (activeGroups || []).filter(g => g.destinationId === journeyReq?.destinationId);
+  const safeMatchedStudents = Array.isArray(matchedStudents) ? matchedStudents : [];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-in fade-in duration-300">
@@ -192,7 +194,7 @@ export default function MatchingResultsPage({
           <span>Individual Matched TIET Students</span>
         </h2>
 
-        {matchedStudents.length === 0 ? (
+        {safeMatchedStudents.length === 0 ? (
           <div className="bg-white rounded-3xl border border-blue-200 p-8 sm:p-10 text-center space-y-4 shadow-sm">
             <div className="w-14 h-14 rounded-3xl bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center mx-auto shadow-xs">
               <Sparkles className="w-7 h-7" />
@@ -233,7 +235,7 @@ Join my group on Thapar Journey Connect.`
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {matchedStudents.map((item) => {
+            {safeMatchedStudents.map((item) => {
               const { student, matchInfo } = item;
               return (
                 <div

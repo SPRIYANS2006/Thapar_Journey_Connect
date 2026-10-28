@@ -21,7 +21,13 @@ export function formatMinutesToTime(totalMinutes) {
 // Format HH:MM 24hr string to 12hr AM/PM string
 export function formatTime24to12(time24) {
   if (!time24) return '';
-  const [h, m] = time24.split(':').map(Number);
+  if (typeof time24 !== 'string') return String(time24);
+  if (time24.includes('AM') || time24.includes('PM')) return time24;
+  const parts = time24.split(':');
+  if (parts.length < 2) return time24;
+  const h = Number(parts[0]);
+  const m = Number(parts[1]);
+  if (isNaN(h) || isNaN(m)) return time24;
   const ampm = h >= 12 ? 'PM' : 'AM';
   const displayH = h % 12 || 12;
   const displayM = m < 10 ? `0${m}` : m;

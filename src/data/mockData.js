@@ -38,25 +38,18 @@ export const DESTINATIONS = [
 ];
 
 export const HOSTELS = [
-  // Boys Hostels
-  { id: 'H1', name: 'Hostel H1', gender: 'Boys', cluster: 'Quad A' },
-  { id: 'H2', name: 'Hostel H2', gender: 'Boys', cluster: 'Quad A' },
-  { id: 'H3', name: 'Hostel H3', gender: 'Boys', cluster: 'Quad A' },
-  { id: 'H4', name: 'Hostel H4', gender: 'Boys', cluster: 'Quad A' },
-  { id: 'H5', name: 'Hostel H5', gender: 'Boys', cluster: 'Quad B' },
-  { id: 'H6', name: 'Hostel H6', gender: 'Boys', cluster: 'Quad B' },
-  { id: 'H7', name: 'Hostel H7', gender: 'Boys', cluster: 'Quad B' },
-  { id: 'H8', name: 'Hostel H8', gender: 'Boys', cluster: 'Quad B' },
-  { id: 'H9', name: 'Hostel H9', gender: 'Boys', cluster: 'Quad C' },
-  { id: 'H10', name: 'Hostel H10', gender: 'Boys', cluster: 'Quad C' },
-  { id: 'H11', name: 'Hostel H11', gender: 'Boys', cluster: 'Quad C' },
-  { id: 'H12', name: 'Hostel H12', gender: 'Boys', cluster: 'Quad C' },
-  { id: 'H13', name: 'Hostel H13', gender: 'Boys', cluster: 'Quad C' },
-  { id: 'H14', name: 'Hostel H14', gender: 'Boys', cluster: 'Quad D' },
-  { id: 'H15', name: 'Hostel H15', gender: 'Boys', cluster: 'Quad D' },
-  { id: 'HA', name: 'Hostel A', gender: 'Boys', cluster: 'Quad D' },
-  { id: 'HB', name: 'Hostel B', gender: 'Boys', cluster: 'Quad D' },
-  { id: 'HC', name: 'Hostel C', gender: 'Boys', cluster: 'Quad D' },
+  // Boys Hostels (Official TIET Campus Halls)
+  { id: 'HA', name: 'Agira Hall (Previously known as Hostel-A)', gender: 'Boys', cluster: 'North Quad' },
+  { id: 'HB', name: 'Amritam Hall (Previously known as Hostel-B)', gender: 'Boys', cluster: 'North Quad' },
+  { id: 'HC', name: 'Prithvi Hall (Previously known as Hostel-C)', gender: 'Boys', cluster: 'North Quad' },
+  { id: 'HD', name: 'Neeram Hall (Previously known as Hostel-D)', gender: 'Boys', cluster: 'Central Quad' },
+  { id: 'HH', name: 'Vyan Hall (Previously known as Hostel-H)', gender: 'Boys', cluster: 'Central Quad' },
+  { id: 'HJ', name: 'Tejas Hall (Previously known as Hostel-J)', gender: 'Boys', cluster: 'East Quad' },
+  { id: 'HK', name: 'Ambaram Hall (Previously known as Hostel-K)', gender: 'Boys', cluster: 'East Quad' },
+  { id: 'HL', name: 'Viyat Hall (Previously known as Hostel-L)', gender: 'Boys', cluster: 'East Quad' },
+  { id: 'HM', name: 'Anantam Hall (Previously known as Hostel-M)', gender: 'Boys', cluster: 'West Quad' },
+  { id: 'HO', name: 'Vyom Hall (Previously known as Hostel-O)', gender: 'Boys', cluster: 'West Quad' },
+  { id: 'FRFG', name: 'Hostel-FRF/G', gender: 'Boys', cluster: 'West Quad' },
 
   // Girls Hostels (Official TIET Halls)
   { id: 'HE', name: 'Vasudha Hall - Block E (Previously known as Hostel-E)', gender: 'Girls', cluster: 'Vasudha Complex' },
@@ -65,10 +58,7 @@ export const HOSTELS = [
   { id: 'HN', name: 'Ananta Hall (Previously known as Hostel-N)', gender: 'Girls', cluster: 'Girls Quad' },
   { id: 'Dhriti', name: 'Dhriti Hall (Hostel-PG)', gender: 'Girls', cluster: 'Girls Quad' },
   { id: 'HQ', name: 'Vahni Hall (Previously known as Hostel-Q)', gender: 'Girls', cluster: 'Girls Quad' },
-  { id: 'Pavani', name: 'Hostel-Pavani Hall (Previously Known As PG-2)', gender: 'Girls', cluster: 'Girls Quad' },
-
-  // PG / Research
-  { id: 'FRG', name: 'FRG Apartments', gender: 'Co-ed', cluster: 'PG Quad' }
+  { id: 'Pavani', name: 'Hostel-Pavani Hall (Previously Known As PG-2)', gender: 'Girls', cluster: 'Girls Quad' }
 ];
 
 export const MOCK_STUDENTS = [
@@ -77,7 +67,7 @@ export const MOCK_STUDENTS = [
     name: 'Rahul Sharma',
     avatar: 'RS',
     email: 'rsharma_be22@thapar.edu',
-    hostel: 'H3',
+    hostel: 'Agira Hall (Previously known as Hostel-A)',
     destinationId: 'railway',
     departureTime: '17:05', // 5:05 PM
     flexibility: 15,
@@ -91,7 +81,7 @@ export const MOCK_STUDENTS = [
     name: 'Aman Verma',
     avatar: 'AV',
     email: 'averma_be22@thapar.edu',
-    hostel: 'H4',
+    hostel: 'Amritam Hall (Previously known as Hostel-B)',
     destinationId: 'railway',
     departureTime: '17:10', // 5:10 PM
     flexibility: 15,
@@ -105,7 +95,7 @@ export const MOCK_STUDENTS = [
     name: 'Simran Kaur',
     avatar: 'SK',
     email: 'skaur_be23@thapar.edu',
-    hostel: 'H4',
+    hostel: 'Vasudha Hall - Block E (Previously known as Hostel-E)',
     destinationId: 'railway',
     departureTime: '17:15', // 5:15 PM
     flexibility: 20,
@@ -119,7 +109,7 @@ export const MOCK_STUDENTS = [
     name: 'Arjun Gupta',
     avatar: 'AG',
     email: 'agupta_be22@thapar.edu',
-    hostel: 'H7',
+    hostel: 'Prithvi Hall (Previously known as Hostel-C)',
     destinationId: 'railway',
     departureTime: '17:20', // 5:20 PM
     flexibility: 15,
@@ -133,7 +123,7 @@ export const MOCK_STUDENTS = [
     name: 'Neha Patel',
     avatar: 'NP',
     email: 'npatel_be23@thapar.edu',
-    hostel: 'H8',
+    hostel: 'Vasudha Hall - Block G (Previously known as Hostel-G)',
     destinationId: 'railway',
     departureTime: '17:25', // 5:25 PM
     flexibility: 30,
@@ -147,7 +137,7 @@ export const MOCK_STUDENTS = [
     name: 'Priya Sundaram',
     avatar: 'PS',
     email: 'psundaram_be21@thapar.edu',
-    hostel: 'Vasudha Hall - Block E (Hostel-E)',
+    hostel: 'Vasudha Hall - Block E (Previously known as Hostel-E)',
     destinationId: 'chd_airport',
     departureTime: '18:00', // 6:00 PM
     flexibility: 30,
@@ -161,7 +151,7 @@ export const MOCK_STUDENTS = [
     name: 'Tanmay Joshi',
     avatar: 'TJ',
     email: 'tjoshi_be22@thapar.edu',
-    hostel: 'Hostel H1',
+    hostel: 'Neeram Hall (Previously known as Hostel-D)',
     destinationId: 'chd_airport',
     departureTime: '18:15', // 6:15 PM
     flexibility: 20,
@@ -175,7 +165,7 @@ export const MOCK_STUDENTS = [
     name: 'Dev Malhotra',
     avatar: 'DM',
     email: 'dmalhotra_be23@thapar.edu',
-    hostel: 'H3',
+    hostel: 'Vyan Hall (Previously known as Hostel-H)',
     destinationId: 'bus_stand',
     departureTime: '07:30', // 7:30 AM
     flexibility: 15,
@@ -189,7 +179,7 @@ export const MOCK_STUDENTS = [
     name: 'Ananya Roy',
     avatar: 'AR',
     email: 'aroy_be22@thapar.edu',
-    hostel: 'Ira Hall (Hostel-I)',
+    hostel: 'Ira Hall (Previously known as Hostel-I)',
     destinationId: 'bus_stand',
     departureTime: '07:40', // 7:40 AM
     flexibility: 20,
@@ -203,7 +193,7 @@ export const MOCK_STUDENTS = [
     name: 'Ishan Bhasin',
     avatar: 'IB',
     email: 'ibhasin_be21@thapar.edu',
-    hostel: 'Hostel H14',
+    hostel: 'Tejas Hall (Previously known as Hostel-J)',
     destinationId: 'del_airport',
     departureTime: '23:00', // 11:00 PM
     flexibility: 30,
@@ -360,7 +350,7 @@ export const INITIAL_COMMUNITY_POSTS = [
     communityId: 'chd',
     author: 'Priya Sundaram',
     authorAvatar: 'PS',
-    authorHostel: 'Hostel D',
+    authorHostel: 'Vasudha Hall - Block E (Previously known as Hostel-E)',
     timeAgo: '3 hours ago',
     category: 'Tri-City Commute',
     title: 'Uber XL split to Sector 43 Bus Stand / Airport on Saturday morning',
@@ -377,7 +367,7 @@ export const INITIAL_USER_PROFILE = {
   college: 'Thapar Institute of Engineering & Technology (TIET)',
   branch: 'Computer Engineering (CoE)',
   year: '3rd Year',
-  hostel: 'H3',
+  hostel: 'HA',
   hometown: 'Jalandhar',
   joinedCommunity: 'jal',
   phone: '+91 98765 00000',

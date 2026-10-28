@@ -93,7 +93,7 @@ export default function Navbar({ activePage, setActivePage, user, onLogout, myGr
               </div>
               <div className="text-left leading-tight">
                 <div className="text-xs font-bold text-slate-800">{user?.name || 'Kartik Arora'}</div>
-                <div className="text-[11px] text-slate-500">{user?.hostel || 'H3'} • Student</div>
+                <div className="text-[11px] text-slate-500">{user?.hostel || 'HA'} • Student</div>
               </div>
             </div>
 

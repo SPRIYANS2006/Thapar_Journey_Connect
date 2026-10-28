@@ -17,7 +17,7 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
   const [date, setDate] = useState('Today');
   const [departureTime, setDepartureTime] = useState('17:00'); // 5:00 PM
   const [flexibility, setFlexibility] = useState(15); // ±15 minutes
-  const [hostel, setHostel] = useState(user?.hostel || 'H3');
+  const [hostel, setHostel] = useState(user?.hostel || 'HA');
   const [transport, setTransport] = useState('Shared Cab');
 
   const selectedDestObj = DESTINATIONS.find(d => d.id === selectedDestId) || DESTINATIONS[0];

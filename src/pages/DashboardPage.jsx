@@ -30,7 +30,7 @@ export default function DashboardPage({
         <div className="relative z-10 max-w-2xl">
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-blue-200 text-xs font-semibold mb-3 border border-white/10">
             <Sparkles className="w-3.5 h-3.5 text-blue-300" />
-            <span>Welcome back, {user?.name?.split(' ')[0] || 'Kartik'} ({user?.hostel || 'H3'})</span>
+            <span>Welcome back, {user?.name?.split(' ')[0] || 'Kartik'} ({user?.hostel || 'HA'})</span>
           </div>
 
           <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-tight">

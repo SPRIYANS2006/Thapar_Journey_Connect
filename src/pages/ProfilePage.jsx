@@ -14,7 +14,7 @@ import {
 import { INITIAL_USER_PROFILE, HOSTELS } from '../data/mockData';
 
 export default function ProfilePage({ user, communities = [], onUpdateProfile }) {
-  const [hostel, setHostel] = useState(user?.hostel || 'H3');
+  const [hostel, setHostel] = useState(user?.hostel || 'HA');
   const [phone, setPhone] = useState(user?.phone || '+91 98765 00000');
   const [prefTransport, setPrefTransport] = useState(user?.preferredTransport || 'Shared Cab');
   const [joinedCommunity, setJoinedCommunity] = useState(user?.joinedCommunity || 'jal');

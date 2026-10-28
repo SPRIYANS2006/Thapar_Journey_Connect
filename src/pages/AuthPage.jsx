@@ -8,7 +8,7 @@ export default function AuthPage({ onLoginSuccess }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [hostel, setHostel] = useState('H3');
+  const [hostel, setHostel] = useState('HA');
   const [phone, setPhone] = useState('+91 98765 12345');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

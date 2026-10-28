@@ -203,37 +203,27 @@ function seedDefaultData() {
     `);
 
     const hostels = [
-      // Boys Hostels
-      { id: 'H1', name: 'Hostel H1', gender: 'Boys', cluster: 'Quad A' },
-      { id: 'H2', name: 'Hostel H2', gender: 'Boys', cluster: 'Quad A' },
-      { id: 'H3', name: 'Hostel H3', gender: 'Boys', cluster: 'Quad A' },
-      { id: 'H4', name: 'Hostel H4', gender: 'Boys', cluster: 'Quad A' },
-      { id: 'H5', name: 'Hostel H5', gender: 'Boys', cluster: 'Quad B' },
-      { id: 'H6', name: 'Hostel H6', gender: 'Boys', cluster: 'Quad B' },
-      { id: 'H7', name: 'Hostel H7', gender: 'Boys', cluster: 'Quad B' },
-      { id: 'H8', name: 'Hostel H8', gender: 'Boys', cluster: 'Quad B' },
-      { id: 'H9', name: 'Hostel H9', gender: 'Boys', cluster: 'Quad C' },
-      { id: 'H10', name: 'Hostel H10', gender: 'Boys', cluster: 'Quad C' },
-      { id: 'H11', name: 'Hostel H11', gender: 'Boys', cluster: 'Quad C' },
-      { id: 'H12', name: 'Hostel H12', gender: 'Boys', cluster: 'Quad C' },
-      { id: 'H13', name: 'Hostel H13', gender: 'Boys', cluster: 'Quad C' },
-      { id: 'H14', name: 'Hostel H14', gender: 'Boys', cluster: 'Quad D' },
-      { id: 'H15', name: 'Hostel H15', gender: 'Boys', cluster: 'Quad D' },
-      { id: 'HA', name: 'Hostel A', gender: 'Boys', cluster: 'Quad D' },
-      { id: 'HB', name: 'Hostel B', gender: 'Boys', cluster: 'Quad D' },
-      { id: 'HC', name: 'Hostel C', gender: 'Boys', cluster: 'Quad D' },
+      // Boys Hostels (Official TIET Campus Halls)
+      { id: 'HA', name: 'Agira Hall (Previously known as Hostel-A)', gender: 'Boys', cluster: 'North Quad' },
+      { id: 'HB', name: 'Amritam Hall (Previously known as Hostel-B)', gender: 'Boys', cluster: 'North Quad' },
+      { id: 'HC', name: 'Prithvi Hall (Previously known as Hostel-C)', gender: 'Boys', cluster: 'North Quad' },
+      { id: 'HD', name: 'Neeram Hall (Previously known as Hostel-D)', gender: 'Boys', cluster: 'Central Quad' },
+      { id: 'HH', name: 'Vyan Hall (Previously known as Hostel-H)', gender: 'Boys', cluster: 'Central Quad' },
+      { id: 'HJ', name: 'Tejas Hall (Previously known as Hostel-J)', gender: 'Boys', cluster: 'East Quad' },
+      { id: 'HK', name: 'Ambaram Hall (Previously known as Hostel-K)', gender: 'Boys', cluster: 'East Quad' },
+      { id: 'HL', name: 'Viyat Hall (Previously known as Hostel-L)', gender: 'Boys', cluster: 'East Quad' },
+      { id: 'HM', name: 'Anantam Hall (Previously known as Hostel-M)', gender: 'Boys', cluster: 'West Quad' },
+      { id: 'HO', name: 'Vyom Hall (Previously known as Hostel-O)', gender: 'Boys', cluster: 'West Quad' },
+      { id: 'FRFG', name: 'Hostel-FRF/G', gender: 'Boys', cluster: 'West Quad' },
 
-      // Girls Hostels (Official TIET Halls)
+      // Girls Hostels (Official TIET Campus Halls)
       { id: 'HE', name: 'Vasudha Hall - Block E (Previously known as Hostel-E)', gender: 'Girls', cluster: 'Vasudha Complex' },
       { id: 'HG', name: 'Vasudha Hall - Block G (Previously known as Hostel-G)', gender: 'Girls', cluster: 'Vasudha Complex' },
       { id: 'HI', name: 'Ira Hall (Previously known as Hostel-I)', gender: 'Girls', cluster: 'Girls Quad' },
       { id: 'HN', name: 'Ananta Hall (Previously known as Hostel-N)', gender: 'Girls', cluster: 'Girls Quad' },
       { id: 'Dhriti', name: 'Dhriti Hall (Hostel-PG)', gender: 'Girls', cluster: 'Girls Quad' },
       { id: 'HQ', name: 'Vahni Hall (Previously known as Hostel-Q)', gender: 'Girls', cluster: 'Girls Quad' },
-      { id: 'Pavani', name: 'Hostel-Pavani Hall (Previously Known As PG-2)', gender: 'Girls', cluster: 'Girls Quad' },
-
-      // PG / Research
-      { id: 'FRG', name: 'FRG Apartments', gender: 'Co-ed', cluster: 'PG Quad' }
+      { id: 'Pavani', name: 'Hostel-Pavani Hall (Previously Known As PG-2)', gender: 'Girls', cluster: 'Girls Quad' }
     ];
 
     for (const h of hostels) {
@@ -251,7 +241,7 @@ function seedDefaultData() {
       'user_main',
       'Kartik Arora',
       'student@thapar.edu',
-      'H3',
+      'HA',
       'KA',
       '+91 98765 12345',
       'B.Tech Computer Engineering',

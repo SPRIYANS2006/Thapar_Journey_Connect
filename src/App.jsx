@@ -20,7 +20,7 @@ import {
   INITIAL_COMMUNITY_POSTS 
 } from './data/mockData';
 import { calculateMatchScore } from './utils/matchingEngine';
-import { api } from './services/api';
+import { api, getSocket } from './services/api';
 
 export default function App() {
   // Check local storage for persistent session
@@ -71,24 +71,73 @@ export default function App() {
     loadData();
   }, []);
 
-  // Poll for messages when chat modal is open
+  // Real-time WebSockets synchronization for groups & members
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return;
+
+    const handleGroupsUpdated = async () => {
+      try {
+        const latestGroups = await api.getGroups();
+        if (latestGroups) setGroups(latestGroups);
+      } catch (e) {}
+    };
+
+    const handleMemberUpdate = (updatedGroup) => {
+      if (updatedGroup) {
+        setGroups((prev) =>
+          prev.map((g) => (g.id === updatedGroup.id ? updatedGroup : g))
+        );
+      }
+    };
+
+    socket.on('groups_updated', handleGroupsUpdated);
+    socket.on('member_joined', handleMemberUpdate);
+    socket.on('member_left', handleMemberUpdate);
+    socket.on('group_confirmed', handleMemberUpdate);
+
+    return () => {
+      socket.off('groups_updated', handleGroupsUpdated);
+      socket.off('member_joined', handleMemberUpdate);
+      socket.off('member_left', handleMemberUpdate);
+      socket.off('group_confirmed', handleMemberUpdate);
+    };
+  }, []);
+
+  // Real-time Chat via WebSockets when chat modal is open
   useEffect(() => {
     if (!isChatOpen || !chatGroupId) return;
 
-    const interval = setInterval(async () => {
-      try {
-        const msgs = await api.getMessages(chatGroupId);
+    const socket = getSocket();
+    if (socket) {
+      socket.emit('join_group', chatGroupId);
+
+      const handleNewMessage = (data) => {
+        if (data.groupId === chatGroupId && data.messages) {
+          setGroups((prevGroups) =>
+            prevGroups.map((g) =>
+              g.id === chatGroupId ? { ...g, chatMessages: data.messages } : g
+            )
+          );
+        }
+      };
+
+      socket.on('new_message', handleNewMessage);
+
+      // Initial message fetch
+      api.getMessages(chatGroupId).then((msgs) => {
         if (msgs && msgs.length > 0) {
           setGroups((prevGroups) =>
             prevGroups.map((g) => (g.id === chatGroupId ? { ...g, chatMessages: msgs } : g))
           );
         }
-      } catch (e) {
-        // Silently catch polling error
-      }
-    }, 3000);
+      }).catch(() => {});
 
-    return () => clearInterval(interval);
+      return () => {
+        socket.emit('leave_group', chatGroupId);
+        socket.off('new_message', handleNewMessage);
+      };
+    }
   }, [isChatOpen, chatGroupId]);
 
   // Auth Handlers

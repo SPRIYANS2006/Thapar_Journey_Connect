@@ -1,5 +1,17 @@
 // API client service for Thapar Journey Connect
+import { io } from 'socket.io-client';
+
 const API_BASE = '/api';
+
+let socketInstance = null;
+export function getSocket() {
+  if (!socketInstance && typeof window !== 'undefined') {
+    socketInstance = io({
+      transports: ['websocket', 'polling']
+    });
+  }
+  return socketInstance;
+}
 
 async function request(endpoint, options = {}) {
   try {

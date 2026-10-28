@@ -160,9 +160,27 @@ export default function GroupDetailsPage({
                 <span>Confirm Journey</span>
               </button>
             ) : (
-              <div className="px-4 py-3 bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 font-bold text-xs rounded-2xl flex items-center justify-center gap-2">
-                <CheckCircle className="w-4 h-4" />
-                <span>Journey Confirmed</span>
+              <div className="flex items-center gap-2">
+                <div className="px-4 py-3 bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 font-bold text-xs rounded-2xl flex items-center justify-center gap-2">
+                  <CheckCircle className="w-4 h-4" />
+                  <span>Journey Confirmed</span>
+                </div>
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(
+                    `🚖 *Thapar Journey Connect - Group #${group.id}*
+📍 Destination: ${group.destinationName}
+⏰ Departure: ${group.departureTime} (${group.date || 'Today'})
+📍 Pickup Point: ${group.pickupPoint}
+👥 Members: ${group.members.map(m => m.name).join(', ')}
+Coordinated via Thapar Journey Connect`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-2xl shadow-md flex items-center justify-center gap-1.5 transition-all"
+                  title="Share details to WhatsApp"
+                >
+                  <span>Share on WhatsApp</span>
+                </a>
               </div>
             )}
 

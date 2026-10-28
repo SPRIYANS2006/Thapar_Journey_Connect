@@ -187,12 +187,39 @@ export default function MatchingResultsPage({
         </h2>
 
         {matchedStudents.length === 0 ? (
-          <div className="bg-white rounded-3xl border border-slate-200 p-8 text-center space-y-3">
-            <AlertCircle className="w-10 h-10 text-amber-500 mx-auto" />
-            <h3 className="font-bold text-slate-900 text-base">Looking for more travel partners...</h3>
-            <p className="text-slate-500 text-xs max-w-md mx-auto">
-              No immediate student matches found within your departure window. Your journey request remains open for incoming student matches!
-            </p>
+          <div className="bg-white rounded-3xl border border-slate-200 p-8 text-center space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-500 border border-amber-200 flex items-center justify-center mx-auto">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-900 text-lg">No direct peer matches found in this exact window</h3>
+              <p className="text-slate-500 text-xs max-w-md mx-auto mt-1">
+                You are travelling during an off-peak departure slot. Create an open travel group or share your ride schedule to find peers!
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+              <button
+                onClick={() => onCreateGroupWithStudent({
+                  id: 'me_open',
+                  name: 'Open Group',
+                  hostel: journeyReq?.hostel,
+                  departureTime: journeyReq?.departureTime
+                })}
+                className="w-full sm:w-auto px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer"
+              >
+                Create Open Ride Group (1/4 Members)
+              </button>
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(
+                  `Looking for co-passengers from Thapar campus to ${destName} at around ${formatTime24to12(journeyReq?.departureTime)}! Pool a ride with me on Thapar Journey Connect.`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition-all inline-flex items-center justify-center gap-1.5"
+              >
+                <span>Share to Batch WhatsApp</span>
+              </a>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

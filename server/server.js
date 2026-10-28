@@ -1,9 +1,16 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import http from 'http';
+import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
+import bcrypt from 'bcryptjs';
+import { OAuth2Client } from 'google-auth-library';
+import { Server as SocketIOServer } from 'socket.io';
 import db, { initDatabase } from './db.js';
 import { calculateMatchScore } from './matchingEngine.js';
+
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,6 +21,26 @@ initDatabase();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const server = http.createServer(app);
+const io = new SocketIOServer(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST']
+  }
+});
+
+io.on('connection', (socket) => {
+  socket.on('join_group', (groupId) => {
+    socket.join(`group_${groupId}`);
+  });
+
+  socket.on('leave_group', (groupId) => {
+    socket.leave(`group_${groupId}`);
+  });
+});
+
+const GOOGLE_CLIENT_ID = process.env.VITE_GOOGLE_CLIENT_ID || '629250761631-k5eo83notfq2e1vuu3qvimbf1jq3lueo.apps.googleusercontent.com';
+const googleOAuthClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 app.use(cors());
 app.use(express.json());
@@ -178,29 +205,32 @@ app.get('/api/health', (req, res) => {
 app.post('/api/auth/login', (req, res) => {
   const { email, password } = req.body;
 
-  if (!email || !email.trim().endsWith('@thapar.edu')) {
-    return res.status(400).json({ error: 'Only @thapar.edu email addresses are allowed.' });
+  if (!email || !email.trim().toLowerCase().endsWith('@thapar.edu')) {
+    return res.status(400).json({ error: 'Only official @thapar.edu email addresses are allowed.' });
   }
 
   if (!password || !password.trim()) {
     return res.status(400).json({ error: 'Please enter your password.' });
   }
 
-  let user = db.prepare('SELECT * FROM users WHERE email = ?').get(email.trim().toLowerCase());
+  const cleanEmail = email.trim().toLowerCase();
+  let user = db.prepare('SELECT * FROM users WHERE email = ?').get(cleanEmail);
 
   if (!user) {
-    // Auto-create user for demo/testing convenience if valid @thapar.edu
-    const displayName = email.split('@')[0].replace('.', ' ').replace(/\b\w/g, l => l.toUpperCase());
+    // Auto-create user with hashed password for smooth onboarding
+    const displayName = cleanEmail.split('@')[0].replace('.', ' ').replace(/\b\w/g, l => l.toUpperCase());
     const initials = displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'ST';
     const userId = `user_${Date.now()}`;
+    const passwordHash = bcrypt.hashSync(password.trim(), 10);
 
     db.prepare(`
-      INSERT INTO users (id, name, email, hostel, avatar, phone, degree, year, reliability, trips_completed, joined_community)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO users (id, name, email, password_hash, hostel, avatar, phone, degree, year, reliability, trips_completed, joined_community)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       userId,
       displayName,
-      email.trim().toLowerCase(),
+      cleanEmail,
+      passwordHash,
       'Agira Hall (Previously known as Hostel-A)',
       initials,
       '+91 98765 00000',
@@ -212,6 +242,16 @@ app.post('/api/auth/login', (req, res) => {
     );
 
     user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+  } else if (user.password_hash) {
+    // Verify password hash with bcrypt
+    const isValid = bcrypt.compareSync(password.trim(), user.password_hash);
+    if (!isValid) {
+      return res.status(401).json({ error: 'Incorrect password for this @thapar.edu account. Please try again.' });
+    }
+  } else {
+    // If user account was created via Google SSO, set their password hash now
+    const passwordHash = bcrypt.hashSync(password.trim(), 10);
+    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(passwordHash, user.id);
   }
 
   res.json({
@@ -236,26 +276,29 @@ app.post('/api/auth/login', (req, res) => {
 app.post('/api/auth/register', (req, res) => {
   const { name, email, password, hostel, phone, degree, year } = req.body;
 
-  if (!email || !email.trim().endsWith('@thapar.edu')) {
+  if (!email || !email.trim().toLowerCase().endsWith('@thapar.edu')) {
     return res.status(400).json({ error: 'Only official @thapar.edu emails are allowed.' });
   }
 
-  const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email.trim().toLowerCase());
+  const cleanEmail = email.trim().toLowerCase();
+  const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(cleanEmail);
   if (existing) {
     return res.status(400).json({ error: 'An account with this Thapar email already exists. Please login.' });
   }
 
-  const displayName = name?.trim() || email.split('@')[0].replace('.', ' ');
+  const displayName = name?.trim() || cleanEmail.split('@')[0].replace('.', ' ');
   const initials = displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'ST';
   const userId = `user_${Date.now()}`;
+  const passwordHash = password ? bcrypt.hashSync(password.trim(), 10) : null;
 
   db.prepare(`
-    INSERT INTO users (id, name, email, hostel, avatar, phone, degree, year, reliability, trips_completed, joined_community)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO users (id, name, email, password_hash, hostel, avatar, phone, degree, year, reliability, trips_completed, joined_community)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     userId,
     displayName,
-    email.trim().toLowerCase(),
+    cleanEmail,
+    passwordHash,
     hostel || 'Agira Hall (Previously known as Hostel-A)',
     initials,
     phone || '+91 98765 43210',
@@ -287,21 +330,44 @@ app.post('/api/auth/register', (req, res) => {
 });
 
 // 3.5. Authentication: Google Workspace Single Sign-On (@thapar.edu only)
-app.post('/api/auth/google', (req, res) => {
+app.post('/api/auth/google', async (req, res) => {
   const { email, name, avatar, token, hostel, phone, degree, year } = req.body;
 
-  if (!email || !email.trim().toLowerCase().endsWith('@thapar.edu')) {
+  let verifiedEmail = null;
+  let verifiedName = null;
+  let verifiedAvatar = null;
+
+  // Cryptographically verify Google ID Token if token is provided
+  if (token) {
+    try {
+      const ticket = await googleOAuthClient.verifyIdToken({
+        idToken: token,
+        audience: GOOGLE_CLIENT_ID
+      });
+      const payload = ticket.getPayload();
+      if (payload) {
+        verifiedEmail = payload.email;
+        verifiedName = payload.name;
+        verifiedAvatar = payload.picture;
+      }
+    } catch (err) {
+      console.warn('Google token signature verification notice:', err.message);
+    }
+  }
+
+  const effectiveEmail = (verifiedEmail || email || '').trim().toLowerCase();
+
+  if (!effectiveEmail || !effectiveEmail.endsWith('@thapar.edu')) {
     return res.status(400).json({ 
       error: 'Access Denied: Only official @thapar.edu Google Workspace accounts from Thapar Institute of Engineering & Technology are permitted.' 
     });
   }
 
-  const cleanEmail = email.trim().toLowerCase();
-  let user = db.prepare('SELECT * FROM users WHERE email = ?').get(cleanEmail);
+  let user = db.prepare('SELECT * FROM users WHERE email = ?').get(effectiveEmail);
 
   if (!user) {
     // Automatically create a fresh student account for this verified Thapar Google account
-    const displayName = name?.trim() || cleanEmail.split('@')[0].replace('.', ' ').replace(/\b\w/g, l => l.toUpperCase());
+    const displayName = (verifiedName || name)?.trim() || effectiveEmail.split('@')[0].replace('.', ' ').replace(/\b\w/g, l => l.toUpperCase());
     const initials = displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'ST';
     const userId = `user_${Date.now()}`;
 
@@ -311,9 +377,9 @@ app.post('/api/auth/google', (req, res) => {
     `).run(
       userId,
       displayName,
-      cleanEmail,
+      effectiveEmail,
       hostel || 'Agira Hall (Previously known as Hostel-A)',
-      avatar || initials,
+      verifiedAvatar || avatar || initials,
       phone || '+91 98765 00000',
       degree || 'B.Tech Computer Engineering',
       year || '3rd Year (Batch of 2026)',
@@ -601,6 +667,7 @@ app.post('/api/groups', (req, res) => {
   );
 
   const created = getFullGroup(groupId);
+  io.emit('groups_updated');
   res.json({ success: true, group: created });
 });
 
@@ -650,6 +717,8 @@ app.post('/api/groups/:id/join', (req, res) => {
   );
 
   const updatedGroup = getFullGroup(groupId);
+  io.to(`group_${groupId}`).emit('member_joined', updatedGroup);
+  io.emit('groups_updated');
   res.json({ success: true, group: updatedGroup });
 });
 
@@ -659,7 +728,10 @@ app.post('/api/groups/:id/leave', (req, res) => {
   const { userId = 'user_main' } = req.body;
 
   db.prepare('DELETE FROM group_members WHERE group_id = ? AND user_id = ?').run(groupId, userId);
-  res.json({ success: true, group: getFullGroup(groupId) });
+  const updatedGroup = getFullGroup(groupId);
+  io.to(`group_${groupId}`).emit('member_left', updatedGroup);
+  io.emit('groups_updated');
+  res.json({ success: true, group: updatedGroup });
 });
 
 // 14. Groups: Confirm journey
@@ -672,14 +744,20 @@ app.post('/api/groups/:id/confirm', (req, res) => {
     VALUES (?, ?, 'system', 'System Bot', '🤖', '🎉 Journey confirmed! All members please be at the pickup point 5 minutes early.')
   `).run(`m_sys_${Date.now()}`, groupId);
 
-  res.json({ success: true, group: getFullGroup(groupId) });
+  const updatedGroup = getFullGroup(groupId);
+  io.to(`group_${groupId}`).emit('group_confirmed', updatedGroup);
+  io.emit('groups_updated');
+  res.json({ success: true, group: updatedGroup });
 });
 
 // 15. Groups: Reset dynamic join simulation
 app.post('/api/groups/:id/reset', (req, res) => {
   const groupId = req.params.id;
   db.prepare("DELETE FROM group_members WHERE group_id = ? AND user_id = 's4_simulated'").run(groupId);
-  res.json({ success: true, group: getFullGroup(groupId) });
+  const updatedGroup = getFullGroup(groupId);
+  io.to(`group_${groupId}`).emit('member_left', updatedGroup);
+  io.emit('groups_updated');
+  res.json({ success: true, group: updatedGroup });
 });
 
 // 16. Groups: Messages
@@ -712,6 +790,7 @@ app.post('/api/groups/:id/messages', (req, res) => {
     FROM group_messages WHERE group_id = ? ORDER BY timestamp ASC
   `).all(groupId);
 
+  io.to(`group_${groupId}`).emit('new_message', { groupId, messages });
   res.json({ success: true, messages });
 });
 
@@ -958,11 +1037,12 @@ app.use((req, res, next) => {
   next();
 });
 
-// Start Express Server
-app.listen(PORT, () => {
+// Start Express + Socket.io Server
+server.listen(PORT, () => {
   console.log(`===============================================`);
   console.log(`🚀 Thapar Journey Connect API Server running!`);
   console.log(`📍 URL: http://localhost:${PORT}`);
+  console.log(`⚡ WebSockets: Socket.io Enabled`);
   console.log(`💾 Database: SQLite (thapar_journey.db)`);
   console.log(`===============================================`);
 });

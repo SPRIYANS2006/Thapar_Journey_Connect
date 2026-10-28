@@ -76,22 +76,6 @@ export default function AuthPage({ onLoginSuccess }) {
     }
   ];
 
-  // Initialize official Google Identity Services if VITE_GOOGLE_CLIENT_ID is provided
-  useEffect(() => {
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    if (typeof window !== 'undefined' && window.google?.accounts?.id && clientId) {
-      try {
-        window.google.accounts.id.initialize({
-          client_id: clientId,
-          callback: handleGoogleCredentialResponse,
-          hosted_domain: 'thapar.edu' // Built-in Google Workspace domain restriction
-        });
-      } catch (err) {
-        console.warn('Google Identity Services notice:', err.message);
-      }
-    }
-  }, []);
-
   const handleGoogleCredentialResponse = async (response) => {
     setLoading(true);
     setError('');
@@ -120,7 +104,52 @@ export default function AuthPage({ onLoginSuccess }) {
     }
   };
 
-  // 1-Click Google Sign In / Sign Up handler (NO email/mobile number entry needed)
+  // Initialize official Google Identity Services with Client ID
+  useEffect(() => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '629250761631-k5eo83notfq2e1vuu3qvimbf1jq3lueo.apps.googleusercontent.com';
+    if (typeof window !== 'undefined' && window.google?.accounts?.id && clientId) {
+      try {
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: handleGoogleCredentialResponse,
+          hosted_domain: 'thapar.edu' // Built-in Google Workspace domain restriction
+        });
+
+        const officialBtn = document.getElementById('googleOfficialBtn');
+        if (officialBtn) {
+          window.google.accounts.id.renderButton(officialBtn, {
+            theme: 'outline',
+            size: 'large',
+            text: 'continue_with',
+            shape: 'pill',
+            width: 320,
+            logo_alignment: 'left'
+          });
+        }
+      } catch (err) {
+        console.warn('Google Identity Services notice:', err.message);
+      }
+    }
+  }, []);
+
+  const handleGoogleBtnClick = () => {
+    setGoogleError('');
+    setShowCustomInput(false);
+    
+    if (typeof window !== 'undefined' && window.google?.accounts?.id) {
+      try {
+        window.google.accounts.id.prompt((notification) => {
+          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+            setShowGoogleChooser(true);
+          }
+        });
+      } catch (e) {
+        setShowGoogleChooser(true);
+      }
+    } else {
+      setShowGoogleChooser(true);
+    }
+  };
   const handleSelectGoogleAccount = async (account) => {
     setGoogleError('');
 
@@ -328,11 +357,7 @@ export default function AuthPage({ onLoginSuccess }) {
             <div className="space-y-3">
               <button
                 type="button"
-                onClick={() => {
-                  setGoogleError('');
-                  setShowCustomInput(false);
-                  setShowGoogleChooser(true);
-                }}
+                onClick={handleGoogleBtnClick}
                 disabled={loading}
                 className="w-full py-3.5 px-4 bg-white hover:bg-slate-50 text-slate-900 font-bold text-sm rounded-2xl shadow-md border border-slate-200 transition-all flex items-center justify-center gap-3 active:scale-[0.99] group cursor-pointer"
               >
@@ -348,9 +373,12 @@ export default function AuthPage({ onLoginSuccess }) {
                 </span>
               </button>
 
+              {/* Native Google One-Tap / Button container */}
+              <div id="googleOfficialBtn" className="empty:hidden flex justify-center pt-0.5" />
+
               <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 font-medium">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>One-click login with your TIET Google account</span>
+                <span>Verified with Google Workspace (@thapar.edu)</span>
               </div>
             </div>
 

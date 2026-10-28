@@ -17,6 +17,7 @@ export function initDatabase() {
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       email TEXT UNIQUE NOT NULL,
+      password_hash TEXT,
       hostel TEXT NOT NULL,
       avatar TEXT NOT NULL,
       phone TEXT,
@@ -138,6 +139,13 @@ export function initDatabase() {
       FOREIGN KEY(post_id) REFERENCES community_posts(id) ON DELETE CASCADE
     );
   `);
+
+  // Safe migration for password_hash if updating existing database
+  try {
+    db.exec('ALTER TABLE users ADD COLUMN password_hash TEXT');
+  } catch (e) {
+    // Column already exists, ignore
+  }
 
   seedDefaultData();
 }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import Avatar from './Avatar';
 import { X, Send, ShieldCheck, Users, MapPin, Phone } from 'lucide-react';
 
 export default function GroupChatModal({ group, currentUser, onClose, onSendMessage }) {
@@ -94,11 +95,14 @@ export default function GroupChatModal({ group, currentUser, onClose, onSendMess
                 className={`flex items-start gap-2.5 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}
               >
                 {/* Avatar */}
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 text-white shadow-xs ${
-                  isMe ? 'bg-indigo-600' : 'bg-slate-700'
-                }`}>
-                  {msg.avatar}
-                </div>
+                <Avatar
+                  src={msg.avatar}
+                  name={msg.senderName}
+                  size="w-8 h-8"
+                  textSize="text-xs"
+                  rounded="rounded-full"
+                  bg={isMe ? 'bg-indigo-600' : 'bg-slate-700'}
+                />
 
                 {/* Message Bubble */}
                 <div className={`max-w-[75%] ${isMe ? 'items-end' : 'items-start'}`}>

@@ -1,4 +1,5 @@
 import React from 'react';
+import Avatar from '../components/Avatar';
 import { 
   ArrowLeft, 
   Sparkles, 
@@ -138,9 +139,14 @@ export default function MatchingResultsPage({
                     <div className="grid grid-cols-2 gap-2">
                       {group.members.map((m) => (
                         <div key={m.id} className="bg-white p-2 rounded-xl border border-slate-200/80 flex items-center gap-2 text-xs">
-                          <div className="w-6 h-6 rounded-full bg-slate-700 text-white text-[10px] font-bold flex items-center justify-center">
-                            {m.avatar}
-                          </div>
+                          <Avatar
+                            src={m.avatar}
+                            name={m.name}
+                            size="w-6 h-6"
+                            textSize="text-[10px]"
+                            rounded="rounded-full"
+                            bg="bg-slate-700"
+                          />
                           <div className="truncate">
                             <span className="font-bold text-slate-800 truncate block">{m.name}</span>
                             <span className="text-[10px] text-slate-500">{m.hostel} • {formatTime24to12(m.departureTime)}</span>
@@ -234,9 +240,15 @@ export default function MatchingResultsPage({
                     {/* Top Row: Avatar & Match % */}
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white font-extrabold text-base flex items-center justify-center shadow-md">
-                          {student.avatar}
-                        </div>
+                        <Avatar
+                          src={student.avatar}
+                          name={student.name}
+                          size="w-12 h-12"
+                          textSize="text-base"
+                          rounded="rounded-2xl"
+                          bg="bg-indigo-600"
+                          className="shadow-md"
+                        />
                         <div>
                           <h3 className="font-bold text-slate-900 text-base">
                             {student.name}

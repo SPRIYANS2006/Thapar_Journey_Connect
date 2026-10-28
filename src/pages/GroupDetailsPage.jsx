@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Avatar from '../components/Avatar';
 import { 
   ArrowLeft, 
   Users, 
@@ -252,9 +253,15 @@ Coordinated via Thapar Journey Connect`
                 )}
 
                 <div>
-                  <div className="w-14 h-14 rounded-2xl bg-slate-900 text-white font-extrabold text-lg flex items-center justify-center mb-4 shadow-md">
-                    {member.avatar}
-                  </div>
+                  <Avatar
+                    src={member.avatar}
+                    name={member.name}
+                    size="w-14 h-14"
+                    textSize="text-lg"
+                    rounded="rounded-2xl"
+                    bg="bg-slate-900"
+                    className="mb-4 shadow-md"
+                  />
 
                   <h3 className="font-bold text-slate-900 text-base flex items-center gap-1.5">
                     <span>{member.name}</span>

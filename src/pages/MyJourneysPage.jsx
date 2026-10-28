@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Avatar from '../components/Avatar';
 import { 
   MapPin, 
   Calendar, 
@@ -129,9 +130,16 @@ export default function MyJourneysPage({ activeGroups, currentUser, onViewGroupD
                         <span className="text-xs text-slate-500 font-semibold">Travelers:</span>
                         <div className="flex -space-x-2">
                           {group.members.map((m) => (
-                            <div key={m.id} title={`${m.name} (${m.hostel})`} className="w-7 h-7 rounded-full bg-slate-800 border-2 border-white text-white font-bold text-[10px] flex items-center justify-center">
-                              {m.avatar}
-                            </div>
+                            <Avatar
+                              key={m.id}
+                              src={m.avatar}
+                              name={m.name}
+                              size="w-7 h-7"
+                              textSize="text-[10px]"
+                              rounded="rounded-full"
+                              bg="bg-slate-800"
+                              className="border-2 border-white"
+                            />
                           ))}
                         </div>
                       </div>

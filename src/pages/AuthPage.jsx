@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Navigation, 
   ShieldCheck, 
@@ -8,10 +8,7 @@ import {
   CheckCircle2, 
   AlertCircle, 
   Loader2, 
-  X, 
-  Plus, 
-  ChevronRight,
-  UserCheck
+  X
 } from 'lucide-react';
 import { api } from '../services/api';
 import { HOSTELS } from '../data/mockData';
@@ -40,43 +37,17 @@ export default function AuthPage({ onLoginSuccess }) {
   const [name, setName] = useState('');
   const defaultHostel = HOSTELS[0]?.name || 'Agira Hall (Previously known as Hostel-A)';
   const [hostel, setHostel] = useState(defaultHostel);
-  const [phone, setPhone] = useState('+91 98765 12345');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Google Sign-In Account Chooser State
-  const [showGoogleChooser, setShowGoogleChooser] = useState(false);
-  const [showCustomInput, setShowCustomInput] = useState(false);
-  const [customThaparEmail, setCustomThaparEmail] = useState('');
+  // Single Google Button State
+  const [gisRendered, setGisRendered] = useState(false);
+  const [showManualGoogleModal, setShowManualGoogleModal] = useState(false);
+  const [customThaparInput, setCustomThaparInput] = useState('');
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleError, setGoogleError] = useState('');
 
-  // Preset verified Thapar Google accounts for 1-click Google Sign-In
-  const availableGoogleAccounts = [
-    {
-      name: 'Priyanshu Sharma',
-      email: 'psharma_be23@thapar.edu',
-      avatarBg: 'bg-emerald-600',
-      initials: 'PS',
-      subtext: 'TIET Computer Engineering • 2023 Batch'
-    },
-    {
-      name: 'TIET Student Account',
-      email: 'student@thapar.edu',
-      avatarBg: 'bg-blue-600',
-      initials: 'TS',
-      subtext: 'Official Thapar Student Account'
-    },
-    {
-      name: 'Ananya Verma',
-      email: 'averma_be24@thapar.edu',
-      avatarBg: 'bg-purple-600',
-      initials: 'AV',
-      subtext: 'TIET Electronics & Communication • 2024 Batch'
-    }
-  ];
-
-  const handleGoogleCredentialResponse = async (response) => {
+  const handleGoogleCredentialResponse = useCallback(async (response) => {
     setLoading(true);
     setError('');
     try {
@@ -102,7 +73,7 @@ export default function AuthPage({ onLoginSuccess }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [onLoginSuccess]);
 
   // Initialize official Google Identity Services with Client ID
   useEffect(() => {
@@ -112,7 +83,8 @@ export default function AuthPage({ onLoginSuccess }) {
         window.google.accounts.id.initialize({
           client_id: clientId,
           callback: handleGoogleCredentialResponse,
-          hosted_domain: 'thapar.edu' // Built-in Google Workspace domain restriction
+          hosted_domain: 'thapar.edu',
+          auto_select: false
         });
 
         const officialBtn = document.getElementById('googleOfficialBtn');
@@ -122,71 +94,41 @@ export default function AuthPage({ onLoginSuccess }) {
             size: 'large',
             text: 'continue_with',
             shape: 'pill',
-            width: 320,
+            width: 340,
             logo_alignment: 'left'
           });
+          setTimeout(() => setGisRendered(true), 0);
         }
       } catch (err) {
         console.warn('Google Identity Services notice:', err.message);
       }
     }
-  }, []);
+  }, [handleGoogleCredentialResponse]);
 
   const handleGoogleBtnClick = () => {
     setGoogleError('');
-    setShowCustomInput(false);
-    
     if (typeof window !== 'undefined' && window.google?.accounts?.id) {
       try {
         window.google.accounts.id.prompt((notification) => {
           if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-            setShowGoogleChooser(true);
+            setShowManualGoogleModal(true);
           }
         });
       } catch (e) {
-        setShowGoogleChooser(true);
+        setShowManualGoogleModal(true);
       }
     } else {
-      setShowGoogleChooser(true);
-    }
-  };
-  const handleSelectGoogleAccount = async (account) => {
-    setGoogleError('');
-
-    const cleanEmail = account.email.trim().toLowerCase();
-    if (!cleanEmail.endsWith('@thapar.edu')) {
-      setGoogleError('Access Denied: Only official @thapar.edu Google accounts are allowed. Personal accounts (@gmail.com) are strictly blocked.');
-      return;
-    }
-
-    setGoogleLoading(true);
-
-    try {
-      const res = await api.googleLogin({
-        email: cleanEmail,
-        name: account.name,
-        avatar: account.initials
-      });
-
-      if (res && res.user) {
-        setShowGoogleChooser(false);
-        onLoginSuccess(res.user);
-      }
-    } catch (err) {
-      setGoogleError(err.message || 'Failed to authenticate with Google account.');
-    } finally {
-      setGoogleLoading(false);
+      setShowManualGoogleModal(true);
     }
   };
 
-  // Custom Thapar Google account input (only asking for @thapar.edu email, no mobile/password)
-  const handleCustomGoogleSubmit = async (e) => {
+  const handleManualGoogleSubmit = async (e) => {
     e.preventDefault();
     setGoogleError('');
 
-    let fullEmail = customThaparEmail.trim().toLowerCase();
+    let fullEmail = customThaparInput.trim().toLowerCase();
     if (!fullEmail) {
-      setGoogleError('Please enter your Thapar Google account ID.');
+      setGoogleError('Please enter your Thapar email or roll number.');
       return;
     }
 
@@ -202,18 +144,18 @@ export default function AuthPage({ onLoginSuccess }) {
     setGoogleLoading(true);
 
     try {
-      const derivedName = fullEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      const derivedName = fullEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
       const res = await api.googleLogin({
         email: fullEmail,
         name: derivedName
       });
 
       if (res && res.user) {
-        setShowGoogleChooser(false);
+        setShowManualGoogleModal(false);
         onLoginSuccess(res.user);
       }
     } catch (err) {
-      setGoogleError(err.message || 'Failed to authenticate with Google account.');
+      setGoogleError(err.message || 'Failed to authenticate with Thapar Google account.');
     } finally {
       setGoogleLoading(false);
     }
@@ -243,8 +185,7 @@ export default function AuthPage({ onLoginSuccess }) {
           name: name.trim() || undefined,
           email: email.trim().toLowerCase(),
           password: password.trim(),
-          hostel: hostel,
-          phone: phone
+          hostel: hostel
         });
       } else {
         res = await api.login(email.trim().toLowerCase(), password.trim());
@@ -254,22 +195,7 @@ export default function AuthPage({ onLoginSuccess }) {
         onLoginSuccess(res.user);
       }
     } catch (err) {
-      console.warn('Backend login fallback:', err.message);
-      const displayName = isRegister && name.trim() ? name.trim() : (email.split('@')[0].replace('.', ' ') || 'TIET Student');
-      const userInitials = displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'TS';
-
-      const fallbackUserData = {
-        id: `user_${Date.now()}`,
-        name: displayName,
-        email: email.trim().toLowerCase(),
-        hostel: hostel,
-        avatar: userInitials,
-        phone: phone,
-        tripsCompleted: 0,
-        reliability: 5.0,
-        joinedCommunity: 'jal'
-      };
-      onLoginSuccess(fallbackUserData);
+      setError(err.message || 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }
@@ -342,7 +268,7 @@ export default function AuthPage({ onLoginSuccess }) {
                 <CheckCircle2 className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="font-bold text-white text-sm">Instant Google SSO</h4>
+                <h4 className="font-bold text-white text-sm">Instant Google Workspace SSO</h4>
                 <p className="text-slate-400 text-xs mt-0.5">1-click login with your @thapar.edu Google account.</p>
               </div>
             </div>
@@ -353,30 +279,31 @@ export default function AuthPage({ onLoginSuccess }) {
         <div className="lg:col-span-5">
           <div className="bg-slate-800/90 border border-slate-700/80 rounded-3xl p-8 shadow-2xl backdrop-blur-xl">
             
-            {/* Primary Google Sign-In Button */}
+            {/* Single Clean Google Sign-In Container */}
             <div className="space-y-3">
-              <button
-                type="button"
-                onClick={handleGoogleBtnClick}
-                disabled={loading}
-                className="w-full py-3.5 px-4 bg-white hover:bg-slate-50 text-slate-900 font-bold text-sm rounded-2xl shadow-md border border-slate-200 transition-all flex items-center justify-center gap-3 active:scale-[0.99] group cursor-pointer"
-              >
-                {/* Official Google G Logo */}
-                <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                </svg>
-                <span className="font-semibold text-slate-800 group-hover:text-blue-700 transition-colors">
-                  Continue with Google (@thapar.edu)
-                </span>
-              </button>
+              <div id="googleOfficialBtn" className="w-full flex justify-center min-h-[44px]" />
+              
+              {/* Fallback button shown only if GIS iframe is not active */}
+              {!gisRendered && (
+                <button
+                  type="button"
+                  onClick={handleGoogleBtnClick}
+                  disabled={loading}
+                  className="w-full py-3 px-4 bg-white hover:bg-slate-50 text-slate-900 font-bold text-sm rounded-full shadow-md border border-slate-200 transition-all flex items-center justify-center gap-3 active:scale-[0.99] group cursor-pointer"
+                >
+                  <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                  </svg>
+                  <span className="font-semibold text-slate-800 group-hover:text-blue-700 transition-colors">
+                    Continue with Google (@thapar.edu)
+                  </span>
+                </button>
+              )}
 
-              {/* Native Google One-Tap / Button container */}
-              <div id="googleOfficialBtn" className="empty:hidden flex justify-center pt-0.5" />
-
-              <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 font-medium">
+              <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 font-medium pt-1">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
                 <span>Verified with Google Workspace (@thapar.edu)</span>
               </div>
@@ -422,7 +349,7 @@ export default function AuthPage({ onLoginSuccess }) {
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Kartik Arora"
+                    placeholder="e.g. Priyanshu Soni"
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -520,20 +447,6 @@ export default function AuthPage({ onLoginSuccess }) {
                   </>
                 )}
               </button>
-
-              <div className="text-center pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEmail('student@thapar.edu');
-                    setPassword('password123');
-                    setError('');
-                  }}
-                  className="text-xs text-blue-400 hover:text-blue-300 underline font-medium cursor-pointer"
-                >
-                  Quick Demo: student@thapar.edu
-                </button>
-              </div>
             </form>
 
           </div>
@@ -541,22 +454,20 @@ export default function AuthPage({ onLoginSuccess }) {
 
       </main>
 
-      {/* Google Account Chooser Modal (True 1-Click Google Sign-In) */}
-      {showGoogleChooser && (
+      {/* Manual Fallback Thapar Google Sign-In Dialog */}
+      {showManualGoogleModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white text-slate-800 rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl relative border border-slate-200">
             
-            {/* Close Button */}
             <button
               onClick={() => {
-                if (!googleLoading) setShowGoogleChooser(false);
+                if (!googleLoading) setShowManualGoogleModal(false);
               }}
-              className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
 
-            {/* Google Header */}
             <div className="text-left mb-6">
               <div className="w-10 h-10 mb-3 flex items-center justify-center">
                 <svg className="w-9 h-9" viewBox="0 0 24 24">
@@ -567,14 +478,13 @@ export default function AuthPage({ onLoginSuccess }) {
                 </svg>
               </div>
               <h3 className="text-xl font-bold text-slate-900 tracking-tight">
-                Choose a Google Account
+                Thapar Google Workspace SSO
               </h3>
               <p className="text-xs text-slate-500 mt-1">
-                to sign in / sign up to <span className="font-semibold text-slate-800">Thapar Journey Connect</span>
+                Sign in to <span className="font-semibold text-slate-800">Thapar Journey Connect</span> using your official institutional account.
               </p>
             </div>
 
-            {/* Error Message */}
             {googleError && (
               <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs flex items-start gap-2.5">
                 <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
@@ -582,105 +492,45 @@ export default function AuthPage({ onLoginSuccess }) {
               </div>
             )}
 
-            {/* Loading Indicator */}
-            {googleLoading ? (
-              <div className="py-12 flex flex-col items-center justify-center gap-3">
-                <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-                <p className="text-sm font-semibold text-slate-700">Signing in with Google...</p>
-                <p className="text-xs text-slate-400">Verifying official @thapar.edu domain</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                
-                {/* 1-Click Thapar Google Accounts List */}
-                <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200 overflow-hidden">
-                  {availableGoogleAccounts.map((account) => (
-                    <button
-                      key={account.email}
-                      type="button"
-                      onClick={() => handleSelectGoogleAccount(account)}
-                      className="w-full p-3.5 flex items-center justify-between text-left hover:bg-slate-50 active:bg-slate-100 transition-colors group cursor-pointer"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-10 h-10 rounded-full ${account.avatarBg} text-white font-bold flex items-center justify-center shrink-0 shadow-sm text-sm`}>
-                          {account.initials}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors truncate">
-                            {account.name}
-                          </div>
-                          <div className="text-xs text-slate-500 truncate font-mono">
-                            {account.email}
-                          </div>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-600 shrink-0 ml-2" />
-                    </button>
-                  ))}
+            <form onSubmit={handleManualGoogleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Enter your Thapar email or roll number:
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={customThaparInput}
+                    onChange={(e) => setCustomThaparInput(e.target.value)}
+                    placeholder="e.g. 102303001 or roll.name"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-3 pr-24 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+                    autoFocus
+                  />
+                  <span className="absolute right-3 top-2.5 text-xs text-slate-400 font-mono font-medium pointer-events-none">
+                    @thapar.edu
+                  </span>
                 </div>
+              </div>
 
-                {/* Use another Thapar account */}
-                {!showCustomInput ? (
-                  <button
-                    type="button"
-                    onClick={() => setShowCustomInput(true)}
-                    className="w-full p-3 rounded-xl border border-dashed border-slate-300 hover:border-blue-500 hover:bg-blue-50/50 text-slate-700 text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer mt-3"
-                  >
-                    <Plus className="w-4 h-4 text-blue-600" />
-                    <span>Use another @thapar.edu Google account</span>
-                  </button>
+              <button
+                type="submit"
+                disabled={googleLoading}
+                className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shadow-md shadow-blue-500/20"
+              >
+                {googleLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Verifying @thapar.edu account...</span>
+                  </>
                 ) : (
-                  <form onSubmit={handleCustomGoogleSubmit} className="mt-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Enter your Thapar email or roll number:
-                    </label>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <input
-                          type="text"
-                          value={customThaparEmail}
-                          onChange={(e) => setCustomThaparEmail(e.target.value)}
-                          placeholder="e.g. 102303001 or roll.no"
-                          className="w-full bg-white border border-slate-300 rounded-lg pl-3 pr-24 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
-                          autoFocus
-                        />
-                        <span className="absolute right-2.5 top-2 text-[11px] text-slate-400 font-mono font-medium pointer-events-none">
-                          @thapar.edu
-                        </span>
-                      </div>
-                      <button
-                        type="submit"
-                        className="py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg transition-colors cursor-pointer shrink-0"
-                      >
-                        Sign In
-                      </button>
-                    </div>
-                  </form>
+                  <span>Continue with Thapar Google SSO</span>
                 )}
+              </button>
+            </form>
 
-                {/* Demonstration Block Test Item */}
-                <div className="pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setGoogleError('Access Denied: Only official @thapar.edu Google Workspace accounts from TIET are permitted. Personal Google accounts (@gmail.com) are strictly blocked.');
-                    }}
-                    className="w-full py-2 px-3 rounded-xl bg-slate-50 hover:bg-rose-50 border border-slate-200 text-slate-500 hover:text-rose-600 text-[11px] flex items-center justify-between transition-colors cursor-pointer"
-                  >
-                    <span className="truncate">Test Rejection: outside_user@gmail.com</span>
-                    <span className="text-[10px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded font-bold shrink-0">
-                      Blocked
-                    </span>
-                  </button>
-                </div>
-
-                {/* Google Footer Disclaimer */}
-                <div className="pt-4 text-center text-[11px] text-slate-400 border-t border-slate-100 mt-4">
-                  To continue, Google will share your verified name, email address, and language preference with Thapar Journey Connect.
-                </div>
-
-              </div>
-            )}
+            <div className="pt-4 text-center text-[11px] text-slate-400 border-t border-slate-100 mt-5">
+              Only @thapar.edu accounts are permitted. Personal Google accounts are strictly restricted.
+            </div>
 
           </div>
         </div>

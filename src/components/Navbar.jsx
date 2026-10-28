@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Avatar from './Avatar';
 import { 
   Navigation, 
   MapPin, 
@@ -88,18 +89,22 @@ export default function Navbar({ activePage, setActivePage, user, onLogout, myGr
               onClick={() => handleNavClick('profile')}
               className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200/80 cursor-pointer hover:bg-slate-200/70 transition-colors"
             >
-              <div className="w-7 h-7 rounded-full bg-indigo-600 text-white font-semibold text-xs flex items-center justify-center shadow-xs">
-                {user?.avatar || 'KA'}
-              </div>
+              <Avatar
+                src={user?.avatar}
+                name={user?.name || 'Student'}
+                size="w-7 h-7"
+                textSize="text-xs"
+                rounded="rounded-full"
+              />
               <div className="text-left leading-tight">
-                <div className="text-xs font-bold text-slate-800">{user?.name || 'Kartik Arora'}</div>
-                <div className="text-[11px] text-slate-500">{user?.hostel || 'HA'} • Student</div>
+                <div className="text-xs font-bold text-slate-800">{user?.name || 'TIET Student'}</div>
+                <div className="text-[11px] text-slate-500 max-w-[130px] truncate">{user?.hostel || 'Campus'} • Student</div>
               </div>
             </div>
 
             <button
               onClick={onLogout}
-              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
               title="Logout"
             >
               <LogOut className="w-5 h-5" />
@@ -123,11 +128,15 @@ export default function Navbar({ activePage, setActivePage, user, onLogout, myGr
       {mobileMenuOpen && (
         <div className="md:hidden bg-white border-b border-slate-200 px-4 pt-2 pb-4 space-y-2 shadow-lg">
           <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200 mb-3">
-            <div className="w-9 h-9 rounded-full bg-indigo-600 text-white font-bold text-sm flex items-center justify-center">
-              {user?.avatar || 'KA'}
-            </div>
+            <Avatar
+              src={user?.avatar}
+              name={user?.name || 'Student'}
+              size="w-9 h-9"
+              textSize="text-sm"
+              rounded="rounded-full"
+            />
             <div>
-              <div className="font-bold text-slate-900 text-sm">{user?.name || 'Kartik Arora'}</div>
+              <div className="font-bold text-slate-900 text-sm">{user?.name || 'TIET Student'}</div>
               <div className="text-xs text-slate-500">{user?.email || 'student@thapar.edu'}</div>
             </div>
           </div>

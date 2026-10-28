@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Avatar from '../components/Avatar';
 import { 
   User, 
   Mail, 
@@ -48,10 +49,16 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
       <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white rounded-3xl p-8 shadow-xl relative overflow-hidden">
         <div className="flex flex-col sm:flex-row items-center gap-6 relative z-10">
           
-          {/* Large Avatar */}
-          <div className="w-24 h-24 rounded-3xl bg-indigo-600 border-4 border-white/20 text-white font-black text-3xl flex items-center justify-center shadow-xl shrink-0">
-            {user?.avatar || (name ? name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase() : 'ST')}
-          </div>
+          {/* Large Profile Photo / Avatar */}
+          <Avatar
+            src={user?.avatar}
+            name={name || user?.name || 'TIET Student'}
+            size="w-24 h-24"
+            textSize="text-3xl"
+            rounded="rounded-3xl"
+            bg="bg-indigo-600"
+            className="border-4 border-white/20 shadow-xl"
+          />
 
           <div className="text-center sm:text-left space-y-1">
             <div className="flex items-center justify-center sm:justify-start gap-2">

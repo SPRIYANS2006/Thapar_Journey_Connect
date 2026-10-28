@@ -83,8 +83,8 @@ export default function AuthPage({ onLoginSuccess }) {
         window.google.accounts.id.initialize({
           client_id: clientId,
           callback: handleGoogleCredentialResponse,
-          hosted_domain: 'thapar.edu',
-          auto_select: false
+          auto_select: false,
+          cancel_on_tap_outside: true
         });
 
         const officialBtn = document.getElementById('googleOfficialBtn');
@@ -307,6 +307,17 @@ export default function AuthPage({ onLoginSuccess }) {
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
                 <span>Verified with Google Workspace (@thapar.edu)</span>
               </div>
+
+              <div className="text-center pt-1">
+                <button
+                  type="button"
+                  onClick={() => { setShowManualGoogleModal(true); setGoogleError(''); }}
+                  className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors hover:underline cursor-pointer inline-flex items-center gap-1"
+                >
+                  <span>Can't switch Google account? Sign in with Thapar Roll No. / Email</span>
+                  <span>→</span>
+                </button>
+              </div>
             </div>
 
             {/* Divider */}
@@ -528,8 +539,12 @@ export default function AuthPage({ onLoginSuccess }) {
               </button>
             </form>
 
-            <div className="pt-4 text-center text-[11px] text-slate-400 border-t border-slate-100 mt-5">
-              Only @thapar.edu accounts are permitted. Personal Google accounts are strictly restricted.
+            <div className="pt-4 text-center text-[11px] text-slate-500 border-t border-slate-100 mt-5 space-y-2">
+              <p>Only @thapar.edu accounts are permitted. Personal Google accounts are strictly restricted.</p>
+              <div className="p-2.5 bg-slate-50 rounded-xl text-left border border-slate-200 text-[11px] text-slate-600">
+                <span className="font-bold text-slate-800 block mb-0.5">💡 Google Cloud Console "origin_mismatch" fix:</span>
+                <span>In Google Cloud Console credentials, add <code className="bg-white px-1 py-0.5 rounded border border-slate-200 text-blue-600 font-mono">http://localhost:5173</code> and <code className="bg-white px-1 py-0.5 rounded border border-slate-200 text-blue-600 font-mono">http://localhost:5000</code> to <strong>Authorized JavaScript origins</strong>.</span>
+              </div>
             </div>
 
           </div>

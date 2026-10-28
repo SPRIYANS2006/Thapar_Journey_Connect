@@ -36,6 +36,12 @@ export const api = {
       body: JSON.stringify(userData)
     }),
 
+  googleLogin: (googleData) =>
+    request('/auth/google', {
+      method: 'POST',
+      body: JSON.stringify(googleData)
+    }),
+
   getMe: (userId) =>
     request(`/auth/me${userId ? `?userId=${userId}` : ''}`),
 

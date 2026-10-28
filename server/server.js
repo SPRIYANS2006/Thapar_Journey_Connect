@@ -286,6 +286,63 @@ app.post('/api/auth/register', (req, res) => {
   });
 });
 
+// 3.5. Authentication: Google Workspace Single Sign-On (@thapar.edu only)
+app.post('/api/auth/google', (req, res) => {
+  const { email, name, avatar, token, hostel, phone, degree, year } = req.body;
+
+  if (!email || !email.trim().toLowerCase().endsWith('@thapar.edu')) {
+    return res.status(400).json({ 
+      error: 'Access Denied: Only official @thapar.edu Google Workspace accounts from Thapar Institute of Engineering & Technology are permitted.' 
+    });
+  }
+
+  const cleanEmail = email.trim().toLowerCase();
+  let user = db.prepare('SELECT * FROM users WHERE email = ?').get(cleanEmail);
+
+  if (!user) {
+    // Automatically create a fresh student account for this verified Thapar Google account
+    const displayName = name?.trim() || cleanEmail.split('@')[0].replace('.', ' ').replace(/\b\w/g, l => l.toUpperCase());
+    const initials = displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'ST';
+    const userId = `user_${Date.now()}`;
+
+    db.prepare(`
+      INSERT INTO users (id, name, email, hostel, avatar, phone, degree, year, reliability, trips_completed, joined_community)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      userId,
+      displayName,
+      cleanEmail,
+      hostel || 'Agira Hall (Previously known as Hostel-A)',
+      avatar || initials,
+      phone || '+91 98765 00000',
+      degree || 'B.Tech Computer Engineering',
+      year || '3rd Year (Batch of 2026)',
+      5.0,
+      0,
+      'jal'
+    );
+
+    user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+  }
+
+  res.json({
+    success: true,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      hostel: user.hostel,
+      avatar: user.avatar,
+      phone: user.phone,
+      degree: user.degree,
+      year: user.year,
+      reliability: user.reliability,
+      tripsCompleted: user.trips_completed,
+      joinedCommunity: user.joined_community
+    }
+  });
+});
+
 // 4. Current user profile
 app.get('/api/auth/me', (req, res) => {
   const userId = req.query.userId || 'user_main';

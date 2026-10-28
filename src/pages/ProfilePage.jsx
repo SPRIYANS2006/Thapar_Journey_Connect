@@ -162,11 +162,21 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
                 onChange={(e) => setHostel(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               >
-                {HOSTELS.map((h) => (
-                  <option key={h.id} value={h.id}>
-                    {h.name} ({h.cluster})
-                  </option>
-                ))}
+                <optgroup label="Boys Hostels">
+                  {HOSTELS.filter(h => h.gender === 'Boys').map(h => (
+                    <option key={h.id} value={h.id}>{h.name}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="Girls Hostels (Official TIET Halls)">
+                  {HOSTELS.filter(h => h.gender === 'Girls').map(h => (
+                    <option key={h.id} value={h.id}>{h.name}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="PG / Research">
+                  {HOSTELS.filter(h => h.gender === 'Co-ed').map(h => (
+                    <option key={h.id} value={h.id}>{h.name}</option>
+                  ))}
+                </optgroup>
               </select>
             </div>
 

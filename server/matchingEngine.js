@@ -32,15 +32,24 @@ export function formatTime24to12(time24) {
 export function getHostelProximity(hostelA, hostelB) {
   if (!hostelA || !hostelB) return { score: 10, label: 'Wider campus' };
 
-  const hA = hostelA.replace('Hostel ', '').trim();
-  const hB = hostelB.replace('Hostel ', '').trim();
-
-  if (hA === hB) {
+  if (hostelA === hostelB) {
     return { score: 40, label: 'Same hostel' };
   }
 
-  const objA = db.prepare('SELECT * FROM hostels WHERE id = ? OR name = ?').get(hA, hostelA);
-  const objB = db.prepare('SELECT * FROM hostels WHERE id = ? OR name = ?').get(hB, hostelB);
+  const clean = (h) => (h || '').replace(/hostel\s*/i, '').trim();
+  const cA = clean(hostelA);
+  const cB = clean(hostelB);
+
+  if (cA === cB) {
+    return { score: 40, label: 'Same hostel' };
+  }
+
+  const objA = db.prepare('SELECT * FROM hostels WHERE id = ? OR name = ? OR name LIKE ?').get(cA, hostelA, `%${cA}%`);
+  const objB = db.prepare('SELECT * FROM hostels WHERE id = ? OR name = ? OR name LIKE ?').get(cB, hostelB, `%${cB}%`);
+
+  if (objA && objB && objA.id === objB.id) {
+    return { score: 40, label: 'Same hostel' };
+  }
 
   if (objA && objB && objA.cluster === objB.cluster) {
     return { score: 30, label: 'Nearby hostel block' };

@@ -186,17 +186,17 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
             >
               <optgroup label="Boys Hostels">
                 {HOSTELS.filter(h => h.gender === 'Boys').map(h => (
-                  <option key={h.id} value={h.id}>{h.name} ({h.cluster})</option>
+                  <option key={h.id} value={h.id}>{h.name}</option>
                 ))}
               </optgroup>
-              <optgroup label="Girls Hostels">
+              <optgroup label="Girls Hostels (Official TIET Halls)">
                 {HOSTELS.filter(h => h.gender === 'Girls').map(h => (
-                  <option key={h.id} value={h.id}>{h.name} ({h.cluster})</option>
+                  <option key={h.id} value={h.id}>{h.name}</option>
                 ))}
               </optgroup>
               <optgroup label="PG / Research Hostels">
                 {HOSTELS.filter(h => h.gender === 'Co-ed').map(h => (
-                  <option key={h.id} value={h.id}>{h.name} ({h.cluster})</option>
+                  <option key={h.id} value={h.id}>{h.name}</option>
                 ))}
               </optgroup>
             </select>

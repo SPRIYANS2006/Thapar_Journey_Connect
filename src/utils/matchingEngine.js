@@ -32,16 +32,31 @@ export function formatTime24to12(time24) {
 export function getHostelProximity(hostelA, hostelB) {
   if (!hostelA || !hostelB) return { score: 10, label: 'Wider campus' };
 
-  // Strip 'Hostel ' prefix if present for clean comparison
-  const hA = hostelA.replace('Hostel ', '');
-  const hB = hostelB.replace('Hostel ', '');
-
-  if (hA === hB) {
+  if (hostelA === hostelB) {
     return { score: 40, label: 'Same hostel' };
   }
 
-  const objA = HOSTELS.find(h => h.id === hA || h.name === hostelA);
-  const objB = HOSTELS.find(h => h.id === hB || h.name === hostelB);
+  const clean = (h) => (h || '').replace(/hostel\s*/i, '').trim().toLowerCase();
+  const cA = clean(hostelA);
+  const cB = clean(hostelB);
+
+  const findH = (val) => {
+    const c = clean(val);
+    return HOSTELS.find(h => 
+      h.id.toLowerCase() === c || 
+      clean(h.name) === c ||
+      clean(h.name).includes(c) ||
+      c.includes(clean(h.name)) ||
+      c.includes(h.id.toLowerCase())
+    );
+  };
+
+  const objA = findH(hostelA);
+  const objB = findH(hostelB);
+
+  if (objA && objB && objA.id === objB.id) {
+    return { score: 40, label: 'Same hostel' };
+  }
 
   if (objA && objB && objA.cluster === objB.cluster) {
     return { score: 30, label: 'Nearby hostel block' };

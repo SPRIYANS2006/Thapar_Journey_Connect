@@ -203,6 +203,7 @@ function seedDefaultData() {
     `);
 
     const hostels = [
+      // Boys Hostels
       { id: 'H1', name: 'Hostel H1', gender: 'Boys', cluster: 'Quad A' },
       { id: 'H2', name: 'Hostel H2', gender: 'Boys', cluster: 'Quad A' },
       { id: 'H3', name: 'Hostel H3', gender: 'Boys', cluster: 'Quad A' },
@@ -221,18 +222,17 @@ function seedDefaultData() {
       { id: 'HA', name: 'Hostel A', gender: 'Boys', cluster: 'Quad D' },
       { id: 'HB', name: 'Hostel B', gender: 'Boys', cluster: 'Quad D' },
       { id: 'HC', name: 'Hostel C', gender: 'Boys', cluster: 'Quad D' },
-      { id: 'HD', name: 'Hostel D', gender: 'Girls', cluster: 'Girls Quad 1' },
-      { id: 'HE', name: 'Hostel E', gender: 'Girls', cluster: 'Girls Quad 1' },
-      { id: 'HF', name: 'Hostel F', gender: 'Girls', cluster: 'Girls Quad 1' },
-      { id: 'HG', name: 'Hostel G', gender: 'Girls', cluster: 'Girls Quad 1' },
-      { id: 'HI', name: 'Hostel I', gender: 'Girls', cluster: 'Girls Quad 1' },
-      { id: 'HJ', name: 'Hostel J', gender: 'Girls', cluster: 'Girls Quad 1' },
-      { id: 'HK', name: 'Hostel K', gender: 'Girls', cluster: 'Girls Quad 2' },
-      { id: 'HL', name: 'Hostel L', gender: 'Girls', cluster: 'Girls Quad 2' },
-      { id: 'HM', name: 'Hostel M', gender: 'Girls', cluster: 'Girls Quad 2' },
-      { id: 'HN', name: 'Hostel N', gender: 'Girls', cluster: 'Girls Quad 2' },
-      { id: 'HQ', name: 'Hostel Q', gender: 'Girls', cluster: 'Girls Quad 2' },
-      { id: 'PG', name: 'PG Hostel', gender: 'Co-ed', cluster: 'PG Quad' },
+
+      // Girls Hostels (Official TIET Halls)
+      { id: 'HE', name: 'Vasudha Hall - Block E (Previously known as Hostel-E)', gender: 'Girls', cluster: 'Vasudha Complex' },
+      { id: 'HG', name: 'Vasudha Hall - Block G (Previously known as Hostel-G)', gender: 'Girls', cluster: 'Vasudha Complex' },
+      { id: 'HI', name: 'Ira Hall (Previously known as Hostel-I)', gender: 'Girls', cluster: 'Girls Quad' },
+      { id: 'HN', name: 'Ananta Hall (Previously known as Hostel-N)', gender: 'Girls', cluster: 'Girls Quad' },
+      { id: 'Dhriti', name: 'Dhriti Hall (Hostel-PG)', gender: 'Girls', cluster: 'Girls Quad' },
+      { id: 'HQ', name: 'Vahni Hall (Previously known as Hostel-Q)', gender: 'Girls', cluster: 'Girls Quad' },
+      { id: 'Pavani', name: 'Hostel-Pavani Hall (Previously Known As PG-2)', gender: 'Girls', cluster: 'Girls Quad' },
+
+      // PG / Research
       { id: 'FRG', name: 'FRG Apartments', gender: 'Co-ed', cluster: 'PG Quad' }
     ];
 

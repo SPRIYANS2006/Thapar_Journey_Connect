@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Navigation, ShieldCheck, Mail, Lock, ArrowRight, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
+import { HOSTELS } from '../data/mockData';
 
 export default function AuthPage({ onLoginSuccess }) {
   const [isRegister, setIsRegister] = useState(false);
@@ -215,15 +216,21 @@ export default function AuthPage({ onLoginSuccess }) {
                     onChange={(e) => setHostel(e.target.value)}
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="H1">Hostel H1 (Boys)</option>
-                    <option value="H2">Hostel H2 (Boys)</option>
-                    <option value="H3">Hostel H3 (Boys)</option>
-                    <option value="H4">Hostel H4 (Boys)</option>
-                    <option value="H5">Hostel H5 (Boys)</option>
-                    <option value="Hostel D">Hostel D (Girls)</option>
-                    <option value="Hostel M">Hostel M (Girls)</option>
-                    <option value="Hostel Q">Hostel Q (Girls)</option>
-                    <option value="PG">PG Hostel</option>
+                    <optgroup label="Boys Hostels">
+                      {HOSTELS.filter(h => h.gender === 'Boys').map(h => (
+                        <option key={h.id} value={h.name}>{h.name}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Girls Hostels">
+                      {HOSTELS.filter(h => h.gender === 'Girls').map(h => (
+                        <option key={h.id} value={h.name}>{h.name}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="PG / Research">
+                      {HOSTELS.filter(h => h.gender === 'Co-ed').map(h => (
+                        <option key={h.id} value={h.name}>{h.name}</option>
+                      ))}
+                    </optgroup>
                   </select>
                 </div>
               )}

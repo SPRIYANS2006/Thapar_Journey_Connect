@@ -123,7 +123,7 @@ const POOL_STUDENTS = [
     name: 'Pooja Roy',
     avatar: 'PR',
     email: 'proy_be23@thapar.edu',
-    hostel: 'Hostel D',
+    hostel: 'Vahni Hall (Previously known as Hostel-Q)',
     destinationId: 'bus_stand',
     departureTime: '08:00',
     flexibility: 15,

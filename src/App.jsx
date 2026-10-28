@@ -252,7 +252,7 @@ export default function App() {
       departureTime: candidateStudent.departureTime,
       date: currentJourneyReq?.date || 'Today',
       pickupPoint: 'Main Gate (Near Executive Mess)',
-      matchScore: 96,
+      matchScore: candidateStudent?.id === 'me_open' ? 100 : 96,
       initialMembers: [
         {
           id: user.id,
@@ -260,20 +260,22 @@ export default function App() {
           name: user.name,
           avatar: user.avatar || 'ST',
           hostel: user.hostel,
-          departureTime: currentJourneyReq?.departureTime || candidateStudent.departureTime,
+          departureTime: currentJourneyReq?.departureTime || candidateStudent?.departureTime,
           role: 'Group Admin',
-          phone: user.phone
+          phone: user.phone || '+91 98765 00000'
         },
-        {
-          id: candidateStudent.id,
-          user_id: candidateStudent.id,
-          name: candidateStudent.name,
-          avatar: candidateStudent.avatar,
-          hostel: candidateStudent.hostel,
-          departureTime: candidateStudent.departureTime,
-          role: 'Member',
-          phone: candidateStudent.phone
-        }
+        ...(candidateStudent && candidateStudent.id !== 'me_open' ? [
+          {
+            id: candidateStudent.id,
+            user_id: candidateStudent.id,
+            name: candidateStudent.name,
+            avatar: candidateStudent.avatar || 'ST',
+            hostel: candidateStudent.hostel,
+            departureTime: candidateStudent.departureTime,
+            role: 'Member',
+            phone: candidateStudent.phone || '+91 98765 00000'
+          }
+        ] : [])
       ]
     };
 

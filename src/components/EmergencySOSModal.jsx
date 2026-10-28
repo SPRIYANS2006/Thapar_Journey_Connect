@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, ShieldAlert, PhoneCall, AlertTriangle, ShieldCheck, MapPin, HeartHandshake } from 'lucide-react';
+import { X, ShieldAlert, PhoneCall, AlertTriangle, ShieldCheck } from 'lucide-react';
 
 export default function EmergencySOSModal({ user, onClose }) {
   const emergencyContacts = [

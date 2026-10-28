@@ -14,6 +14,7 @@ export async function connectMongoDB(uri, maxRetries = 3) {
     try {
       console.log(`🔄 Connecting to MongoDB Atlas Cloud (attempt ${attempt}/${maxRetries})...`);
       await mongoose.connect(mongoUri, {
+        dbName: 'thapar_journey',
         tls: true,
         tlsAllowInvalidCertificates: true,
         serverSelectionTimeoutMS: 5000

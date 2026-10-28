@@ -91,11 +91,15 @@ export const api = {
       body: JSON.stringify(memberData)
     }),
 
-  leaveGroup: (id, userId) =>
-    request(`/groups/${id}/leave`, {
+  leaveGroup: (id, userData) => {
+    const payload = typeof userData === 'string'
+      ? { userId: userData }
+      : { userId: userData?.id, name: userData?.name };
+    return request(`/groups/${id}/leave`, {
       method: 'POST',
-      body: JSON.stringify({ userId })
-    }),
+      body: JSON.stringify(payload)
+    });
+  },
 
   confirmGroup: (id) =>
     request(`/groups/${id}/confirm`, {

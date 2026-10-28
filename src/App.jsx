@@ -30,7 +30,7 @@ export default function App() {
     if (savedUser) {
       try {
         const parsed = JSON.parse(savedUser);
-        if (parsed.email === 'student@thapar.edu' || parsed.name === 'Kartik Arora' || parsed.id === 'user_main') {
+        if (parsed.email === 'student@thapar.edu' || parsed.id === 'user_main') {
           localStorage.removeItem('tiet_logged_in');
           localStorage.removeItem('tiet_user');
           return false;
@@ -45,7 +45,7 @@ export default function App() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (parsed.email !== 'student@thapar.edu' && parsed.name !== 'Kartik Arora' && parsed.id !== 'user_main') {
+        if (parsed.email !== 'student@thapar.edu' && parsed.id !== 'user_main') {
           return parsed;
         }
       } catch (e) {}
@@ -142,7 +142,13 @@ export default function App() {
     socket.on('member_left', handleMemberUpdate);
     socket.on('group_confirmed', handleMemberUpdate);
 
+    // Auto-sync polling every 8s + window focus fallback for reliable multi-device syncing
+    const interval = setInterval(handleGroupsUpdated, 8000);
+    window.addEventListener('focus', handleGroupsUpdated);
+
     return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleGroupsUpdated);
       socket.off('groups_updated', handleGroupsUpdated);
       socket.off('member_joined', handleMemberUpdate);
       socket.off('member_left', handleMemberUpdate);
@@ -214,20 +220,26 @@ export default function App() {
 
     try {
       // Call backend API to persist journey and retrieve algorithmic matches
-      const res = await api.createJourney({
-        userId: user.id || 'user_main',
-        destinationId: journeyData.destinationId,
-        destinationName: journeyData.destinationName,
-        hostel: journeyData.hostel,
-        departureTime: journeyData.departureTime,
-        date: journeyData.date,
-        flexibility: journeyData.flexibility,
-        transport: journeyData.transport,
-        notes: journeyData.notes
-      });
+      const [res, freshGroups] = await Promise.all([
+        api.createJourney({
+          userId: user?.id || 'user_main',
+          destinationId: journeyData.destinationId,
+          destinationName: journeyData.destinationName,
+          hostel: journeyData.hostel,
+          departureTime: journeyData.departureTime,
+          date: journeyData.date,
+          flexibility: journeyData.flexibility,
+          transport: journeyData.transport,
+          notes: journeyData.notes
+        }),
+        api.getGroups().catch(() => null)
+      ]);
 
       if (res && res.matchedStudents) {
         setMatchedStudents(res.matchedStudents);
+      }
+      if (freshGroups && Array.isArray(freshGroups)) {
+        setGroups(freshGroups);
       }
     } catch (err) {
       console.warn('Backend match fallback:', err.message);
@@ -247,11 +259,26 @@ export default function App() {
 
   // Group Handlers
   const handleJoinGroup = async (groupId) => {
-    // Single-Active-Group Rule enforcement
+    const targetGroup = (groups || []).find((g) => g.id === groupId);
+
+    // 1. If already a member of this group, navigate directly without re-joining!
+    const isAlreadyMember = targetGroup && targetGroup.members && targetGroup.members.some((m) =>
+      (m.id && m.id === user?.id) ||
+      (m.user_id && m.user_id === user?.id) ||
+      (user?.email && m.email === user.email) ||
+      (user?.name && m.name === user.name)
+    );
+    if (isAlreadyMember) {
+      setSelectedGroupId(groupId);
+      setActivePage('group-details');
+      return;
+    }
+
+    // 2. Single-Active-Group Rule enforcement
     const currentActiveGroup = (groups || []).find(g =>
       g.id !== groupId &&
       (g.status === 'Open' || g.status === 'Confirmed') &&
-      g.members && g.members.some(m => (m.id && m.id === user?.id) || (m.user_id && m.user_id === user?.id))
+      g.members && g.members.some(m => (m.id && m.id === user?.id) || (m.user_id && m.user_id === user?.id) || (user?.name && m.name === user.name))
     );
     if (currentActiveGroup) {
       alert(`Single-Ride Policy: You are already a member of Group #${currentActiveGroup.id} for ${currentActiveGroup.destinationName}. In order to prevent conflicting carpool bookings, you can only belong to one active ride group at a time. Please leave that group first before joining another!`);
@@ -282,7 +309,7 @@ export default function App() {
       setGroups((prevGroups) =>
         prevGroups.map((g) => {
           if (g.id === groupId) {
-            const exists = g.members.some((m) => (m.id && m.id === user.id) || (m.user_id && m.user_id === user.id));
+            const exists = g.members.some((m) => (m.id && m.id === user.id) || (m.user_id && m.user_id === user.id) || m.name === user.name);
             if (exists || g.members.length >= g.maxMembers) return g;
             const userMember = {
               id: user.id,
@@ -391,7 +418,7 @@ export default function App() {
     if (!window.confirm('Are you sure you want to leave this travel group?')) return;
 
     try {
-      await api.leaveGroup(groupId, user.id);
+      await api.leaveGroup(groupId, user);
       const updated = await api.getGroups();
       setGroups(updated || []);
     } catch (err) {
@@ -400,11 +427,11 @@ export default function App() {
           if (g.id === groupId) {
             return {
               ...g,
-              members: g.members.filter((m) => m.id !== user.id && m.user_id !== user.id)
+              members: g.members.filter((m) => m.id !== user.id && m.user_id !== user.id && m.name !== user.name)
             };
           }
           return g;
-        })
+        }).filter(g => g.members.length > 0)
       );
     }
     setActivePage('dashboard');
@@ -680,6 +707,7 @@ export default function App() {
             onNavigateToCommunities={() => setActivePage('communities')}
             onSelectDestination={handleOpenJourneyForm}
             activeGroups={groups}
+            onJoinGroup={handleJoinGroup}
             onViewGroupDetails={(gId) => {
               setSelectedGroupId(gId);
               setActivePage('group-details');
@@ -695,6 +723,10 @@ export default function App() {
             currentUser={user}
             onBack={() => setActivePage('dashboard')}
             onJoinGroup={handleJoinGroup}
+            onViewGroupDetails={(gId) => {
+              setSelectedGroupId(gId);
+              setActivePage('group-details');
+            }}
             onCreateGroupWithStudent={handleCreateGroupWithStudent}
           />
         )}

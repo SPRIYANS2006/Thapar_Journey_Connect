@@ -1,20 +1,24 @@
 import React from 'react';
 import DisclaimerBanner from '../components/DisclaimerBanner';
 import DestinationCard from '../components/DestinationCard';
+import Avatar from '../components/Avatar';
 import { DESTINATIONS } from '../data/mockData';
-import { Sparkles, Users, ArrowRight, Clock, MapPin } from 'lucide-react';
+import { Sparkles, Users, ArrowRight, Clock, MapPin, UserPlus } from 'lucide-react';
+import { formatTime24to12 } from '../utils/matchingEngine';
 
 export default function DashboardPage({ 
   user, 
   onSelectDestination, 
   activeGroups, 
   onViewGroupDetails, 
+  onJoinGroup,
   communities = [], 
   onNavigateToCommunities 
 }) {
   const activeUserGroup = (activeGroups || []).find(g =>
-    g.members && g.members.some(m => (m.id && m.id === user?.id) || (m.user_id && m.user_id === user?.id))
+    g.members && g.members.some(m => (m.id && m.id === user?.id) || (m.user_id && m.user_id === user?.id) || (user?.name && m.name === user.name))
   );
+  const openGroups = (activeGroups || []).filter(g => g.status === 'Open' || g.status === 'Confirmed');
   const userCommunity = user?.joinedCommunity ? communities.find(c => c.id === user.joinedCommunity) : null;
 
   return (
@@ -157,6 +161,132 @@ export default function DashboardPage({
           </button>
         </div>
       )}
+
+      {/* Live Campus Travel Groups Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+              <Users className="w-6 h-6 text-blue-600" />
+              <span>Live Ride Groups on Campus</span>
+            </h2>
+            <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
+              Active student travel groups departing from TIET. Join an open ride or start a new group below!
+            </p>
+          </div>
+          <span className="text-xs font-bold px-3 py-1 bg-blue-50 text-blue-700 rounded-full border border-blue-200">
+            {openGroups.length} Active {openGroups.length === 1 ? 'Group' : 'Groups'}
+          </span>
+        </div>
+
+        {openGroups.length === 0 ? (
+          <div className="bg-white rounded-3xl border border-dashed border-slate-300 p-8 text-center space-y-2 shadow-xs">
+            <Users className="w-8 h-8 text-slate-400 mx-auto" />
+            <h3 className="font-bold text-slate-700 text-sm">No Active Ride Groups Formed Yet</h3>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto">
+              Be the first to create a travel group for your upcoming trip! Pick a destination below to get matched.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {openGroups.map((group) => {
+              const isFull = (group.members || []).length >= (group.maxMembers || 4);
+              const isUserMember = group.members && group.members.some(m => 
+                (m.id && m.id === user?.id) || 
+                (m.user_id && m.user_id === user?.id) ||
+                (user?.name && m.name === user.name)
+              );
+
+              return (
+                <div 
+                  key={group.id}
+                  className="bg-white rounded-3xl border border-slate-200/90 p-5 shadow-xs hover:shadow-md hover:border-blue-300 transition-all flex flex-col justify-between"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-black text-xs shadow-sm">
+                          #{group.id}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-slate-900 text-sm">
+                            {group.destinationName}
+                          </h4>
+                          <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
+                            group.status === 'Confirmed' ? 'bg-emerald-100 text-emerald-800' : isFull ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
+                          }`}>
+                            {group.status === 'Confirmed' ? 'Confirmed' : isFull ? 'Full (4/4)' : 'Open For Riders'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <span className="text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg">
+                        {group.members.length}/{group.maxMembers || 4}
+                      </span>
+                    </div>
+
+                    <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100 text-xs text-slate-600 space-y-1">
+                      <div className="flex items-center gap-1.5 font-semibold text-slate-800">
+                        <Clock className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                        <span>Departure: {formatTime24to12(group.departureTime)} ({group.date || 'Today'})</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-slate-500">
+                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span className="truncate">Pickup: {group.pickupPoint}</span>
+                      </div>
+                    </div>
+
+                    {/* Members Avatars preview */}
+                    <div className="flex items-center gap-1.5 pt-1">
+                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">Riders:</span>
+                      <div className="flex -space-x-1.5 overflow-hidden">
+                        {(group.members || []).map((m, idx) => (
+                          <Avatar
+                            key={idx}
+                            src={m.avatar}
+                            name={m.name}
+                            size="w-6 h-6"
+                            textSize="text-[10px]"
+                            rounded="rounded-full"
+                            bg="bg-slate-800"
+                          />
+                        ))}
+                      </div>
+                      <span className="text-[11px] text-slate-500 font-medium ml-1 truncate">
+                        ({group.members.map(m => m.name.split(' ')[0]).join(', ')})
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-slate-100">
+                    {isUserMember ? (
+                      <button
+                        onClick={() => onViewGroupDetails(group.id)}
+                        className="w-full py-2.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <Users className="w-3.5 h-3.5" />
+                        <span>Open My Group & Chat</span>
+                      </button>
+                    ) : isFull ? (
+                      <div className="w-full py-2 bg-slate-100 text-slate-500 font-bold rounded-xl text-xs text-center border border-slate-200">
+                        Group Full (4/4 Members)
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => onJoinGroup ? onJoinGroup(group.id) : onViewGroupDetails(group.id)}
+                        className="w-full py-2.5 px-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        <span>Join Group #{group.id} ({group.members.length}/4)</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {/* Destination Grid Title */}
       <div>

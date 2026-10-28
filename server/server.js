@@ -690,23 +690,6 @@ app.post('/api/journeys', async (req, res) => {
 
   if (isMongo()) {
     try {
-      let existingUser = await User.findOne({ id: effectiveUserId });
-      if (!existingUser) {
-        await User.create({
-          id: effectiveUserId,
-          name: userName || 'TIET Student',
-          email: `${effectiveUserId}@thapar.edu`,
-          hostel: hostel || '',
-          avatar: 'ST',
-          phone: '',
-          degree: '',
-          year: '',
-          reliability: 5.0,
-          trips_completed: 0,
-          joined_community: null
-        });
-      }
-
       await Journey.create({
         id: journeyId,
         user_id: effectiveUserId,
@@ -1048,26 +1031,35 @@ app.post('/api/groups/:id/join', async (req, res) => {
       const group = await Group.findOne({ id: groupId });
       if (!group) return res.status(404).json({ error: 'Group not found' });
 
+      // 1. Check if student is already in this group (avoid duplicate joins)
+      const alreadyJoined = group.members.some(m => 
+        (m.user_id && m.user_id === userId) || 
+        (m.id && m.id === userId) ||
+        (name && m.name === name)
+      );
+      if (alreadyJoined) {
+        const full = await getGroup(groupId);
+        return res.json({ success: true, message: 'Already a member', group: full });
+      }
+
       if (group.members.length >= (group.max_members || 4)) {
         return res.status(400).json({ error: 'This group is already at maximum capacity (4/4 members).' });
       }
 
-      // Enforce Single-Active-Group Rule: a student cannot belong to multiple open or confirmed ride groups
+      // 2. Enforce Single-Active-Group Rule: a student cannot belong to multiple open or confirmed ride groups
       const otherActiveGroup = await Group.findOne({
         id: { $ne: groupId },
         status: { $in: ['Open', 'Confirmed'] },
-        $or: [{ 'members.user_id': userId }, { 'members.id': userId }]
+        $or: [
+          { 'members.user_id': userId },
+          { 'members.id': userId },
+          ...(name ? [{ 'members.name': name }] : [])
+        ]
       });
       if (otherActiveGroup) {
         return res.status(400).json({
           error: `Single-Ride Policy: You are already a member of Group #${otherActiveGroup.id} for ${otherActiveGroup.destination_name || 'your journey'}. In order to prevent booking conflicts, please leave that group first before joining another.`
         });
-      }
-
-      const alreadyJoined = group.members.some(m => m.user_id === userId);
-      if (alreadyJoined) {
-        const full = await getGroup(groupId);
-        return res.json({ success: true, message: 'Already a member', group: full });
       }
 
       group.members.push({
@@ -1166,14 +1158,24 @@ app.post('/api/groups/:id/join', async (req, res) => {
 // 13. Groups: Leave group
 app.post('/api/groups/:id/leave', async (req, res) => {
   const groupId = req.params.id;
-  const { userId = 'user_main' } = req.body;
+  const { userId = 'user_main', name } = req.body;
 
   if (isMongo()) {
     try {
       const group = await Group.findOne({ id: groupId });
       if (group) {
-        group.members = group.members.filter(m => m.user_id !== userId);
-        await group.save();
+        group.members = group.members.filter(m => 
+          m.user_id !== userId && 
+          m.id !== userId && 
+          (name ? m.name !== name : true)
+        );
+        if (group.members.length === 0) {
+          await Group.deleteOne({ id: groupId });
+          io.emit('groups_updated');
+          return res.json({ success: true, message: 'Group removed as all members left' });
+        } else {
+          await group.save();
+        }
       }
       const updatedGroup = await getGroup(groupId);
       io.to(`group_${groupId}`).emit('member_left', updatedGroup);
@@ -1185,7 +1187,11 @@ app.post('/api/groups/:id/leave', async (req, res) => {
     }
   }
 
-  db.prepare('DELETE FROM group_members WHERE group_id = ? AND user_id = ?').run(groupId, userId);
+  db.prepare('DELETE FROM group_members WHERE group_id = ? AND (user_id = ? OR name = ?)').run(groupId, userId, name || '');
+  const remaining = db.prepare('SELECT COUNT(*) as count FROM group_members WHERE group_id = ?').get(groupId);
+  if (remaining && remaining.count === 0) {
+    db.prepare('DELETE FROM groups WHERE id = ?').run(groupId);
+  }
   const updatedGroup = getFullGroup(groupId);
   io.to(`group_${groupId}`).emit('member_left', updatedGroup);
   io.emit('groups_updated');

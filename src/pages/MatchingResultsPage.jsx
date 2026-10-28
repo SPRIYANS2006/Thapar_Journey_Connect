@@ -23,11 +23,19 @@ export default function MatchingResultsPage({
   currentUser,
   onBack, 
   onJoinGroup, 
+  onViewGroupDetails,
   onCreateGroupWithStudent 
 }) {
   const currentUid = currentUser?.id;
+  const currentUname = currentUser?.name;
   const destName = journeyReq?.destinationName || 'Selected Transit Point';
-  const filteredGroups = (activeGroups || []).filter(g => g.destinationId === journeyReq?.destinationId);
+  const filteredGroups = (activeGroups || []).filter(g => 
+    g.destinationId === journeyReq?.destinationId ||
+    (g.destinationName && journeyReq?.destinationName && g.destinationName.toLowerCase() === journeyReq.destinationName.toLowerCase())
+  );
+  const otherCampusGroups = (activeGroups || []).filter(g => 
+    g.status === 'Open' && !filteredGroups.some(fg => fg.id === g.id)
+  );
   const safeMatchedStudents = Array.isArray(matchedStudents) ? matchedStudents : [];
 
   return (
@@ -92,7 +100,11 @@ export default function MatchingResultsPage({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {filteredGroups.map((group) => {
               const isFull = (group.members || []).length >= (group.maxMembers || 4);
-              const isUserMember = group.members && group.members.some(m => (m.id && m.id === currentUid) || (m.user_id && m.user_id === currentUid));
+              const isUserMember = group.members && group.members.some(m => 
+                (m.id && m.id === currentUid) || 
+                (m.user_id && m.user_id === currentUid) ||
+                (currentUname && m.name === currentUname)
+              );
 
               return (
                 <div 
@@ -116,7 +128,7 @@ export default function MatchingResultsPage({
                           </span>
                         </div>
                         <p className="text-xs text-slate-500">
-                          Target Departure: {formatTime24to12(group.departureTime)}
+                          {group.destinationName} • Departure: {formatTime24to12(group.departureTime)} ({group.date || 'Today'})
                         </p>
                       </div>
                     </div>
@@ -161,8 +173,8 @@ export default function MatchingResultsPage({
                   {/* Action Button */}
                   {isUserMember ? (
                     <button
-                      onClick={() => onJoinGroup(group.id)}
-                      className="w-full py-3 px-4 bg-indigo-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2"
+                      onClick={() => onViewGroupDetails ? onViewGroupDetails(group.id) : onJoinGroup(group.id)}
+                      className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer shadow-sm transition-all"
                     >
                       <MessageSquare className="w-4 h-4" />
                       <span>View My Group & Chat</span>
@@ -174,7 +186,119 @@ export default function MatchingResultsPage({
                   ) : (
                     <button
                       onClick={() => onJoinGroup(group.id)}
-                      className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-md shadow-blue-500/20 transition-all"
+                      className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-md shadow-blue-500/20 transition-all cursor-pointer"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      <span>Join Group #{group.id} ({group.members.length}/4 Members)</span>
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* OTHER OPEN CAMPUS RIDE GROUPS (If no group for current destination or to give extra options) */}
+      {filteredGroups.length === 0 && otherCampusGroups.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <Users className="w-5 h-5 text-indigo-600" />
+              <span>Other Live Open Groups on Campus</span>
+            </h2>
+            <span className="text-xs text-indigo-600 font-semibold bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-100">
+              {otherCampusGroups.length} Open Group Available
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {otherCampusGroups.map((group) => {
+              const isFull = (group.members || []).length >= (group.maxMembers || 4);
+              const isUserMember = group.members && group.members.some(m => 
+                (m.id && m.id === currentUid) || 
+                (m.user_id && m.user_id === currentUid) ||
+                (currentUname && m.name === currentUname)
+              );
+
+              return (
+                <div 
+                  key={group.id}
+                  className="bg-white rounded-3xl border border-blue-200 p-6 shadow-sm hover:shadow-md transition-all relative overflow-hidden"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-black text-sm flex items-center justify-center shadow-md">
+                        #{group.id}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-slate-900 text-base">
+                            Group #{group.id}
+                          </h3>
+                          <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
+                            isFull ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
+                          }`}>
+                            {isFull ? 'Full (4/4)' : 'Open'}
+                          </span>
+                        </div>
+                        <p className="text-xs font-semibold text-blue-600">
+                          {group.destinationName} • Departure: {formatTime24to12(group.departureTime)} ({group.date || 'Today'})
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <div className="text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg">
+                        {group.members.length}/4 Members
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Members List */}
+                  <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100 mb-4">
+                    <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
+                      <span className="font-bold text-slate-700">Members ({group.members.length}/4)</span>
+                      <span>Pickup: {group.pickupPoint}</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      {group.members.map((m) => (
+                        <div key={m.id} className="bg-white p-2 rounded-xl border border-slate-200/80 flex items-center gap-2 text-xs">
+                          <Avatar
+                            src={m.avatar}
+                            name={m.name}
+                            size="w-6 h-6"
+                            textSize="text-[10px]"
+                            rounded="rounded-full"
+                            bg="bg-slate-700"
+                          />
+                          <div className="truncate">
+                            <span className="font-bold text-slate-800 truncate block">{m.name}</span>
+                            <span className="text-[10px] text-slate-500">{m.hostel} • {formatTime24to12(m.departureTime)}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Action Button */}
+                  {isUserMember ? (
+                    <button
+                      onClick={() => onViewGroupDetails ? onViewGroupDetails(group.id) : onJoinGroup(group.id)}
+                      className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer shadow-sm transition-all"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      <span>View My Group & Chat</span>
+                    </button>
+                  ) : isFull ? (
+                    <div className="w-full py-2.5 bg-slate-100 text-slate-500 font-bold rounded-xl text-xs text-center border border-slate-200">
+                      Group Full (4/4 Members)
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => onJoinGroup(group.id)}
+                      className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-md shadow-blue-500/20 transition-all cursor-pointer"
                     >
                       <UserPlus className="w-4 h-4" />
                       <span>Join Group #{group.id} ({group.members.length}/4 Members)</span>

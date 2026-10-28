@@ -42,7 +42,7 @@ export function isMongo() {
 
 export async function seedMongoDefaultData() {
   try {
-    // 1. Destinations
+    // 1. Destinations (Official TIET transit hubs)
     const destCount = await Destination.countDocuments();
     if (destCount === 0) {
       const destinations = [
@@ -84,10 +84,10 @@ export async function seedMongoDefaultData() {
         }
       ];
       await Destination.insertMany(destinations);
-      console.log('🌱 Seeded MongoDB Destinations');
+      console.log('🌱 Seeded Official TIET Destinations');
     }
 
-    // 2. Hostels
+    // 2. Hostels (Official TIET residence halls)
     const hostelCount = await Hostel.countDocuments();
     if (hostelCount === 0) {
       const hostels = [
@@ -114,10 +114,10 @@ export async function seedMongoDefaultData() {
         { id: 'Pavani', name: 'Hostel-Pavani Hall (Previously Known As PG-2)', gender: 'Girls', cluster: 'Girls Quad' }
       ];
       await Hostel.insertMany(hostels);
-      console.log('🌱 Seeded MongoDB Hostels');
+      console.log('🌱 Seeded Official TIET Hostels');
     }
 
-    // 3. Communities
+    // 3. Communities (Regional student hubs - initialized with 0 members for pure real deployment)
     const commCount = await Community.countDocuments();
     if (commCount === 0) {
       const communities = [
@@ -126,10 +126,10 @@ export async function seedMongoDefaultData() {
           name: 'Jalandhar',
           state: 'Punjab',
           icon: '🏛️',
-          members_count: 142,
+          members_count: 0,
           distance_from_thapar: '145 km',
           popular_transport: 'GT Road Cabs, Intercity Trains',
-          description: 'Active hub for students from Jalandhar, Phagwara & Doaba region. Regular Friday/Sunday carpools.',
+          description: 'Student hub for Jalandhar, Phagwara & Doaba region travelers.',
           tags: ['Weekly Commuters', 'Cab Sharing', 'GT Road']
         },
         {
@@ -137,10 +137,10 @@ export async function seedMongoDefaultData() {
           name: 'Delhi NCR',
           state: 'Delhi / NCR',
           icon: '🚇',
-          members_count: 310,
+          members_count: 0,
           distance_from_thapar: '250 km',
           popular_transport: 'Shatabdi Express, Long Cabs, Volvos',
-          description: 'Largest student origin community covering South Delhi, Noida, Gurgaon & West Delhi.',
+          description: 'Student network for South Delhi, Noida, Gurgaon, West Delhi & IGI Airport transit.',
           tags: ['Holiday Rush', 'Shatabdi Cohort', 'IGI Airport']
         },
         {
@@ -148,10 +148,10 @@ export async function seedMongoDefaultData() {
           name: 'Ludhiana',
           state: 'Punjab',
           icon: '🏭',
-          members_count: 185,
+          members_count: 0,
           distance_from_thapar: '95 km',
           popular_transport: 'Direct Cabs, Passenger Trains',
-          description: 'Fastest commute corridor. Daily & weekend travelers sharing cabs via Nabha/Malerkotla route.',
+          description: 'Commute corridor for Ludhiana travelers sharing cabs via GT Road.',
           tags: ['Weekend Trips', 'Quick Ride', 'Day Scholars']
         },
         {
@@ -159,10 +159,10 @@ export async function seedMongoDefaultData() {
           name: 'Chandigarh & Tri-City',
           state: 'Chandigarh / Mohali / Panchkula',
           icon: '🏙️',
-          members_count: 240,
+          members_count: 0,
           distance_from_thapar: '65 km',
           popular_transport: 'CTU Buses, Shared Cabs, Personal Cars',
-          description: 'Frequent weekend travelers to Mohali, Chandigarh Sector 17/43, and Panchkula.',
+          description: 'Travelers heading towards Mohali, Chandigarh Sector 17/43, and Panchkula.',
           tags: ['Daily/Weekly', 'Mohali IT', 'Airport Cabs']
         },
         {
@@ -170,10 +170,10 @@ export async function seedMongoDefaultData() {
           name: 'Amritsar',
           state: 'Punjab',
           icon: '🛕',
-          members_count: 115,
+          members_count: 0,
           distance_from_thapar: '225 km',
           popular_transport: 'Express Trains (Shan-e-Punjab), Highway Cabs',
-          description: 'Connecting students heading towards the holy city and Majha belt.',
+          description: 'Connecting students heading towards Amritsar and Majha belt.',
           tags: ['Long Weekend', 'Festival Travel', 'Trains']
         },
         {
@@ -181,7 +181,7 @@ export async function seedMongoDefaultData() {
           name: 'Bathinda',
           state: 'Punjab',
           icon: '⚡',
-          members_count: 98,
+          members_count: 0,
           distance_from_thapar: '155 km',
           popular_transport: 'PRTC Buses, Local Trains',
           description: 'Malwa region student cohort sharing weekend travel.',
@@ -192,116 +192,22 @@ export async function seedMongoDefaultData() {
           name: 'Jaipur & Rajasthan',
           state: 'Rajasthan',
           icon: '🏰',
-          members_count: 82,
+          members_count: 0,
           distance_from_thapar: '470 km',
           popular_transport: 'Overnight Buses, Intercity Trains',
-          description: 'Long-distance cohort coordinating semester start/end and holiday trips to Pink City.',
+          description: 'Long-distance cohort coordinating semester breaks and Diwali holiday trips to Pink City.',
           tags: ['Semester Breaks', 'Holiday Trains']
         }
       ];
       await Community.insertMany(communities);
-      console.log('🌱 Seeded MongoDB Communities');
+      console.log('🌱 Seeded Clean Communities (0 members)');
     }
 
-    // 4. Community Posts
-    const postCount = await CommunityPost.countDocuments();
-    if (postCount === 0) {
-      const posts = [
-        {
-          id: 'p1',
-          community_id: 'jal',
-          communityId: 'jal',
-          author_id: 's_rahul',
-          authorId: 's_rahul',
-          author: 'Rahul Sharma',
-          author_name: 'Rahul Sharma',
-          author_avatar: 'RS',
-          authorAvatar: 'RS',
-          author_hostel: 'Hostel H3',
-          authorHostel: 'Hostel H3',
-          category: 'Ride Sharing',
-          title: 'Ertiga Cab to Jalandhar Cantt this Friday 5:00 PM',
-          content: 'Booking a 6-seater cab leaving directly from Thapar Main Gate. 2 seats open! Splitting fare equally (~₹350 each). Drop at BMC Chowk / Cantt.',
-          likes: 6,
-          comments: []
-        },
-        {
-          id: 'p2',
-          community_id: 'jal',
-          communityId: 'jal',
-          author_id: 's_harpreet',
-          authorId: 's_harpreet',
-          author: 'Harpreet Singh',
-          author_name: 'Harpreet Singh',
-          author_avatar: 'HS',
-          authorAvatar: 'HS',
-          author_hostel: 'Hostel H7',
-          authorHostel: 'Hostel H7',
-          category: 'Train / Bus Cohort',
-          title: 'Traveling on Saturday morning via DLI-ASR Express',
-          content: 'Anyone catching the 8:15 AM train from Patiala Railway Station to Jalandhar? Let us share an auto to station together from Quad B.',
-          likes: 4,
-          comments: []
-        },
-        {
-          id: 'p3',
-          community_id: 'del',
-          communityId: 'del',
-          author_id: 's_tanvi',
-          authorId: 's_tanvi',
-          author: 'Tanvi Saxena',
-          author_name: 'Tanvi Saxena',
-          author_avatar: 'TS',
-          authorAvatar: 'TS',
-          author_hostel: 'Hostel D',
-          authorHostel: 'Hostel D',
-          category: 'Ride Sharing',
-          title: 'Friday Night Cab to Kashmere Gate / South Delhi',
-          content: 'Leaving around 9:30 PM post mess dinner. Sedan booked, looking for 2 female co-passengers from Girls Quad for comfortable night ride.',
-          likes: 12,
-          comments: []
-        },
-        {
-          id: 'p4',
-          community_id: 'chd',
-          communityId: 'chd',
-          author_id: 's_karan',
-          authorId: 's_karan',
-          author: 'Karan Mehra',
-          author_name: 'Karan Mehra',
-          author_avatar: 'KM',
-          authorAvatar: 'KM',
-          author_hostel: 'Hostel H2',
-          authorHostel: 'Hostel H2',
-          category: 'Travel Tip',
-          title: 'Best pickup gate for Chandigarh Airport Cabs',
-          content: 'Tip for first-years: Uber/Ola drivers prefer Executive Mess Gate over Gate 1 for Chandigarh highway access because of the bypass signal.',
-          likes: 19,
-          comments: []
-        }
-      ];
-      await CommunityPost.insertMany(posts);
-      console.log('🌱 Seeded MongoDB Community Posts');
-    }
-
-    // 5. Default user (Kartik Arora)
-    const defaultUser = await User.findOne({ email: 'student@thapar.edu' });
-    if (!defaultUser) {
-      await User.create({
-        id: 'user_main',
-        name: 'Kartik Arora',
-        email: 'student@thapar.edu',
-        hostel: 'Agira Hall (Previously known as Hostel-A)',
-        avatar: 'KA',
-        phone: '+91 98765 12345',
-        degree: 'B.Tech Computer Engineering',
-        year: '3rd Year (Batch of 2026)',
-        reliability: 5.0,
-        trips_completed: 0,
-        joined_community: 'jal'
-      });
-      console.log('🌱 Seeded MongoDB Default User');
-    }
+    // Dynamic Collections: Clean Slate (0 dummy records)
+    // - 0 Users (Real students create their own profiles upon login/registration)
+    // - 0 Groups (Formed organically by students coordinating rides)
+    // - 0 Journeys (Created dynamically when students search)
+    // - 0 Community Posts (Posted by real students on the notice boards)
   } catch (err) {
     console.error('Error during Mongo seed:', err.message);
   }

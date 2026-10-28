@@ -46,122 +46,6 @@ const googleOAuthClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 app.use(cors());
 app.use(express.json());
 
-// Standard mock student candidate pool for matching algorithm
-const POOL_STUDENTS = [
-  {
-    id: 's1',
-    name: 'Rahul Sharma',
-    avatar: 'RS',
-    email: 'rsharma_be22@thapar.edu',
-    hostel: 'Agira Hall (Previously known as Hostel-A)',
-    destinationId: 'railway',
-    departureTime: '17:05',
-    flexibility: 15,
-    transport: 'Shared Cab',
-    reliability: 4.9,
-    trips: 14,
-    phone: '+91 98765 43210'
-  },
-  {
-    id: 's2',
-    name: 'Aman Verma',
-    avatar: 'AV',
-    email: 'averma_be22@thapar.edu',
-    hostel: 'Amritam Hall (Previously known as Hostel-B)',
-    destinationId: 'railway',
-    departureTime: '17:10',
-    flexibility: 15,
-    transport: 'Shared Auto',
-    reliability: 4.8,
-    trips: 9,
-    phone: '+91 98123 45678'
-  },
-  {
-    id: 's3',
-    name: 'Simran Kaur',
-    avatar: 'SK',
-    email: 'skaur_be23@thapar.edu',
-    hostel: 'Vasudha Hall - Block E (Previously known as Hostel-E)',
-    destinationId: 'railway',
-    departureTime: '17:15',
-    flexibility: 20,
-    transport: 'Either',
-    reliability: 4.7,
-    trips: 11,
-    phone: '+91 97654 32109'
-  },
-  {
-    id: 's4',
-    name: 'Arjun Gupta',
-    avatar: 'AG',
-    email: 'agupta_be22@thapar.edu',
-    hostel: 'Prithvi Hall (Previously known as Hostel-C)',
-    destinationId: 'railway',
-    departureTime: '17:20',
-    flexibility: 15,
-    transport: 'Shared Cab',
-    reliability: 4.9,
-    trips: 18,
-    phone: '+91 99887 76655'
-  },
-  {
-    id: 's5',
-    name: 'Neha Patel',
-    avatar: 'NP',
-    email: 'npatel_be23@thapar.edu',
-    hostel: 'Vasudha Hall - Block G (Previously known as Hostel-G)',
-    destinationId: 'railway',
-    departureTime: '17:25',
-    flexibility: 30,
-    transport: 'Either',
-    reliability: 4.6,
-    trips: 5,
-    phone: '+91 98712 34567'
-  },
-  {
-    id: 's6',
-    name: 'Karan Mehra',
-    avatar: 'KM',
-    email: 'kmehra_be22@thapar.edu',
-    hostel: 'Vyan Hall (Previously known as Hostel-H)',
-    destinationId: 'chd_airport',
-    departureTime: '06:30',
-    flexibility: 20,
-    transport: 'Shared Cab',
-    reliability: 4.9,
-    trips: 16,
-    phone: '+91 99112 33445'
-  },
-  {
-    id: 's7',
-    name: 'Vikas Singla',
-    avatar: 'VS',
-    email: 'vsingla_be21@thapar.edu',
-    hostel: 'Tejas Hall (Previously known as Hostel-J)',
-    destinationId: 'del_airport',
-    departureTime: '22:00',
-    flexibility: 30,
-    transport: 'Shared Cab',
-    reliability: 4.8,
-    trips: 22,
-    phone: '+91 98888 11223'
-  },
-  {
-    id: 's8',
-    name: 'Pooja Roy',
-    avatar: 'PR',
-    email: 'proy_be23@thapar.edu',
-    hostel: 'Vahni Hall (Previously known as Hostel-Q)',
-    destinationId: 'bus_stand',
-    departureTime: '08:00',
-    flexibility: 15,
-    transport: 'Shared Auto',
-    reliability: 4.9,
-    trips: 10,
-    phone: '+91 97777 44332'
-  }
-];
-
 // Helper to assemble full group object from SQLite
 function getFullGroup(groupId) {
   const group = db.prepare('SELECT * FROM groups WHERE id = ?').get(groupId);
@@ -880,7 +764,7 @@ app.post('/api/journeys', async (req, res) => {
     }
   }
 
-  // Run compatibility algorithm against student candidate pool
+  // Run compatibility algorithm against real student candidate journeys from database
   const userReq = {
     destinationId,
     departureTime,
@@ -889,13 +773,55 @@ app.post('/api/journeys', async (req, res) => {
     transport
   };
 
-  const matchedStudents = POOL_STUDENTS
-    .map((student) => {
-      const matchInfo = calculateMatchScore(userReq, student);
-      return { student, matchInfo };
-    })
-    .filter((item) => item.matchInfo.score > 0)
-    .sort((a, b) => b.matchInfo.score - a.matchInfo.score);
+  let candidateJourneys = [];
+  if (isMongo()) {
+    try {
+      candidateJourneys = await Journey.find({
+        destination_id: destinationId,
+        user_id: { $ne: effectiveUserId }
+      }).lean();
+    } catch (e) {
+      console.warn('Mongo candidate journeys error:', e.message);
+    }
+  } else {
+    try {
+      candidateJourneys = db.prepare('SELECT * FROM journeys WHERE destination_id = ? AND user_id != ?').all(destinationId, effectiveUserId);
+    } catch (e) {}
+  }
+
+  const matchedStudents = [];
+  for (const cj of candidateJourneys) {
+    let studentUser = null;
+    if (isMongo()) {
+      studentUser = await User.findOne({ id: cj.user_id }).lean();
+    } else {
+      studentUser = db.prepare('SELECT * FROM users WHERE id = ?').get(cj.user_id);
+    }
+
+    if (studentUser) {
+      const candidateStudent = {
+        id: studentUser.id,
+        name: studentUser.name,
+        avatar: studentUser.avatar,
+        email: studentUser.email,
+        hostel: cj.hostel || studentUser.hostel,
+        destinationId: cj.destination_id,
+        departureTime: cj.departure_time,
+        flexibility: cj.flexibility || 15,
+        transport: cj.transport || 'Either',
+        reliability: studentUser.reliability || 5.0,
+        trips: studentUser.trips_completed || 0,
+        phone: studentUser.phone
+      };
+
+      const matchInfo = calculateMatchScore(userReq, candidateStudent);
+      if (matchInfo.score > 0) {
+        matchedStudents.push({ student: candidateStudent, matchInfo });
+      }
+    }
+  }
+
+  matchedStudents.sort((a, b) => b.matchInfo.score - a.matchInfo.score);
 
   res.json({
     success: true,
@@ -1773,12 +1699,12 @@ app.post('/api/communities/posts/:postId/comments', async (req, res) => {
 app.get('/api/stats', async (req, res) => {
   if (isMongo()) {
     try {
-      const totalUsers = (await User.countDocuments()) + POOL_STUDENTS.length;
+      const totalUsers = await User.countDocuments();
       const activeGroups = await Group.countDocuments();
       const userAgg = await User.aggregate([{ $group: { _id: null, totalTrips: { $sum: '$trips_completed' } } }]);
-      const totalTrips = (userAgg[0]?.totalTrips || 0) + 84;
+      const totalTrips = userAgg[0]?.totalTrips || 0;
       const commAgg = await Community.aggregate([{ $group: { _id: null, totalMembers: { $sum: '$members_count' } } }]);
-      const communityMembers = commAgg[0]?.totalMembers || 1174;
+      const communityMembers = commAgg[0]?.totalMembers || 0;
       const totalMoneySaved = totalTrips * 900;
 
       return res.json({
@@ -1793,10 +1719,10 @@ app.get('/api/stats', async (req, res) => {
     }
   }
 
-  const totalUsers = db.prepare('SELECT COUNT(*) as c FROM users').get().c + POOL_STUDENTS.length;
+  const totalUsers = db.prepare('SELECT COUNT(*) as c FROM users').get().c;
   const activeGroups = db.prepare('SELECT COUNT(*) as c FROM groups').get().c;
-  const totalTrips = db.prepare('SELECT SUM(trips_completed) as s FROM users').get().s || 84;
-  const communityMembers = db.prepare('SELECT SUM(members_count) as s FROM communities').get().s || 1174;
+  const totalTrips = db.prepare('SELECT SUM(trips_completed) as s FROM users').get().s || 0;
+  const communityMembers = db.prepare('SELECT SUM(members_count) as s FROM communities').get().s || 0;
   const totalMoneySaved = totalTrips * 900;
 
   res.json({

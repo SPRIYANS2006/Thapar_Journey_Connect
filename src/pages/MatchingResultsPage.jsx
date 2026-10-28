@@ -193,17 +193,17 @@ export default function MatchingResultsPage({
         </h2>
 
         {matchedStudents.length === 0 ? (
-          <div className="bg-white rounded-3xl border border-slate-200 p-8 text-center space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-500 border border-amber-200 flex items-center justify-center mx-auto">
-              <AlertCircle className="w-6 h-6" />
+          <div className="bg-white rounded-3xl border border-blue-200 p-8 sm:p-10 text-center space-y-4 shadow-sm">
+            <div className="w-14 h-14 rounded-3xl bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center mx-auto shadow-xs">
+              <Sparkles className="w-7 h-7" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-900 text-lg">No direct peer matches found in this exact window</h3>
-              <p className="text-slate-500 text-xs max-w-md mx-auto mt-1">
-                You are travelling during an off-peak departure slot. Create an open travel group or share your ride schedule to find peers!
+              <h3 className="font-extrabold text-slate-900 text-xl">You're the First Student on this Departure Slot!</h3>
+              <p className="text-slate-600 text-xs sm:text-sm max-w-lg mx-auto mt-1.5 leading-relaxed">
+                No one else has registered for this exact time yet. Create Group #1 now so when other Thapar students heading to <strong className="text-slate-900">{destName}</strong> search, they can instantly find and join your ride!
               </p>
             </div>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-3">
               <button
                 onClick={() => onCreateGroupWithStudent({
                   id: 'me_open',
@@ -211,19 +211,23 @@ export default function MatchingResultsPage({
                   hostel: journeyReq?.hostel,
                   departureTime: journeyReq?.departureTime
                 })}
-                className="w-full sm:w-auto px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer"
+                className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md shadow-blue-500/25 transition-all cursor-pointer flex items-center justify-center gap-2"
               >
-                Create Open Ride Group (1/4 Members)
+                <UserPlus className="w-4 h-4" />
+                <span>Create Ride Group (1/4 Members)</span>
               </button>
               <a
                 href={`https://wa.me/?text=${encodeURIComponent(
-                  `Looking for co-passengers from Thapar campus to ${destName} at around ${formatTime24to12(journeyReq?.departureTime)}! Pool a ride with me on Thapar Journey Connect.`
+                  `🚕 *Thapar Journey Connect Ride Share*
+Heading from TIET campus to ${destName} at ${formatTime24to12(journeyReq?.departureTime)} (${journeyReq?.date || 'Today'}).
+Looking for co-passengers to share cab fare!
+Join my group on Thapar Journey Connect.`
                 )}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition-all inline-flex items-center justify-center gap-1.5"
+                className="w-full sm:w-auto px-5 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md transition-all inline-flex items-center justify-center gap-2"
               >
-                <span>Share to Batch WhatsApp</span>
+                <span>Share to Batch WhatsApp Group</span>
               </a>
             </div>
           </div>

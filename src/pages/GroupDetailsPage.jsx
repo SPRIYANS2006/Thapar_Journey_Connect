@@ -17,7 +17,6 @@ import {
   ShieldAlert,
   LogOut
 } from 'lucide-react';
-import DynamicSimulateWidget from '../components/DynamicSimulateWidget';
 import FareSplitModal from '../components/FareSplitModal';
 import EmergencySOSModal from '../components/EmergencySOSModal';
 import { formatTime24to12 } from '../utils/matchingEngine';
@@ -93,12 +92,7 @@ export default function GroupDetailsPage({
         </div>
       </div>
 
-      {/* Dynamic Match Engine Simulator Banner */}
-      <DynamicSimulateWidget
-        activeGroup={group}
-        onSimulateJoin={onSimulateJoin}
-        onResetGroup={onResetGroup}
-      />
+
 
       {/* Group Header Card */}
       <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white rounded-3xl p-8 shadow-xl relative overflow-hidden">

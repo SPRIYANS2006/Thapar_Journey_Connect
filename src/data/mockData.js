@@ -61,148 +61,7 @@ export const HOSTELS = [
   { id: 'Pavani', name: 'Hostel-Pavani Hall (Previously Known As PG-2)', gender: 'Girls', cluster: 'Girls Quad' }
 ];
 
-export const MOCK_STUDENTS = [
-  {
-    id: 's1',
-    name: 'Rahul Sharma',
-    avatar: 'RS',
-    email: 'rsharma_be22@thapar.edu',
-    hostel: 'Agira Hall (Previously known as Hostel-A)',
-    destinationId: 'railway',
-    departureTime: '17:05', // 5:05 PM
-    flexibility: 15,
-    transport: 'Shared Cab',
-    reliability: 4.9,
-    trips: 14,
-    phone: '+91 98765 43210'
-  },
-  {
-    id: 's2',
-    name: 'Aman Verma',
-    avatar: 'AV',
-    email: 'averma_be22@thapar.edu',
-    hostel: 'Amritam Hall (Previously known as Hostel-B)',
-    destinationId: 'railway',
-    departureTime: '17:10', // 5:10 PM
-    flexibility: 15,
-    transport: 'Shared Auto',
-    reliability: 4.8,
-    trips: 9,
-    phone: '+91 98123 45678'
-  },
-  {
-    id: 's3',
-    name: 'Simran Kaur',
-    avatar: 'SK',
-    email: 'skaur_be23@thapar.edu',
-    hostel: 'Vasudha Hall - Block E (Previously known as Hostel-E)',
-    destinationId: 'railway',
-    departureTime: '17:15', // 5:15 PM
-    flexibility: 20,
-    transport: 'Either',
-    reliability: 4.7,
-    trips: 11,
-    phone: '+91 97654 32109'
-  },
-  {
-    id: 's4',
-    name: 'Arjun Gupta',
-    avatar: 'AG',
-    email: 'agupta_be22@thapar.edu',
-    hostel: 'Prithvi Hall (Previously known as Hostel-C)',
-    destinationId: 'railway',
-    departureTime: '17:20', // 5:20 PM
-    flexibility: 15,
-    transport: 'Shared Cab',
-    reliability: 4.9,
-    trips: 18,
-    phone: '+91 99887 76655'
-  },
-  {
-    id: 's5',
-    name: 'Neha Patel',
-    avatar: 'NP',
-    email: 'npatel_be23@thapar.edu',
-    hostel: 'Vasudha Hall - Block G (Previously known as Hostel-G)',
-    destinationId: 'railway',
-    departureTime: '17:25', // 5:25 PM
-    flexibility: 30,
-    transport: 'Either',
-    reliability: 4.6,
-    trips: 5,
-    phone: '+91 98712 34567'
-  },
-  {
-    id: 's6',
-    name: 'Priya Sundaram',
-    avatar: 'PS',
-    email: 'psundaram_be21@thapar.edu',
-    hostel: 'Vasudha Hall - Block E (Previously known as Hostel-E)',
-    destinationId: 'chd_airport',
-    departureTime: '18:00', // 6:00 PM
-    flexibility: 30,
-    transport: 'Shared Cab',
-    reliability: 5.0,
-    trips: 22,
-    phone: '+91 91234 56789'
-  },
-  {
-    id: 's7',
-    name: 'Tanmay Joshi',
-    avatar: 'TJ',
-    email: 'tjoshi_be22@thapar.edu',
-    hostel: 'Neeram Hall (Previously known as Hostel-D)',
-    destinationId: 'chd_airport',
-    departureTime: '18:15', // 6:15 PM
-    flexibility: 20,
-    transport: 'Shared Cab',
-    reliability: 4.8,
-    trips: 8,
-    phone: '+91 93456 78901'
-  },
-  {
-    id: 's8',
-    name: 'Dev Malhotra',
-    avatar: 'DM',
-    email: 'dmalhotra_be23@thapar.edu',
-    hostel: 'Vyan Hall (Previously known as Hostel-H)',
-    destinationId: 'bus_stand',
-    departureTime: '07:30', // 7:30 AM
-    flexibility: 15,
-    transport: 'Shared Auto',
-    reliability: 4.7,
-    trips: 6,
-    phone: '+91 94567 89012'
-  },
-  {
-    id: 's9',
-    name: 'Ananya Roy',
-    avatar: 'AR',
-    email: 'aroy_be22@thapar.edu',
-    hostel: 'Ira Hall (Previously known as Hostel-I)',
-    destinationId: 'bus_stand',
-    departureTime: '07:40', // 7:40 AM
-    flexibility: 20,
-    transport: 'Either',
-    reliability: 4.9,
-    trips: 15,
-    phone: '+91 95678 90123'
-  },
-  {
-    id: 's10',
-    name: 'Ishan Bhasin',
-    avatar: 'IB',
-    email: 'ibhasin_be21@thapar.edu',
-    hostel: 'Tejas Hall (Previously known as Hostel-J)',
-    destinationId: 'del_airport',
-    departureTime: '23:00', // 11:00 PM
-    flexibility: 30,
-    transport: 'Shared Cab',
-    reliability: 4.8,
-    trips: 13,
-    phone: '+91 96789 01234'
-  }
-];
+export const MOCK_STUDENTS = [];
 
 export const INITIAL_GROUPS = [];
 
@@ -211,168 +70,95 @@ export const INITIAL_COMMUNITIES = [
     id: 'jal',
     name: 'Jalandhar',
     state: 'Punjab',
-    membersCount: 142,
+    membersCount: 0,
     icon: '🏛️',
     distanceFromThapar: '145 km',
     popularTransport: 'GT Road Cabs, Intercity Trains',
-    description: 'Active hub for students from Jalandhar, Phagwara & Doaba region. Regular Friday/Sunday carpools.',
-    whatsappGroupLink: 'https://chat.whatsapp.com/demo-jalandhar',
+    description: 'Active hub for students from Jalandhar, Phagwara & Doaba region. Regular carpools.',
     tags: ['Weekly Commuters', 'Cab Sharing', 'GT Road']
   },
   {
     id: 'del',
     name: 'Delhi NCR',
     state: 'National Capital Region',
-    membersCount: 310,
+    membersCount: 0,
     icon: '🚇',
     distanceFromThapar: '250 km',
     popularTransport: 'Rajpura Volvo, Shatabdi Express, Airport Cabs',
-    description: 'Largest hometown community. Frequent weekend travel to Kashmiri Gate, ISBT, Gurgaon & Noida.',
-    whatsappGroupLink: 'https://chat.whatsapp.com/demo-delhi-ncr',
+    description: 'Student community for South Delhi, Noida, Gurgaon, West Delhi & IGI Airport transit.',
     tags: ['Volvo Buses', 'Shatabdi', 'Long Weekends']
   },
   {
     id: 'ldh',
     name: 'Ludhiana',
     state: 'Punjab',
-    membersCount: 185,
+    membersCount: 0,
     icon: '🏭',
     distanceFromThapar: '95 km',
     popularTransport: 'Shared Cabs, PRTC Buses',
-    description: 'Brisk weekend and day commuters sharing Innova/Ertiga cabs from TIET Main Gate.',
-    whatsappGroupLink: 'https://chat.whatsapp.com/demo-ludhiana',
+    description: 'Commuters sharing cabs from TIET Main Gate via GT Road corridor.',
     tags: ['Daily/Weekly', 'Car Pooling', 'PRTC']
   },
   {
     id: 'chd',
     name: 'Chandigarh & Tri-City',
     state: 'Punjab / Haryana',
-    membersCount: 240,
+    membersCount: 0,
     icon: '🌳',
     distanceFromThapar: '65 km',
     popularTransport: 'Direct Cabs, Sector 43 Buses, Airport Rides',
-    description: 'Chandigarh, Mohali & Panchkula students network. Daily commuters & weekend home trips.',
-    whatsappGroupLink: 'https://chat.whatsapp.com/demo-chandigarh',
+    description: 'Chandigarh, Mohali & Panchkula students network for campus transit and weekend trips.',
     tags: ['Tri-City', 'Airport Transit', 'Frequent']
   },
   {
     id: 'asr',
     name: 'Amritsar',
     state: 'Punjab',
-    membersCount: 98,
+    membersCount: 0,
     icon: '✨',
     distanceFromThapar: '225 km',
     popularTransport: 'Shan-e-Punjab, Vande Bharat, Shared Cabs',
     description: 'Students connecting for travel back home to Amritsar, Beas & Majha belt.',
-    whatsappGroupLink: 'https://chat.whatsapp.com/demo-amritsar',
     tags: ['Train Groups', 'Festivals', 'Long Distance']
   },
   {
-    id: 'bht',
+    id: 'bth',
     name: 'Bathinda',
     state: 'Punjab',
-    membersCount: 64,
+    membersCount: 0,
     icon: '🏰',
     distanceFromThapar: '155 km',
     popularTransport: 'PRTC Fast Buses, Intercity',
     description: 'Malwa region student network for shared rides across Rampura, Barnala and Bathinda.',
-    whatsappGroupLink: 'https://chat.whatsapp.com/demo-bathinda',
     tags: ['Malwa Belt', 'PRTC Bus', 'Weekend Rides']
   },
   {
     id: 'jpr',
     name: 'Jaipur',
     state: 'Rajasthan',
-    membersCount: 48,
+    membersCount: 0,
     icon: '🦚',
     distanceFromThapar: '470 km',
     popularTransport: 'Overnight Trains, Delhi Intercity Flights',
     description: 'Students traveling together during semester holidays, Diwali and exam breaks.',
-    whatsappGroupLink: 'https://chat.whatsapp.com/demo-jaipur',
     tags: ['Vacation Cohort', 'Direct Trains', 'Holiday Travel']
-  },
-  {
-    id: 'pkl',
-    name: 'Panchkula & Yamunanagar',
-    state: 'Haryana',
-    membersCount: 72,
-    icon: '⛰️',
-    distanceFromThapar: '80 km',
-    popularTransport: 'Private Shared Cabs, Express Buses',
-    description: 'Haryana border student community coordinating shared cabs via Zirakpur highway.',
-    whatsappGroupLink: 'https://chat.whatsapp.com/demo-haryana',
-    tags: ['Highway Cabs', 'Weekend Travel', 'Carpool']
   }
 ];
 
-export const INITIAL_COMMUNITY_POSTS = [
-  {
-    id: 'post-1',
-    communityId: 'jal',
-    author: 'Aarav Sharma',
-    authorAvatar: 'AS',
-    authorHostel: 'H3',
-    timeAgo: '2 hours ago',
-    category: 'Ride Sharing',
-    title: 'Booking Ertiga to Jalandhar Cantt this Friday 5 PM (2 seats open)',
-    content: 'Leaving right after Friday afternoon labs from Gate 2. Total cost ~₹400 per person. Drop-off at Rama Mandi or Cantt station.',
-    likes: 8,
-    repliesCount: 3
-  },
-  {
-    id: 'post-2',
-    communityId: 'jal',
-    author: 'Simran Kaur',
-    authorAvatar: 'SK',
-    authorHostel: 'Hostel D',
-    timeAgo: '5 hours ago',
-    category: 'Travel Tip',
-    title: 'PRTC direct AC bus timings updated from Patiala Bus Stand',
-    content: 'For everyone heading to Jalandhar, the 5:30 PM PRTC counter has started online reservation. Best for avoiding rush on long weekends!',
-    likes: 14,
-    repliesCount: 5
-  },
-  {
-    id: 'post-3',
-    communityId: 'del',
-    author: 'Kabir Singla',
-    authorAvatar: 'KS',
-    authorHostel: 'H7',
-    timeAgo: '1 hour ago',
-    category: 'Cab Carpool',
-    title: 'Overnight cab to Delhi IGI Airport for early morning flight',
-    content: 'Leaving Thursday midnight around 12:30 AM from Executive Mess. Have 2 seats available in Innova Crysta.',
-    likes: 11,
-    repliesCount: 4
-  },
-  {
-    id: 'post-4',
-    communityId: 'chd',
-    author: 'Priya Sundaram',
-    authorAvatar: 'PS',
-    authorHostel: 'Vasudha Hall - Block E (Previously known as Hostel-E)',
-    timeAgo: '3 hours ago',
-    category: 'Tri-City Commute',
-    title: 'Uber XL split to Sector 43 Bus Stand / Airport on Saturday morning',
-    content: 'Looking for 2 co-passengers at 7:30 AM. ₹350 each. Leaving from Gate 1.',
-    likes: 6,
-    repliesCount: 2
-  }
-];
+export const INITIAL_COMMUNITY_POSTS = [];
 
 export const INITIAL_USER_PROFILE = {
-  id: 'user_main',
-  name: 'Kartik Arora',
-  email: 'student@thapar.edu',
+  id: '',
+  name: '',
+  email: '',
   college: 'Thapar Institute of Engineering & Technology (TIET)',
-  branch: 'Computer Engineering (CoE)',
-  year: '3rd Year',
-  hostel: 'HA',
-  hometown: 'Jalandhar',
-  joinedCommunity: 'jal',
-  phone: '+91 98765 00000',
+  branch: 'B.Tech Computer Engineering',
+  year: '1st Year',
+  hostel: 'Agira Hall (Previously known as Hostel-A)',
+  hometown: '',
+  joinedCommunity: null,
+  phone: '',
   tripsCompleted: 0,
   reliability: 5.0,
   preferredTransport: 'Shared Cab'
 };
-

@@ -25,12 +25,31 @@ import { api, getSocket } from './services/api';
 export default function App() {
   // Check local storage for persistent session
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    const savedUser = localStorage.getItem('tiet_user');
+    if (savedUser) {
+      try {
+        const parsed = JSON.parse(savedUser);
+        if (parsed.email === 'student@thapar.edu' || parsed.name === 'Kartik Arora' || parsed.id === 'user_main') {
+          localStorage.removeItem('tiet_logged_in');
+          localStorage.removeItem('tiet_user');
+          return false;
+        }
+      } catch (e) {}
+    }
     return localStorage.getItem('tiet_logged_in') === 'true';
   });
 
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem('tiet_user');
-    return saved ? JSON.parse(saved) : INITIAL_USER_PROFILE;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.email !== 'student@thapar.edu' && parsed.name !== 'Kartik Arora' && parsed.id !== 'user_main') {
+          return parsed;
+        }
+      } catch (e) {}
+    }
+    return null;
   });
 
   const [activePage, setActivePage] = useState('dashboard');
@@ -58,12 +77,12 @@ export default function App() {
         const [fetchedGroups, fetchedCommunities, fetchedPosts] = await Promise.all([
           api.getGroups().catch(() => []),
           api.getCommunities().catch(() => INITIAL_COMMUNITIES),
-          api.getCommunityPosts('jal').catch(() => INITIAL_COMMUNITY_POSTS)
+          api.getCommunityPosts('jal').catch(() => [])
         ]);
 
         if (Array.isArray(fetchedGroups)) setGroups(fetchedGroups);
         if (Array.isArray(fetchedCommunities) && fetchedCommunities.length > 0) setCommunities(fetchedCommunities);
-        if (Array.isArray(fetchedPosts) && fetchedPosts.length > 0) setCommunityPosts(fetchedPosts);
+        if (Array.isArray(fetchedPosts)) setCommunityPosts(fetchedPosts);
       } catch (err) {
         console.warn('Initial data load warning:', err.message);
       }

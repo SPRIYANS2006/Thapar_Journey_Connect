@@ -239,33 +239,14 @@ function seedDefaultData() {
     }
   }
 
-  // 3. Seed Default User (Kartik Arora) - Fresh Clean State
-  const defaultUser = db.prepare('SELECT * FROM users WHERE email = ?').get('student@thapar.edu');
-  if (!defaultUser) {
-    db.prepare(`
-      INSERT INTO users (id, name, email, hostel, avatar, phone, degree, year, reliability, trips_completed, joined_community)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      'user_main',
-      'Kartik Arora',
-      'student@thapar.edu',
-      'HA',
-      'KA',
-      '+91 98765 12345',
-      'B.Tech Computer Engineering',
-      '3rd Year (Batch of 2026)',
-      5.0,
-      0,
-      'jal'
-    );
-  }
+  // 3. Dynamic Users - 0 dummy users (starts completely clean)
 
-  // 4. Seed Communities
+  // 4. Seed Communities (Clean state with 0 members)
   const commCount = db.prepare('SELECT COUNT(*) as c FROM communities').get().c;
   if (commCount === 0) {
     const insertComm = db.prepare(`
       INSERT INTO communities (id, name, state, icon, members_count, distance_from_thapar, popular_transport, description, tags)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?)
     `);
 
     const communities = [
@@ -274,7 +255,6 @@ function seedDefaultData() {
         name: 'Jalandhar',
         state: 'Punjab',
         icon: '🏛️',
-        members_count: 142,
         distance_from_thapar: '145 km',
         popular_transport: 'GT Road Cabs, Intercity Trains',
         description: 'Active hub for students from Jalandhar, Phagwara & Doaba region. Regular Friday/Sunday carpools.',
@@ -285,7 +265,6 @@ function seedDefaultData() {
         name: 'Delhi NCR',
         state: 'Delhi / NCR',
         icon: '🚇',
-        members_count: 310,
         distance_from_thapar: '250 km',
         popular_transport: 'Shatabdi Express, Long Cabs, Volvos',
         description: 'Largest student origin community covering South Delhi, Noida, Gurgaon & West Delhi.',
@@ -296,7 +275,6 @@ function seedDefaultData() {
         name: 'Ludhiana',
         state: 'Punjab',
         icon: '🏭',
-        members_count: 185,
         distance_from_thapar: '95 km',
         popular_transport: 'Direct Cabs, Passenger Trains',
         description: 'Fastest commute corridor. Daily & weekend travelers sharing cabs via Nabha/Malerkotla route.',
@@ -307,7 +285,6 @@ function seedDefaultData() {
         name: 'Chandigarh & Tri-City',
         state: 'Chandigarh / Mohali / Panchkula',
         icon: '🏙️',
-        members_count: 240,
         distance_from_thapar: '65 km',
         popular_transport: 'CTU Buses, Shared Cabs, Personal Cars',
         description: 'Frequent weekend travelers to Mohali, Chandigarh Sector 17/43, and Panchkula.',
@@ -318,7 +295,6 @@ function seedDefaultData() {
         name: 'Amritsar',
         state: 'Punjab',
         icon: '🛕',
-        members_count: 115,
         distance_from_thapar: '225 km',
         popular_transport: 'Express Trains (Shan-e-Punjab), Highway Cabs',
         description: 'Connecting students heading towards the holy city and Majha belt.',
@@ -329,7 +305,6 @@ function seedDefaultData() {
         name: 'Bathinda',
         state: 'Punjab',
         icon: '⚡',
-        members_count: 98,
         distance_from_thapar: '155 km',
         popular_transport: 'PRTC Buses, Local Trains',
         description: 'Malwa region student cohort sharing weekend travel.',
@@ -340,7 +315,6 @@ function seedDefaultData() {
         name: 'Jaipur & Rajasthan',
         state: 'Rajasthan',
         icon: '🏰',
-        members_count: 82,
         distance_from_thapar: '470 km',
         popular_transport: 'Overnight Buses, Intercity Trains',
         description: 'Long-distance cohort coordinating semester start/end and holiday trips to Pink City.',
@@ -354,7 +328,6 @@ function seedDefaultData() {
         c.name,
         c.state,
         c.icon,
-        c.members_count,
         c.distance_from_thapar,
         c.popular_transport,
         c.description,
@@ -363,80 +336,8 @@ function seedDefaultData() {
     }
   }
 
-  // 5. Seed Community Posts
-  const postCount = db.prepare('SELECT COUNT(*) as c FROM community_posts').get().c;
-  if (postCount === 0) {
-    const insertPost = db.prepare(`
-      INSERT INTO community_posts (id, community_id, author_id, author_name, author_avatar, author_hostel, category, title, content, likes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    const posts = [
-      {
-        id: 'p1',
-        community_id: 'jal',
-        author_id: 's_rahul',
-        author_name: 'Rahul Sharma',
-        author_avatar: 'RS',
-        author_hostel: 'Hostel H3',
-        category: 'Ride Sharing',
-        title: 'Ertiga Cab to Jalandhar Cantt this Friday 5:00 PM',
-        content: 'Booking a 6-seater cab leaving directly from Thapar Main Gate. 2 seats open! Splitting fare equally (~₹350 each). Drop at BMC Chowk / Cantt.',
-        likes: 6
-      },
-      {
-        id: 'p2',
-        community_id: 'jal',
-        author_id: 's_harpreet',
-        author_name: 'Harpreet Singh',
-        author_avatar: 'HS',
-        author_hostel: 'Hostel H7',
-        category: 'Train / Bus Cohort',
-        title: 'Traveling on Saturday morning via DLI-ASR Express',
-        content: 'Anyone catching the 8:15 AM train from Patiala Railway Station to Jalandhar? Let us share an auto to station together from Quad B.',
-        likes: 4
-      },
-      {
-        id: 'p3',
-        community_id: 'del',
-        author_id: 's_tanvi',
-        author_name: 'Tanvi Saxena',
-        author_avatar: 'TS',
-        author_hostel: 'Hostel D',
-        category: 'Ride Sharing',
-        title: 'Friday Night Cab to Kashmere Gate / South Delhi',
-        content: 'Leaving around 9:30 PM post mess dinner. Sedan booked, looking for 2 female co-passengers from Girls Quad for comfortable night ride.',
-        likes: 12
-      },
-      {
-        id: 'p4',
-        community_id: 'chd',
-        author_id: 's_karan',
-        author_name: 'Karan Mehra',
-        author_avatar: 'KM',
-        author_hostel: 'Hostel H2',
-        category: 'Travel Tip',
-        title: 'Best pickup gate for Chandigarh Airport Cabs',
-        content: 'Tip for first-years: Uber/Ola drivers prefer Executive Mess Gate over Gate 1 for Chandigarh highway access because of the bypass signal.',
-        likes: 19
-      }
-    ];
-
-    for (const p of posts) {
-      insertPost.run(
-        p.id,
-        p.community_id,
-        p.author_id,
-        p.author_name,
-        p.author_avatar,
-        p.author_hostel,
-        p.category,
-        p.title,
-        p.content,
-        p.likes
-      );
-    }
-  }
+  // 5. Dynamic Community Posts - 0 dummy posts (Real students post their own updates)
+  // 6. Dynamic Groups - 0 dummy groups (Real students coordinate their own rides)
 
   // 6. Dynamic Groups Table - starts completely fresh (0 pre-added groups)
   // New groups are dynamically formed when students coordinate rides

@@ -35,6 +35,11 @@ export default function GroupDetailsPage({
   const [isConfirmed, setIsConfirmed] = useState(group?.status === 'Confirmed');
   const [showFareSplit, setShowFareSplit] = useState(false);
   const [showSOS, setShowSOS] = useState(false);
+  const [revealedPhones, setRevealedPhones] = useState({});
+
+  const isCurrentUserInGroup = group?.members?.some(
+    (m) => (m.id && m.id === currentUser?.id) || (m.user_id && m.user_id === currentUser?.id)
+  );
 
   if (!group) {
     return (
@@ -277,9 +282,55 @@ Coordinated via Thapar Journey Connect`
                       <span>Reliability: <strong className="text-slate-800 font-semibold">4.8 / 5.0</strong></span>
                     </div>
 
-                    <div className="flex items-center gap-2 pt-1">
-                      <Phone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                      <span className="font-medium text-slate-700">{member.phone || '+91 98765 XXXXX'}</span>
+                    {/* Privacy Shielded Phone Contact */}
+                    <div className="pt-2 border-t border-slate-100">
+                      {(() => {
+                        const memberKey = member.id || member.user_id;
+                        const isRevealed = revealedPhones[memberKey];
+
+                        if (!member.phone) {
+                          return (
+                            <div className="flex items-center gap-1.5 text-slate-400 text-[11px] italic">
+                              <MessageSquare className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                              <span>Coordinate via In-App Chat</span>
+                            </div>
+                          );
+                        }
+
+                        if (!isCurrentUserInGroup && !isMe) {
+                          return (
+                            <div className="flex items-center gap-1.5 text-slate-500 text-[11px]" title="Contact numbers are protected. Join this group to view.">
+                              <ShieldCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                              <span className="italic text-slate-400 font-medium">🔒 Number hidden (Members only)</span>
+                            </div>
+                          );
+                        }
+
+                        // Member is self or co-passenger in same group
+                        const raw = member.phone.trim();
+                        const maskedPhone = raw.length >= 8 
+                          ? raw.substring(0, raw.length - 6) + '••••' + raw.substring(raw.length - 2)
+                          : raw;
+
+                        return (
+                          <div className="flex items-center justify-between gap-1 text-xs">
+                            <div className="flex items-center gap-1.5 text-slate-800">
+                              <Phone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                              <span className="font-mono font-bold text-[11px]">
+                                {isMe || isRevealed ? raw : maskedPhone}
+                              </span>
+                            </div>
+                            {!isMe && (
+                              <button
+                                onClick={() => setRevealedPhones(prev => ({ ...prev, [memberKey]: !prev[memberKey] }))}
+                                className="text-[10px] text-blue-600 hover:text-blue-700 font-bold px-2 py-0.5 rounded-md bg-blue-50 hover:bg-blue-100 transition-colors cursor-pointer"
+                              >
+                                {isRevealed ? 'Hide' : 'Reveal'}
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>

@@ -916,7 +916,7 @@ app.post('/api/groups', async (req, res) => {
         hostel: m.hostel || 'HA',
         departure_time: m.departureTime || departureTime,
         role: m.role || 'Member',
-        phone: m.phone || '+91 98765 00000',
+        phone: m.phone || '',
         joined_at: new Date()
       }));
 
@@ -993,7 +993,7 @@ app.post('/api/groups', async (req, res) => {
       m.hostel || 'HA',
       m.departureTime || departureTime,
       m.role || 'Member',
-      m.phone || '+91 98765 00000'
+      m.phone || ''
     );
   }
 
@@ -1042,7 +1042,7 @@ app.post('/api/groups/:id/join', async (req, res) => {
         hostel: hostel || 'Campus',
         departure_time: departureTime || group.departure_time,
         role: 'Member',
-        phone: phone || '+91 98765 12345',
+        phone: phone || '',
         joined_at: new Date()
       });
 
@@ -1094,7 +1094,7 @@ app.post('/api/groups/:id/join', async (req, res) => {
     avatar || 'ST',
     hostel || 'Campus',
     departureTime || group.departure_time,
-    phone || '+91 98765 12345'
+    phone || ''
   );
 
   db.prepare(`
@@ -1327,19 +1327,24 @@ app.post('/api/groups/:id/fare-split', async (req, res) => {
 app.get('/api/communities', async (req, res) => {
   if (isMongo()) {
     try {
-      const rows = await Community.find().sort({ members_count: -1 }).lean();
+      const rows = await Community.find().sort({ members_count: -1, name: 1 }).lean();
       if (rows && rows.length > 0) {
-        return res.json(rows.map(r => ({
-          id: r.id,
-          name: r.name,
-          state: r.state,
-          icon: r.icon,
-          membersCount: r.members_count,
-          distanceFromThapar: r.distance_from_thapar,
-          popularTransport: r.popular_transport,
-          description: r.description,
-          tags: Array.isArray(r.tags) ? r.tags : (r.tags || '').split(',').map(t => t.trim())
-        })));
+        const enriched = await Promise.all(rows.map(async (r) => {
+          const userCount = await User.countDocuments({ joined_community: r.id });
+          const count = Math.max(r.members_count || 0, userCount);
+          return {
+            id: r.id,
+            name: r.name,
+            state: r.state,
+            icon: r.icon,
+            membersCount: count,
+            distanceFromThapar: r.distance_from_thapar,
+            popularTransport: r.popular_transport,
+            description: r.description,
+            tags: Array.isArray(r.tags) ? r.tags : (r.tags || '').split(',').map(t => t.trim())
+          };
+        }));
+        return res.json(enriched);
       }
     } catch (err) {
       console.warn('Mongo communities error:', err.message);
@@ -1347,43 +1352,56 @@ app.get('/api/communities', async (req, res) => {
   }
 
   const rows = db.prepare('SELECT * FROM communities ORDER BY members_count DESC').all();
-  const communities = rows.map(r => ({
-    id: r.id,
-    name: r.name,
-    state: r.state,
-    icon: r.icon,
-    membersCount: r.members_count,
-    distanceFromThapar: r.distance_from_thapar,
-    popularTransport: r.popular_transport,
-    description: r.description,
-    tags: r.tags.split(',').map(t => t.trim())
-  }));
+  const communities = rows.map(r => {
+    const userCount = db.prepare('SELECT count(*) as c FROM users WHERE joined_community = ?').get(r.id)?.c || 0;
+    return {
+      id: r.id,
+      name: r.name,
+      state: r.state,
+      icon: r.icon,
+      membersCount: Math.max(r.members_count || 0, userCount),
+      distanceFromThapar: r.distance_from_thapar,
+      popularTransport: r.popular_transport,
+      description: r.description,
+      tags: r.tags.split(',').map(t => t.trim())
+    };
+  });
   res.json(communities);
 });
 
 // 19. Communities: Join (Single-Community Rule Enforcement)
 app.post('/api/communities/:id/join', async (req, res) => {
   const communityId = req.params.id;
-  const { userId = 'user_main' } = req.body;
+  const { userId } = req.body;
 
   if (isMongo()) {
     try {
       const target = await Community.findOne({ id: communityId });
       if (!target) return res.status(404).json({ error: 'Community not found' });
 
-      const user = await User.findOne({ id: userId });
-      if (user && user.joined_community && user.joined_community !== communityId) {
-        const curr = await Community.findOne({ id: user.joined_community });
-        return res.status(400).json({
-          error: `Single-Community Rule: You are already a registered member of ${curr?.name || 'another'} Community. Please leave your current hometown community first.`
-        });
+      if (userId) {
+        const user = await User.findOne({ id: userId });
+        if (user && user.joined_community && user.joined_community !== communityId) {
+          const curr = await Community.findOne({ id: user.joined_community });
+          return res.status(400).json({
+            error: `Single-Community Rule: You are already a registered member of ${curr?.name || 'another'} Community. Please leave your current hometown community first.`
+          });
+        }
+        await User.updateOne({ id: userId }, { joined_community: communityId });
       }
 
-      await User.updateOne({ id: userId }, { joined_community: communityId });
-      await Community.updateOne({ id: communityId }, { $inc: { members_count: 1 } });
+      const realCount = await User.countDocuments({ joined_community: communityId });
+      const newCount = Math.max(1, realCount);
+      await Community.updateOne({ id: communityId }, { members_count: newCount });
 
-      return res.json({ success: true, joinedCommunity: communityId, communityName: target.name });
+      return res.json({ 
+        success: true, 
+        joinedCommunity: communityId, 
+        membersCount: newCount, 
+        communityName: target.name 
+      });
     } catch (err) {
+      console.error('Mongo join error:', err.message);
       return res.status(500).json({ error: 'Failed to join community' });
     }
   }
@@ -1391,39 +1409,54 @@ app.post('/api/communities/:id/join', async (req, res) => {
   const target = db.prepare('SELECT * FROM communities WHERE id = ?').get(communityId);
   if (!target) return res.status(404).json({ error: 'Community not found' });
 
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
-  if (user && user.joined_community && user.joined_community !== communityId) {
-    const curr = db.prepare('SELECT name FROM communities WHERE id = ?').get(user.joined_community);
-    return res.status(400).json({
-      error: `Single-Community Rule: You are already a registered member of ${curr?.name || 'another'} Community. Please leave your current hometown community first.`
-    });
+  if (userId) {
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+    if (user && user.joined_community && user.joined_community !== communityId) {
+      const curr = db.prepare('SELECT name FROM communities WHERE id = ?').get(user.joined_community);
+      return res.status(400).json({
+        error: `Single-Community Rule: You are already a registered member of ${curr?.name || 'another'} Community. Please leave your current hometown community first.`
+      });
+    }
+    db.prepare('UPDATE users SET joined_community = ? WHERE id = ?').run(communityId, userId);
   }
 
-  db.prepare('UPDATE users SET joined_community = ? WHERE id = ?').run(communityId, userId);
-  db.prepare('UPDATE communities SET members_count = members_count + 1 WHERE id = ?').run(communityId);
+  const realCount = db.prepare('SELECT count(*) as c FROM users WHERE joined_community = ?').get(communityId)?.c || 0;
+  const newCount = Math.max(1, realCount);
+  db.prepare('UPDATE communities SET members_count = ? WHERE id = ?').run(newCount, communityId);
 
-  res.json({ success: true, joinedCommunity: communityId, communityName: target.name });
+  res.json({ 
+    success: true, 
+    joinedCommunity: communityId, 
+    membersCount: newCount, 
+    communityName: target.name 
+  });
 });
 
 // 20. Communities: Leave
 app.post('/api/communities/:id/leave', async (req, res) => {
   const communityId = req.params.id;
-  const { userId = 'user_main' } = req.body;
+  const { userId } = req.body;
 
   if (isMongo()) {
     try {
-      await User.updateOne({ id: userId, joined_community: communityId }, { $unset: { joined_community: 1 } });
-      await Community.updateOne({ id: communityId, members_count: { $gt: 0 } }, { $inc: { members_count: -1 } });
-      return res.json({ success: true, message: 'Left community successfully' });
+      if (userId) {
+        await User.updateOne({ id: userId, joined_community: communityId }, { $unset: { joined_community: 1 } });
+      }
+      const realCount = await User.countDocuments({ joined_community: communityId });
+      await Community.updateOne({ id: communityId }, { members_count: realCount });
+      return res.json({ success: true, message: 'Left community successfully', membersCount: realCount });
     } catch (err) {
       return res.status(500).json({ error: 'Failed to leave community' });
     }
   }
 
-  db.prepare('UPDATE users SET joined_community = NULL WHERE id = ? AND joined_community = ?').run(userId, communityId);
-  db.prepare('UPDATE communities SET members_count = MAX(0, members_count - 1) WHERE id = ?').run(communityId);
+  if (userId) {
+    db.prepare('UPDATE users SET joined_community = NULL WHERE id = ? AND joined_community = ?').run(userId, communityId);
+  }
+  const realCount = db.prepare('SELECT count(*) as c FROM users WHERE joined_community = ?').get(communityId)?.c || 0;
+  db.prepare('UPDATE communities SET members_count = ? WHERE id = ?').run(realCount, communityId);
 
-  res.json({ success: true, message: 'Left community successfully' });
+  res.json({ success: true, message: 'Left community successfully', membersCount: realCount });
 });
 
 // 21. Communities: Posts & Discussion Notice Board

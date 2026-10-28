@@ -307,7 +307,7 @@ export default function App() {
           hostel: user.hostel,
           departureTime: currentJourneyReq?.departureTime || candidateStudent?.departureTime,
           role: 'Group Admin',
-          phone: user.phone || '+91 98765 00000'
+          phone: user.phone || ''
         },
         ...(candidateStudent && candidateStudent.id !== 'me_open' ? [
           {
@@ -318,7 +318,7 @@ export default function App() {
             hostel: candidateStudent.hostel,
             departureTime: candidateStudent.departureTime,
             role: 'Member',
-            phone: candidateStudent.phone || '+91 98765 00000'
+            phone: candidateStudent.phone || ''
           }
         ] : [])
       ]
@@ -482,37 +482,45 @@ export default function App() {
       return;
     }
 
+    // 1. Optimistic instant UI update
+    setCommunities(prev => prev.map(c => c.id === communityId ? { ...c, membersCount: (c.membersCount || 0) + 1 } : c));
+    const updatedUser = { ...user, joinedCommunity: communityId, hometown: target?.name || user?.hometown };
+    setUser(updatedUser);
+    localStorage.setItem('tiet_user', JSON.stringify(updatedUser));
+
     try {
-      await api.joinCommunity(communityId, user.id || 'user_main');
+      await api.joinCommunity(communityId, user?.id);
       const [updatedComm, updatedPosts] = await Promise.all([
         api.getCommunities(),
         api.getCommunityPosts(communityId)
       ]);
-      setCommunities(updatedComm);
-      setCommunityPosts(updatedPosts);
+      if (Array.isArray(updatedComm)) setCommunities(updatedComm);
+      if (Array.isArray(updatedPosts)) setCommunityPosts(updatedPosts);
     } catch (err) {
       console.warn('Fallback join community:', err.message);
     }
-
-    const updatedUser = { ...user, joinedCommunity: communityId, hometown: target?.name || user.hometown };
-    setUser(updatedUser);
-    localStorage.setItem('tiet_user', JSON.stringify(updatedUser));
   };
 
   const handleLeaveCommunity = async (communityId) => {
     if (!window.confirm('Are you sure you want to leave this hometown community?')) return;
 
-    try {
-      await api.leaveCommunity(communityId, user.id || 'user_main');
-      const updatedComm = await api.getCommunities();
-      setCommunities(updatedComm);
-    } catch (err) {
-      console.warn('Fallback leave community:', err.message);
-    }
-
+    // 1. Optimistic instant UI update
+    setCommunities(prev => prev.map(c => c.id === communityId ? { ...c, membersCount: Math.max(0, (c.membersCount || 1) - 1) } : c));
     const updatedUser = { ...user, joinedCommunity: null };
     setUser(updatedUser);
     localStorage.setItem('tiet_user', JSON.stringify(updatedUser));
+
+    try {
+      await api.leaveCommunity(communityId, user?.id);
+      const [updatedComm, updatedPosts] = await Promise.all([
+        api.getCommunities(),
+        api.getCommunityPosts(communityId)
+      ]);
+      if (Array.isArray(updatedComm)) setCommunities(updatedComm);
+      if (Array.isArray(updatedPosts)) setCommunityPosts(updatedPosts);
+    } catch (err) {
+      console.warn('Fallback leave community:', err.message);
+    }
   };
 
   const handleAddCommunityPost = async (newPost) => {

@@ -238,6 +238,10 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
                 placeholder="+91 XXXXX XXXXX (Add your phone/WhatsApp)"
                 className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               />
+              <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                <span><strong>Privacy Shield:</strong> Your number is never shown publicly. Only verified students who join your travel group can access it.</span>
+              </p>
             </div>
 
             {/* Hometown City Community */}

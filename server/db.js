@@ -458,7 +458,7 @@ function seedDefaultData() {
       VALUES (?, ?, ?, ?, ?, ?)
     `);
 
-    // Group 104: Patiala Railway Station
+    // Group 104: Patiala Railway Station (3/4 Open for new student)
     insertGroup.run(
       '104',
       'railway',
@@ -471,15 +471,13 @@ function seedDefaultData() {
       96
     );
 
-    insertMember.run('gm1', '104', 'user_main', 'Kartik Arora', 'KA', 'H3', '17:00', 'Group Admin', '+91 98765 12345');
-    insertMember.run('gm2', '104', 's1', 'Rahul Sharma', 'RS', 'H3', '17:05', 'Member', '+91 98765 43210');
-    insertMember.run('gm3', '104', 's2', 'Aman Verma', 'AV', 'H4', '17:10', 'Member', '+91 98123 45678');
-    insertMember.run('gm4_simran', '104', 's3', 'Simran Kaur', 'SK', 'H4', '17:15', 'Member', '+91 97654 32109');
+    insertMember.run('gm1', '104', 's1', 'Rahul Sharma', 'RS', 'H3', '17:05', 'Group Admin', '+91 98765 43210');
+    insertMember.run('gm2', '104', 's2', 'Aman Verma', 'AV', 'H4', '17:10', 'Member', '+91 98123 45678');
+    insertMember.run('gm3', '104', 's3', 'Simran Kaur', 'SK', 'H4', '17:15', 'Member', '+91 97654 32109');
 
     insertMsg.run('m1', '104', 's1', 'Rahul Sharma', 'RS', 'Hey everyone! I will book an auto from Main Gate at 5:05 PM.');
     insertMsg.run('m2', '104', 's2', 'Aman Verma', 'AV', 'Sounds good, I will walk from Hostel H4 by 5:00 PM.');
-    insertMsg.run('m3', '104', 'user_main', 'Kartik Arora', 'KA', 'Great! I am in H3, let us all assemble near Executive Mess.');
-    insertMsg.run('m_104_4', '104', 's3', 'Simran Kaur', 'SK', 'Hi everyone! Just joined as 4th member. Leaving from H4, see you all at Main Gate!');
+    insertMsg.run('m3', '104', 's3', 'Simran Kaur', 'SK', 'Great! I am leaving from H4 too, see you all at Main Gate!');
 
     // Group 102: Chandigarh Airport
     insertGroup.run(

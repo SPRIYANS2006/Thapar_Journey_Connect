@@ -18,12 +18,14 @@ export default function MatchingResultsPage({
   journeyReq, 
   matchedStudents, 
   activeGroups, 
+  currentUser,
   onBack, 
   onJoinGroup, 
   onCreateGroupWithStudent 
 }) {
+  const currentUid = currentUser?.id || 'user_main';
   const destName = journeyReq?.destinationName || 'Selected Transit Point';
-  const filteredGroups = activeGroups.filter(g => g.destinationId === journeyReq?.destinationId);
+  const filteredGroups = (activeGroups || []).filter(g => g.destinationId === journeyReq?.destinationId);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-in fade-in duration-300">
@@ -87,7 +89,7 @@ export default function MatchingResultsPage({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {filteredGroups.map((group) => {
               const isFull = group.members.length >= group.maxMembers;
-              const isUserMember = group.members.some(m => m.id === 'user_main');
+              const isUserMember = group.members && group.members.some(m => m.id === currentUid || m.user_id === currentUid);
 
               return (
                 <div 

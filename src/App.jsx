@@ -538,6 +538,7 @@ export default function App() {
             journeyReq={currentJourneyReq}
             matchedStudents={matchedStudents}
             activeGroups={groups}
+            currentUser={user}
             onBack={() => setActivePage('dashboard')}
             onJoinGroup={handleJoinGroup}
             onCreateGroupWithStudent={handleCreateGroupWithStudent}

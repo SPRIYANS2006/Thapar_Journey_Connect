@@ -229,21 +229,12 @@ export const INITIAL_GROUPS = [
     status: 'Open', // Open, Full, Confirmed
     members: [
       {
-        id: 'user_main',
-        name: 'Kartik Arora',
-        avatar: 'KA',
-        hostel: 'H3',
-        departureTime: '17:00',
-        role: 'Group Admin',
-        phone: '+91 98765 00000'
-      },
-      {
         id: 's1',
         name: 'Rahul Sharma',
         avatar: 'RS',
         hostel: 'H3',
         departureTime: '17:05',
-        role: 'Member',
+        role: 'Group Admin',
         phone: '+91 98765 43210'
       },
       {

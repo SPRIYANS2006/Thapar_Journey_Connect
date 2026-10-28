@@ -77,7 +77,7 @@ export default function App() {
         const [fetchedGroups, fetchedCommunities, fetchedPosts] = await Promise.all([
           api.getGroups().catch(() => []),
           api.getCommunities().catch(() => INITIAL_COMMUNITIES),
-          api.getCommunityPosts('jal').catch(() => [])
+          api.getCommunityPosts('del').catch(() => [])
         ]);
 
         if (Array.isArray(fetchedGroups)) setGroups(fetchedGroups);
@@ -88,6 +88,32 @@ export default function App() {
       }
     }
     loadData();
+  }, []);
+
+  // Validate and sync user session on boot
+  useEffect(() => {
+    const savedUserStr = localStorage.getItem('tiet_user');
+    if (savedUserStr) {
+      try {
+        const parsed = JSON.parse(savedUserStr);
+        if (parsed && parsed.id) {
+          api.getMe(parsed.id)
+            .then(freshUser => {
+              if (freshUser && freshUser.id) {
+                setUser(freshUser);
+                localStorage.setItem('tiet_user', JSON.stringify(freshUser));
+              }
+            })
+            .catch(() => {
+              // If user no longer exists in database, clear stale session
+              localStorage.removeItem('tiet_logged_in');
+              localStorage.removeItem('tiet_user');
+              setUser(null);
+              setIsLoggedIn(false);
+            });
+        }
+      } catch (e) {}
+    }
   }, []);
 
   // Real-time WebSockets synchronization for groups & members

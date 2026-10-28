@@ -35,8 +35,7 @@ export default function AuthPage({ onLoginSuccess }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const defaultHostel = HOSTELS[0]?.name || 'Agira Hall (Previously known as Hostel-A)';
-  const [hostel, setHostel] = useState(defaultHostel);
+  const [hostel, setHostel] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -397,6 +396,7 @@ export default function AuthPage({ onLoginSuccess }) {
                     onChange={(e) => setHostel(e.target.value)}
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
+                    <option value="">-- Choose Your Hostel / Hall (Optional) --</option>
                     <optgroup label="Boys Hostels (Official TIET)">
                       {HOSTELS.filter(h => h.gender === 'Boys').map(h => (
                         <option key={h.id} value={h.name}>{h.name}</option>

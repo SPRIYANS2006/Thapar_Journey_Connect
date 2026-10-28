@@ -167,11 +167,11 @@ app.post('/api/auth/login', async (req, res) => {
           name: displayName,
           email: cleanEmail,
           password_hash: passwordHash,
-          hostel: 'Agira Hall (Previously known as Hostel-A)',
+          hostel: hostel || '',
           avatar: initials,
-          phone: '+91 98765 00000',
-          degree: 'B.Tech Computer Engineering',
-          year: '3rd Year (Batch of 2026)',
+          phone: phone || '',
+          degree: degree || '',
+          year: year || '',
           reliability: 5.0,
           trips_completed: 0,
           joined_community: null
@@ -226,11 +226,11 @@ app.post('/api/auth/login', async (req, res) => {
       displayName,
       cleanEmail,
       passwordHash,
-      'Agira Hall (Previously known as Hostel-A)',
+      hostel || '',
       initials,
-      '+91 98765 00000',
-      'B.Tech Computer Engineering',
-      '3rd Year (Batch of 2026)',
+      phone || '',
+      degree || '',
+      year || '',
       5.0,
       0,
       null
@@ -292,11 +292,11 @@ app.post('/api/auth/register', async (req, res) => {
         name: displayName,
         email: cleanEmail,
         password_hash: passwordHash,
-        hostel: hostel || 'Agira Hall (Previously known as Hostel-A)',
+        hostel: hostel || '',
         avatar: initials,
-        phone: phone || '+91 98765 43210',
-        degree: degree || 'B.Tech Computer Engineering',
-        year: year || '3rd Year (Batch of 2026)',
+        phone: phone || '',
+        degree: degree || '',
+        year: year || '',
         reliability: 5.0,
         trips_completed: 0,
         joined_community: null
@@ -343,11 +343,11 @@ app.post('/api/auth/register', async (req, res) => {
     displayName,
     cleanEmail,
     passwordHash,
-    hostel || 'Agira Hall (Previously known as Hostel-A)',
+    hostel || '',
     initials,
-    phone || '+91 98765 43210',
-    degree || 'B.Tech Computer Engineering',
-    year || '3rd Year (Batch of 2026)',
+    phone || '',
+    degree || '',
+    year || '',
     5.0,
     0,
     null
@@ -419,11 +419,11 @@ app.post('/api/auth/google', async (req, res) => {
           id: userId,
           name: displayName,
           email: effectiveEmail,
-          hostel: hostel || 'Agira Hall (Previously known as Hostel-A)',
+          hostel: hostel || '',
           avatar: verifiedAvatar || avatar || initials,
-          phone: phone || '+91 98765 00000',
-          degree: degree || 'B.Tech Computer Engineering',
-          year: year || '3rd Year (Batch of 2026)',
+          phone: phone || '',
+          degree: degree || '',
+          year: year || '',
           reliability: 5.0,
           trips_completed: 0,
           joined_community: null
@@ -470,11 +470,11 @@ app.post('/api/auth/google', async (req, res) => {
       userId,
       displayName,
       effectiveEmail,
-      hostel || 'Agira Hall (Previously known as Hostel-A)',
+      hostel || '',
       verifiedAvatar || avatar || initials,
-      phone || '+91 98765 00000',
-      degree || 'B.Tech Computer Engineering',
-      year || '3rd Year (Batch of 2026)',
+      phone || '',
+      degree || '',
+      year || '',
       5.0,
       0,
       null
@@ -506,12 +506,12 @@ app.post('/api/auth/google', async (req, res) => {
 
 // 4. Current user profile
 app.get('/api/auth/me', async (req, res) => {
-  const userId = req.query.userId || 'user_main';
+  const userId = req.query.userId;
+  if (!userId) return res.status(400).json({ error: 'User ID is required' });
 
   if (isMongo()) {
     try {
-      let user = await User.findOne({ id: userId });
-      if (!user) user = await User.findOne({ email: 'student@thapar.edu' });
+      const user = await User.findOne({ id: userId });
       if (!user) return res.status(404).json({ error: 'User not found' });
 
       return res.json({
@@ -696,11 +696,11 @@ app.post('/api/journeys', async (req, res) => {
           id: effectiveUserId,
           name: userName || 'TIET Student',
           email: `${effectiveUserId}@thapar.edu`,
-          hostel: hostel || 'HA',
+          hostel: hostel || '',
           avatar: 'ST',
-          phone: '+91 98765 00000',
-          degree: 'B.Tech',
-          year: '3rd Year',
+          phone: '',
+          degree: '',
+          year: '',
           reliability: 5.0,
           trips_completed: 0,
           joined_community: null
@@ -733,11 +733,11 @@ app.post('/api/journeys', async (req, res) => {
           effectiveUserId,
           userName || 'TIET Student',
           `${effectiveUserId}@thapar.edu`,
-          hostel || 'HA',
+          hostel || '',
           'ST',
-          '+91 98765 00000',
-          'B.Tech',
-          '3rd Year',
+          '',
+          '',
+          '',
           5.0,
           0,
           null

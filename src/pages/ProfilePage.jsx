@@ -16,10 +16,10 @@ import { INITIAL_USER_PROFILE, HOSTELS } from '../data/mockData';
 
 export default function ProfilePage({ user, communities = [], onUpdateProfile }) {
   const [name, setName] = useState(user?.name || '');
-  const [degree, setDegree] = useState(user?.degree || 'B.Tech Computer Engineering');
-  const [year, setYear] = useState(user?.year || '3rd Year (Batch of 2026)');
-  const [hostel, setHostel] = useState(user?.hostel && user.hostel !== 'HA' ? user.hostel : (HOSTELS[0]?.name || 'Agira Hall (Previously known as Hostel-A)'));
-  const [phone, setPhone] = useState(user?.phone || '+91 98765 00000');
+  const [degree, setDegree] = useState(user?.degree || '');
+  const [year, setYear] = useState(user?.year || '');
+  const [hostel, setHostel] = useState(user?.hostel && user.hostel !== 'HA' ? user.hostel : '');
+  const [phone, setPhone] = useState(user?.phone || '');
   const [prefTransport, setPrefTransport] = useState(user?.preferredTransport || 'Shared Cab');
   const [joinedCommunity, setJoinedCommunity] = useState(user?.joinedCommunity || '');
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -75,11 +75,11 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
             </p>
 
             <div className="flex items-center justify-center sm:justify-start gap-4 text-xs text-slate-300 pt-2 flex-wrap">
-              <span>{degree}</span>
+              <span>{degree || 'Degree Not Set'}</span>
               <span>•</span>
-              <span>{year}</span>
+              <span>{year || 'Year Not Set'}</span>
               <span>•</span>
-              <span>Hostel: <strong className="text-blue-200">{hostel}</strong></span>
+              <span>Hostel: <strong className="text-blue-200">{hostel || 'Not Assigned'}</strong></span>
             </div>
           </div>
 
@@ -159,7 +159,7 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
               </label>
               <input
                 type="text"
-                value={user?.email || 'student@thapar.edu'}
+                value={user?.email || ''}
                 disabled
                 className="w-full bg-slate-100 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-500 cursor-not-allowed"
               />
@@ -206,19 +206,20 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
                 onChange={(e) => setHostel(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               >
+                <option value="">Select your hostel...</option>
                 <optgroup label="Boys Hostels">
                   {HOSTELS.filter(h => h.gender === 'Boys').map(h => (
-                    <option key={h.id} value={h.id}>{h.name}</option>
+                    <option key={h.id} value={h.name}>{h.name}</option>
                   ))}
                 </optgroup>
                 <optgroup label="Girls Hostels (Official TIET Halls)">
                   {HOSTELS.filter(h => h.gender === 'Girls').map(h => (
-                    <option key={h.id} value={h.id}>{h.name}</option>
+                    <option key={h.id} value={h.name}>{h.name}</option>
                   ))}
                 </optgroup>
                 <optgroup label="PG / Research">
                   {HOSTELS.filter(h => h.gender === 'Co-ed').map(h => (
-                    <option key={h.id} value={h.id}>{h.name}</option>
+                    <option key={h.id} value={h.name}>{h.name}</option>
                   ))}
                 </optgroup>
               </select>
@@ -234,6 +235,7 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
                 type="text"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
+                placeholder="+91 XXXXX XXXXX (Add your phone/WhatsApp)"
                 className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               />
             </div>

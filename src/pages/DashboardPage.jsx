@@ -15,7 +15,7 @@ export default function DashboardPage({
   const activeUserGroup = (activeGroups || []).find(g =>
     g.members && g.members.some(m => (m.id && m.id === user?.id) || (m.user_id && m.user_id === user?.id))
   );
-  const userCommunity = communities.find(c => c.id === user?.joinedCommunity) || communities[0];
+  const userCommunity = user?.joinedCommunity ? communities.find(c => c.id === user.joinedCommunity) : null;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-in fade-in duration-300">
@@ -30,7 +30,7 @@ export default function DashboardPage({
         <div className="relative z-10 max-w-2xl">
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-blue-200 text-xs font-semibold mb-3 border border-white/10">
             <Sparkles className="w-3.5 h-3.5 text-blue-300" />
-            <span>Welcome back, {user?.name?.split(' ')[0] || 'Kartik'} ({user?.hostel || 'HA'})</span>
+            <span>Welcome, {user?.name?.split(' ')[0] || 'Student'}{user?.hostel ? ` (${user.hostel})` : ''}</span>
           </div>
 
           <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-tight">
@@ -55,7 +55,7 @@ export default function DashboardPage({
       </div>
 
       {/* Community Quick Highlight Card */}
-      {userCommunity && (
+      {userCommunity ? (
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/80 rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
             <div className="w-12 h-12 rounded-2xl bg-white border border-blue-200 flex items-center justify-center text-2xl shadow-xs shrink-0">
@@ -63,8 +63,8 @@ export default function DashboardPage({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800 px-2 py-0.5 rounded-md">
-                  {user?.joinedCommunity ? 'Your Hometown Community' : 'Featured Hometown Hub'}
+                <span className="text-[11px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md">
+                  Your Hometown Community
                 </span>
                 <span className="text-xs text-slate-500 font-semibold">
                   👥 {userCommunity.membersCount} TIET Members
@@ -83,7 +83,39 @@ export default function DashboardPage({
             onClick={() => onNavigateToCommunities && onNavigateToCommunities()}
             className="w-full sm:w-auto px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-colors shrink-0"
           >
-            <span>Open Community Hub</span>
+            <span>Open Notice Board</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+      ) : (
+        <div className="bg-gradient-to-r from-slate-50 to-blue-50/50 border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-2xl shadow-xs shrink-0">
+              📍
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider bg-slate-200 text-slate-700 px-2 py-0.5 rounded-md">
+                  Hometown Hub
+                </span>
+                <span className="text-xs text-amber-600 font-semibold">
+                  Not Enrolled Yet
+                </span>
+              </div>
+              <h4 className="font-extrabold text-slate-900 text-base mt-0.5">
+                Join Your City Community
+              </h4>
+              <p className="text-xs text-slate-600 mt-0.5">
+                Connect with students heading home to Delhi NCR, Tri-City, Ludhiana, etc. for festival breaks.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => onNavigateToCommunities && onNavigateToCommunities()}
+            className="w-full sm:w-auto px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-colors shrink-0"
+          >
+            <span>Explore Communities</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>

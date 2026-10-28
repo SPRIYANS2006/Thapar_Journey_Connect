@@ -23,9 +23,9 @@ export function initDatabase() {
       phone TEXT,
       degree TEXT DEFAULT 'B.Tech Computer Engineering',
       year TEXT DEFAULT '3rd Year (Batch of 2026)',
-      reliability REAL DEFAULT 4.8,
-      trips_completed INTEGER DEFAULT 12,
-      joined_community TEXT DEFAULT 'jal',
+      reliability REAL DEFAULT 5.0,
+      trips_completed INTEGER DEFAULT 0,
+      joined_community TEXT DEFAULT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 

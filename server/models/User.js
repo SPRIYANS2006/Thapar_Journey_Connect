@@ -12,7 +12,7 @@ const userSchema = new mongoose.Schema({
   year: { type: String, default: '3rd Year (Batch of 2026)' },
   reliability: { type: Number, default: 5.0 },
   trips_completed: { type: Number, default: 0 },
-  joined_community: { type: String, default: 'jal' },
+  joined_community: { type: String, default: null },
   created_at: { type: Date, default: Date.now }
 });
 

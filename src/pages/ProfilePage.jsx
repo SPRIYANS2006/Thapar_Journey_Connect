@@ -21,7 +21,7 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
   const [hostel, setHostel] = useState(user?.hostel && user.hostel !== 'HA' ? user.hostel : (HOSTELS[0]?.name || 'Agira Hall (Previously known as Hostel-A)'));
   const [phone, setPhone] = useState(user?.phone || '+91 98765 00000');
   const [prefTransport, setPrefTransport] = useState(user?.preferredTransport || 'Shared Cab');
-  const [joinedCommunity, setJoinedCommunity] = useState(user?.joinedCommunity || 'jal');
+  const [joinedCommunity, setJoinedCommunity] = useState(user?.joinedCommunity || '');
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   const handleSave = (e) => {

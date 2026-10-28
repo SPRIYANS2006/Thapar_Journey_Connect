@@ -174,7 +174,7 @@ app.post('/api/auth/login', async (req, res) => {
           year: '3rd Year (Batch of 2026)',
           reliability: 5.0,
           trips_completed: 0,
-          joined_community: 'jal'
+          joined_community: null
         });
       } else if (user.password_hash) {
         const isValid = bcrypt.compareSync(password.trim(), user.password_hash);
@@ -233,7 +233,7 @@ app.post('/api/auth/login', async (req, res) => {
       '3rd Year (Batch of 2026)',
       5.0,
       0,
-      'jal'
+      null
     );
 
     user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
@@ -299,7 +299,7 @@ app.post('/api/auth/register', async (req, res) => {
         year: year || '3rd Year (Batch of 2026)',
         reliability: 5.0,
         trips_completed: 0,
-        joined_community: 'jal'
+        joined_community: null
       });
 
       return res.json({
@@ -350,7 +350,7 @@ app.post('/api/auth/register', async (req, res) => {
     year || '3rd Year (Batch of 2026)',
     5.0,
     0,
-    'jal'
+    null
   );
 
   const newUser = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
@@ -426,7 +426,7 @@ app.post('/api/auth/google', async (req, res) => {
           year: year || '3rd Year (Batch of 2026)',
           reliability: 5.0,
           trips_completed: 0,
-          joined_community: 'jal'
+          joined_community: null
         });
       } else if (verifiedAvatar && user.avatar !== verifiedAvatar) {
         user.avatar = verifiedAvatar;
@@ -477,7 +477,7 @@ app.post('/api/auth/google', async (req, res) => {
       year || '3rd Year (Batch of 2026)',
       5.0,
       0,
-      'jal'
+      null
     );
 
     user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
@@ -703,7 +703,7 @@ app.post('/api/journeys', async (req, res) => {
           year: '3rd Year',
           reliability: 5.0,
           trips_completed: 0,
-          joined_community: 'jal'
+          joined_community: null
         });
       }
 
@@ -740,7 +740,7 @@ app.post('/api/journeys', async (req, res) => {
           '3rd Year',
           5.0,
           0,
-          'jal'
+          null
         );
       }
 

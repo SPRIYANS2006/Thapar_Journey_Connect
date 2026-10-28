@@ -30,7 +30,7 @@ export default function CommunitiesPage({
   onAddComment
 }) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCommunityId, setSelectedCommunityId] = useState(user?.joinedCommunity || 'jal');
+  const [selectedCommunityId, setSelectedCommunityId] = useState(user?.joinedCommunity || (communities && communities[0]?.id) || 'del');
   const [filterState, setFilterState] = useState('All');
   
   // Post Creator State
@@ -55,15 +55,15 @@ export default function CommunitiesPage({
   });
 
   const activeCommunity = (communities || []).find((c) => c.id === selectedCommunityId) || communities[0] || {
-    id: 'jal',
-    name: 'Jalandhar',
-    state: 'Punjab',
-    icon: '🏛️',
-    membersCount: 142,
-    distanceFromThapar: '145 km',
-    popularTransport: 'GT Road Cabs, Intercity Trains',
-    description: 'Active hub for students from Jalandhar, Phagwara & Doaba region. Regular Friday/Sunday carpools.',
-    tags: ['Weekly Commuters', 'Cab Sharing', 'GT Road']
+    id: 'del',
+    name: 'Delhi NCR',
+    state: 'Delhi / NCR',
+    icon: '🚇',
+    membersCount: 0,
+    distanceFromThapar: '250 km',
+    popularTransport: 'Shatabdi Express, Long Cabs, Volvos',
+    description: 'Largest student origin community covering South Delhi, Noida, Gurgaon & West Delhi.',
+    tags: ['Holiday Rush', 'Shatabdi Cohort', 'IGI Airport']
   };
 
   const activePosts = (posts || []).filter((p) => p.communityId === activeCommunity?.id);
@@ -131,7 +131,7 @@ export default function CommunitiesPage({
             {user?.joinedCommunity ? (
               <span className="font-bold text-white flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                {communities.find(c => c.id === user.joinedCommunity)?.name || 'Jalandhar'} Community
+                {communities.find(c => c.id === user.joinedCommunity)?.name || 'Hometown'} Community
               </span>
             ) : (
               <span className="text-amber-200 font-medium">None joined yet (Pick one below)</span>

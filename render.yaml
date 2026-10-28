@@ -12,3 +12,5 @@ services:
         value: 10000
       - key: VITE_GOOGLE_CLIENT_ID
         value: 629250761631-k5eo83notfq2e1vuu3qvimbf1jq3lueo.apps.googleusercontent.com
+      - key: MONGODB_URI
+        sync: false

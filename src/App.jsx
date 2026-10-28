@@ -246,6 +246,19 @@ export default function App() {
 
   // Group Handlers
   const handleJoinGroup = async (groupId) => {
+    // Single-Active-Group Rule enforcement
+    const currentActiveGroup = (groups || []).find(g =>
+      g.id !== groupId &&
+      (g.status === 'Open' || g.status === 'Confirmed') &&
+      g.members && g.members.some(m => (m.id && m.id === user?.id) || (m.user_id && m.user_id === user?.id))
+    );
+    if (currentActiveGroup) {
+      alert(`Single-Ride Policy: You are already a member of Group #${currentActiveGroup.id} for ${currentActiveGroup.destinationName}. In order to prevent conflicting carpool bookings, you can only belong to one active ride group at a time. Please leave that group first before joining another!`);
+      setSelectedGroupId(currentActiveGroup.id);
+      setActivePage('group-details');
+      return;
+    }
+
     try {
       const res = await api.joinGroup(groupId, {
         userId: user.id,
@@ -260,6 +273,10 @@ export default function App() {
         setGroups((prev) => prev.map((g) => (g.id === groupId ? res.group : g)));
       }
     } catch (err) {
+      if (err.message && err.message.includes('Single-Ride Policy')) {
+        alert(err.message);
+        return;
+      }
       console.warn('Fallback join group:', err.message);
       setGroups((prevGroups) =>
         prevGroups.map((g) => {
@@ -291,6 +308,18 @@ export default function App() {
   };
 
   const handleCreateGroupWithStudent = async (candidateStudent) => {
+    // Single-Active-Group Rule enforcement
+    const currentActiveGroup = (groups || []).find(g =>
+      (g.status === 'Open' || g.status === 'Confirmed') &&
+      g.members && g.members.some(m => (m.id && m.id === user?.id) || (m.user_id && m.user_id === user?.id))
+    );
+    if (currentActiveGroup) {
+      alert(`Single-Ride Policy: You are already a member of active Group #${currentActiveGroup.id} for ${currentActiveGroup.destinationName}. You can only belong to one active ride group at a time. Please leave that group first before forming a new one!`);
+      setSelectedGroupId(currentActiveGroup.id);
+      setActivePage('group-details');
+      return;
+    }
+
     const newGroupPayload = {
       destinationId: currentJourneyReq?.destinationId || 'railway',
       destinationName: currentJourneyReq?.destinationName || 'Patiala Railway Station',
@@ -523,6 +552,19 @@ export default function App() {
     }
   };
 
+  const handleCreateCommunity = async (commData) => {
+    try {
+      const res = await api.createCommunity(commData);
+      if (res && res.community) {
+        setCommunities((prev) => [res.community, ...prev]);
+        return res.community;
+      }
+    } catch (err) {
+      alert(err.message || 'Failed to create new community');
+      throw err;
+    }
+  };
+
   const handleAddCommunityPost = async (newPost) => {
     try {
       const res = await api.createCommunityPost(newPost.communityId, {
@@ -719,6 +761,7 @@ export default function App() {
             user={user}
             onJoinCommunity={handleJoinCommunity}
             onLeaveCommunity={handleLeaveCommunity}
+            onCreateCommunity={handleCreateCommunity}
             onAddPost={handleAddCommunityPost}
             onSelectCommunityTravel={handleSelectCommunityTravel}
             onLikePost={handleLikePost}

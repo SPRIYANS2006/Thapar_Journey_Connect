@@ -896,9 +896,21 @@ app.post('/api/groups', async (req, res) => {
   } = req.body;
 
   let groupId = `${Math.floor(100 + Math.random() * 900)}`;
+  const creatorId = initialMembers[0]?.id || initialMembers[0]?.user_id || 'user_main';
 
   if (isMongo()) {
     try {
+      // Enforce Single-Active-Group Rule on group creation
+      const activeOther = await Group.findOne({
+        status: { $in: ['Open', 'Confirmed'] },
+        $or: [{ 'members.user_id': creatorId }, { 'members.id': creatorId }]
+      });
+      if (activeOther) {
+        return res.status(400).json({
+          error: `Single-Ride Policy: You are already a member of active Group #${activeOther.id} (${activeOther.destination_name}). Please leave your current ride group before forming a new one.`
+        });
+      }
+
       for (let i = 0; i < 20; i++) {
         const candidate = `${Math.floor(100 + Math.random() * 900)}`;
         const existing = await Group.findOne({ id: candidate });
@@ -955,6 +967,18 @@ app.post('/api/groups', async (req, res) => {
   }
 
   // SQLite fallback
+  const existingActive = db.prepare(`
+    SELECT gm.group_id, g.destination_name 
+    FROM group_members gm
+    JOIN groups g ON g.id = gm.group_id
+    WHERE gm.user_id = ? AND g.status IN ('Open', 'Confirmed')
+  `).get(creatorId);
+  if (existingActive) {
+    return res.status(400).json({
+      error: `Single-Ride Policy: You are already part of active Group #${existingActive.group_id} (${existingActive.destination_name}). Please leave your current ride group before forming a new one.`
+    });
+  }
+
   for (let i = 0; i < 100; i++) {
     const candidate = `${Math.floor(100 + Math.random() * 900)}`;
     const existing = db.prepare('SELECT id FROM groups WHERE id = ?').get(candidate);
@@ -1028,6 +1052,18 @@ app.post('/api/groups/:id/join', async (req, res) => {
         return res.status(400).json({ error: 'This group is already at maximum capacity (4/4 members).' });
       }
 
+      // Enforce Single-Active-Group Rule: a student cannot belong to multiple open or confirmed ride groups
+      const otherActiveGroup = await Group.findOne({
+        id: { $ne: groupId },
+        status: { $in: ['Open', 'Confirmed'] },
+        $or: [{ 'members.user_id': userId }, { 'members.id': userId }]
+      });
+      if (otherActiveGroup) {
+        return res.status(400).json({
+          error: `Single-Ride Policy: You are already a member of Group #${otherActiveGroup.id} for ${otherActiveGroup.destination_name || 'your journey'}. In order to prevent booking conflicts, please leave that group first before joining another.`
+        });
+      }
+
       const alreadyJoined = group.members.some(m => m.user_id === userId);
       if (alreadyJoined) {
         const full = await getGroup(groupId);
@@ -1076,6 +1112,18 @@ app.post('/api/groups/:id/join', async (req, res) => {
   const currentMembers = db.prepare('SELECT * FROM group_members WHERE group_id = ?').all(groupId);
   if (currentMembers.length >= group.max_members) {
     return res.status(400).json({ error: 'This group is already at maximum capacity (4/4 members).' });
+  }
+
+  const otherMember = db.prepare(`
+    SELECT gm.group_id, g.destination_name 
+    FROM group_members gm
+    JOIN groups g ON g.id = gm.group_id
+    WHERE gm.user_id = ? AND gm.group_id != ? AND g.status IN ('Open', 'Confirmed')
+  `).get(userId, groupId);
+  if (otherMember) {
+    return res.status(400).json({
+      error: `Single-Ride Policy: You are already a member of Group #${otherMember.group_id} for ${otherMember.destination_name || 'Active Group'}. Please leave that group first before joining another.`
+    });
   }
 
   const alreadyJoined = currentMembers.some(m => m.user_id === userId);
@@ -1457,6 +1505,116 @@ app.post('/api/communities/:id/leave', async (req, res) => {
   db.prepare('UPDATE communities SET members_count = ? WHERE id = ?').run(realCount, communityId);
 
   res.json({ success: true, message: 'Left community successfully', membersCount: realCount });
+});
+
+// 20.5. Communities: Create / Propose New Hometown Community Hub
+app.post('/api/communities', async (req, res) => {
+  const {
+    name,
+    state,
+    icon = '🏙️',
+    distanceFromThapar,
+    popularTransport,
+    description,
+    tags
+  } = req.body;
+
+  if (!name || !name.trim()) {
+    return res.status(400).json({ error: 'City / Community name is required.' });
+  }
+
+  const cleanName = name.trim();
+  const cleanState = (state || 'Punjab / NCR / North India').trim();
+  let slug = cleanName.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 10);
+  if (!slug) slug = `hub_${Date.now()}`;
+
+  const cleanTags = Array.isArray(tags) && tags.length > 0 
+    ? tags 
+    : ['Holiday Rush', `${cleanName} Cohort`, 'Weekend Travel'];
+
+  const cleanDesc = description?.trim() || `Official student hometown community hub for students travelling from TIET Patiala to ${cleanName}, ${cleanState}.`;
+  const cleanDistance = distanceFromThapar?.trim() || 'Approx 200 km';
+  const cleanTransport = popularTransport?.trim() || 'Shared Cabs, Intercity Buses, Express Trains';
+
+  if (isMongo()) {
+    try {
+      const existing = await Community.findOne({
+        $or: [
+          { id: slug },
+          { name: { $regex: new RegExp(`^${cleanName}$`, 'i') } }
+        ]
+      });
+      if (existing) {
+        return res.status(400).json({ error: `A community for "${cleanName}" already exists!` });
+      }
+
+      const created = await Community.create({
+        id: slug,
+        name: cleanName,
+        state: cleanState,
+        icon: icon || '🏙️',
+        members_count: 0,
+        distance_from_thapar: cleanDistance,
+        popular_transport: cleanTransport,
+        description: cleanDesc,
+        tags: cleanTags
+      });
+
+      return res.json({
+        success: true,
+        community: {
+          id: created.id,
+          name: created.name,
+          state: created.state,
+          icon: created.icon,
+          membersCount: 0,
+          distanceFromThapar: created.distance_from_thapar,
+          popularTransport: created.popular_transport,
+          description: created.description,
+          tags: created.tags
+        }
+      });
+    } catch (err) {
+      console.error('Mongo create community error:', err.message);
+      return res.status(500).json({ error: 'Failed to create community on database.' });
+    }
+  }
+
+  // SQLite fallback
+  const existing = db.prepare('SELECT id FROM communities WHERE LOWER(name) = LOWER(?) OR id = ?').get(cleanName, slug);
+  if (existing) {
+    return res.status(400).json({ error: `A community for "${cleanName}" already exists!` });
+  }
+
+  db.prepare(`
+    INSERT INTO communities (id, name, state, icon, members_count, distance_from_thapar, popular_transport, description, tags)
+    VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?)
+  `).run(
+    slug,
+    cleanName,
+    cleanState,
+    icon || '🏙️',
+    cleanDistance,
+    cleanTransport,
+    cleanDesc,
+    cleanTags.join(', ')
+  );
+
+  const row = db.prepare('SELECT * FROM communities WHERE id = ?').get(slug);
+  res.json({
+    success: true,
+    community: {
+      id: row.id,
+      name: row.name,
+      state: row.state,
+      icon: row.icon,
+      membersCount: 0,
+      distanceFromThapar: row.distance_from_thapar,
+      popularTransport: row.popular_transport,
+      description: row.description,
+      tags: row.tags.split(',').map(t => t.trim())
+    }
+  });
 });
 
 // 21. Communities: Posts & Discussion Notice Board

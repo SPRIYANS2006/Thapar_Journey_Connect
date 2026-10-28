@@ -14,10 +14,58 @@ import { DESTINATIONS, HOSTELS } from '../data/mockData';
 
 export default function JourneyFormModal({ destination, user, onClose, onSubmitJourney }) {
   const [selectedDestId, setSelectedDestId] = useState(destination?.id || 'railway');
+  
+  // Dynamically generate the next 15 days starting from the current date
+  const availableDates = React.useMemo(() => {
+    const list = [];
+    const now = new Date();
+    for (let i = 0; i < 15; i++) {
+      const d = new Date(now);
+      d.setDate(now.getDate() + i);
+
+      const dayNum = d.getDate();
+      const monthName = d.toLocaleDateString('en-US', { month: 'short' });
+      const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
+
+      let label = '';
+      let value = '';
+
+      if (i === 0) {
+        label = `Today (${weekday}, ${monthName} ${dayNum})`;
+        value = 'Today';
+      } else if (i === 1) {
+        label = `Tomorrow (${weekday}, ${monthName} ${dayNum})`;
+        value = 'Tomorrow';
+      } else {
+        label = `${weekday}, ${monthName} ${dayNum}`;
+        value = `${monthName} ${dayNum}`;
+      }
+
+      list.push({ value, label });
+    }
+    return list;
+  }, []);
+
   const [date, setDate] = useState('Today');
-  const [departureTime, setDepartureTime] = useState('17:00'); // 5:00 PM
+
+  // Dynamically calculate departure time (current time + 45m rounded to next 15 mins)
+  const [departureTime, setDepartureTime] = useState(() => {
+    const now = new Date();
+    const future = new Date(now.getTime() + 45 * 60 * 1000);
+    const mins = Math.ceil(future.getMinutes() / 15) * 15;
+    if (mins >= 60) {
+      future.setHours(future.getHours() + 1);
+      future.setMinutes(0);
+    } else {
+      future.setMinutes(mins);
+    }
+    const hh = String(future.getHours()).padStart(2, '0');
+    const mm = String(future.getMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
+  });
+
   const [flexibility, setFlexibility] = useState(15); // ±15 minutes
-  const [hostel, setHostel] = useState(user?.hostel || 'HA');
+  const [hostel, setHostel] = useState(user?.hostel && user.hostel !== 'HA' ? user.hostel : '');
   const [transport, setTransport] = useState('Shared Cab');
 
   const selectedDestObj = DESTINATIONS.find(d => d.id === selectedDestId) || DESTINATIONS[0];
@@ -115,10 +163,11 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
                 onChange={(e) => setDate(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               >
-                <option value="Today">Today (Sept 16)</option>
-                <option value="Tomorrow">Tomorrow (Sept 17)</option>
-                <option value="Sept 18">Sept 18</option>
-                <option value="Sept 19">Sept 19</option>
+                {availableDates.map((item, idx) => (
+                  <option key={idx} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -184,19 +233,20 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
               onChange={(e) => setHostel(e.target.value)}
               className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
             >
-              <optgroup label="Boys Hostels">
+              <option value="">-- Choose Your Hostel / Hall --</option>
+              <optgroup label="Boys Hostels (Official TIET)">
                 {HOSTELS.filter(h => h.gender === 'Boys').map(h => (
-                  <option key={h.id} value={h.id}>{h.name}</option>
+                  <option key={h.id} value={h.name}>{h.name}</option>
                 ))}
               </optgroup>
               <optgroup label="Girls Hostels (Official TIET Halls)">
                 {HOSTELS.filter(h => h.gender === 'Girls').map(h => (
-                  <option key={h.id} value={h.id}>{h.name}</option>
+                  <option key={h.id} value={h.name}>{h.name}</option>
                 ))}
               </optgroup>
               <optgroup label="PG / Research Hostels">
                 {HOSTELS.filter(h => h.gender === 'Co-ed').map(h => (
-                  <option key={h.id} value={h.id}>{h.name}</option>
+                  <option key={h.id} value={h.name}>{h.name}</option>
                 ))}
               </optgroup>
             </select>

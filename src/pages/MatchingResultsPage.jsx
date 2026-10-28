@@ -62,8 +62,8 @@ export default function MatchingResultsPage({
           {/* User Request Summary Badge */}
           <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-xs text-slate-700 shrink-0 space-y-1">
             <div className="font-bold text-slate-900 flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-blue-600" />
-              <span>Target Departure: {formatTime24to12(journeyReq?.departureTime)} (±{journeyReq?.flexibility}m)</span>
+              <Calendar className="w-3.5 h-3.5 text-blue-600" />
+              <span>Date: {journeyReq?.date || 'Today'} • {formatTime24to12(journeyReq?.departureTime)} (±{journeyReq?.flexibility}m)</span>
             </div>
             <div className="flex items-center gap-3 text-slate-500">
               <span>Hostel: <strong className="text-slate-800">{journeyReq?.hostel}</strong></span>

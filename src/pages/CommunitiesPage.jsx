@@ -16,7 +16,10 @@ import {
   Compass,
   Building2,
   Calendar,
-  CornerDownRight
+  CornerDownRight,
+  X,
+  Car,
+  Info
 } from 'lucide-react';
 
 export default function CommunitiesPage({ 
@@ -25,6 +28,7 @@ export default function CommunitiesPage({
   user, 
   onJoinCommunity, 
   onLeaveCommunity, 
+  onCreateCommunity,
   onAddPost, 
   onSelectCommunityTravel,
   onLikePost,
@@ -34,6 +38,18 @@ export default function CommunitiesPage({
   const [selectedCommunityId, setSelectedCommunityId] = useState(user?.joinedCommunity || (communities && communities[0]?.id) || 'del');
   const [filterState, setFilterState] = useState('All');
   
+  // Create New Community Modal State
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newCityName, setNewCityName] = useState('');
+  const [newState, setNewState] = useState('');
+  const [newIcon, setNewIcon] = useState('🏙️');
+  const [newDistance, setNewDistance] = useState('');
+  const [newTransport, setNewTransport] = useState('Trains, Shared Cabs, Express Buses');
+  const [newDesc, setNewDesc] = useState('');
+  const [isSubmittingCommunity, setIsSubmittingCommunity] = useState(false);
+  const [createCommunityError, setCreateCommunityError] = useState('');
+  const [createCommunitySuccess, setCreateCommunitySuccess] = useState('');
+
   // Post Creator State
   const [isPosting, setIsPosting] = useState(false);
   const [postTitle, setPostTitle] = useState('');
@@ -103,6 +119,48 @@ export default function CommunitiesPage({
       onAddComment(postId, replyInputText.trim());
     }
     setReplyInputText('');
+  };
+
+  const handleCreateCommunitySubmit = async (e) => {
+    e.preventDefault();
+    setCreateCommunityError('');
+    setCreateCommunitySuccess('');
+
+    if (!newCityName.trim()) {
+      setCreateCommunityError('Please enter a City or Region name.');
+      return;
+    }
+
+    try {
+      setIsSubmittingCommunity(true);
+      const created = await onCreateCommunity({
+        name: newCityName.trim(),
+        state: newState.trim() || 'North India',
+        icon: newIcon.trim() || '🏙️',
+        distanceFromThapar: newDistance.trim() ? `${newDistance.trim()} km` : '250 km',
+        popularTransport: newTransport.trim() || 'Trains, Shared Cabs, Express Buses',
+        description: newDesc.trim() || `Official student community for Thapar students hailing from ${newCityName.trim()}. Coordinate rides and campus meetups!`,
+        tags: [newCityName.trim(), 'Campus Carpool', 'Weekend Trip']
+      });
+
+      setCreateCommunitySuccess(`Community "${created.name}" created successfully!`);
+      if (created?.id) {
+        setSelectedCommunityId(created.id);
+      }
+      setTimeout(() => {
+        setShowCreateModal(false);
+        setNewCityName('');
+        setNewState('');
+        setNewDistance('');
+        setNewDesc('');
+        setCreateCommunitySuccess('');
+        setCreateCommunityError('');
+      }, 1000);
+    } catch (err) {
+      setCreateCommunityError(err.message || 'Failed to create community. Please try again.');
+    } finally {
+      setIsSubmittingCommunity(false);
+    }
   };
 
   return (
@@ -175,15 +233,39 @@ export default function CommunitiesPage({
                 </button>
               ))}
             </div>
+
+            {/* Add Custom Community Hub Trigger Button */}
+            <button
+              onClick={() => {
+                setNewCityName(searchQuery.trim());
+                setShowCreateModal(true);
+              }}
+              className="w-full py-2.5 px-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Can't find your city? Add Community Hub</span>
+            </button>
           </div>
 
           {/* Communities List */}
           <div className="space-y-3 max-h-[640px] overflow-y-auto pr-1">
             {filteredCommunities.length === 0 ? (
-              <div className="text-center py-8 bg-white rounded-2xl border border-dashed border-slate-300 p-6">
-                <Building2 className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                <p className="text-sm font-bold text-slate-700">No communities found</p>
-                <p className="text-xs text-slate-400 mt-1">Try another search query</p>
+              <div className="text-center py-8 bg-white rounded-2xl border border-dashed border-slate-300 p-6 space-y-3">
+                <Building2 className="w-8 h-8 text-slate-400 mx-auto" />
+                <div>
+                  <p className="text-sm font-bold text-slate-700">No community found for "{searchQuery}"</p>
+                  <p className="text-xs text-slate-400 mt-1">Be the first to start a hub for your hometown!</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setNewCityName(searchQuery.trim());
+                    setShowCreateModal(true);
+                  }}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm inline-flex items-center gap-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add "{searchQuery || 'New City'}" as Hub</span>
+                </button>
               </div>
             ) : (
               filteredCommunities.map((c) => {
@@ -538,6 +620,207 @@ export default function CommunitiesPage({
         </div>
 
       </div>
+
+      {/* Modal: Create New Community Hub */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto space-y-5">
+            
+            {/* Modal Header */}
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[11px] font-bold mb-1.5">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>TIET City Network</span>
+                </div>
+                <h3 className="text-xl font-black text-slate-900 tracking-tight">
+                  Add Hometown Community Hub
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Start an official hub for students traveling between Thapar & your hometown.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 flex items-center justify-center transition-colors shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleCreateCommunitySubmit} className="space-y-4">
+              
+              {/* City / Hub Name */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  City or Region Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Lucknow, Shimla, Dehradun, Jammu, Jaipur"
+                  value={newCityName}
+                  onChange={(e) => setNewCityName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* State */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  State / Province <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Uttar Pradesh, Himachal Pradesh, Jammu & Kashmir"
+                  value={newState}
+                  onChange={(e) => setNewState(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
+                />
+                {/* State Quick Picks */}
+                <div className="flex flex-wrap gap-1.5">
+                  {['Uttar Pradesh', 'Himachal Pradesh', 'Jammu & Kashmir', 'Uttarakhand', 'Punjab', 'Haryana', 'Rajasthan', 'Delhi / NCR'].map((st) => (
+                    <button
+                      key={st}
+                      type="button"
+                      onClick={() => setNewState(st)}
+                      className={`text-[11px] px-2.5 py-1 rounded-lg border font-medium transition-colors ${
+                        newState === st
+                          ? 'bg-blue-50 border-blue-300 text-blue-700 font-bold'
+                          : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      {st}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Icon / Emoji Picker */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Community Badge / Emoji
+                </label>
+                <div className="flex items-center gap-2">
+                  <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-2xl shrink-0">
+                    {newIcon || '🏙️'}
+                  </div>
+                  <div className="flex flex-wrap gap-1 flex-1">
+                    {['🏙️', '🏔️', '🏰', '🌴', '🚂', '🚗', '✈️', '🌊', '🏛️', '🌄', '🌳', '🕌'].map((emoji) => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        onClick={() => setNewIcon(emoji)}
+                        className={`w-8 h-8 rounded-lg text-base flex items-center justify-center transition-all ${
+                          newIcon === emoji 
+                            ? 'bg-blue-100 ring-2 ring-blue-500 scale-105' 
+                            : 'bg-slate-100 hover:bg-slate-200'
+                        }`}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Distance from Thapar */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Distance from TIET Patiala
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="e.g. 350"
+                      value={newDistance}
+                      onChange={(e) => setNewDistance(e.target.value.replace(/[^0-9]/g, ''))}
+                      className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 pr-12"
+                    />
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+                      km
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Popular Commute Route
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Trains, Shared Cabs"
+                    value={newTransport}
+                    onChange={(e) => setNewTransport(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Community Description / Welcome Note
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="e.g. Connect with Thapar students from Lucknow for holiday cab sharing, Shatabdi rides, and campus meetups."
+                  value={newDesc}
+                  onChange={(e) => setNewDesc(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+              </div>
+
+              {/* Error / Success Feedback */}
+              {createCommunityError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-xs text-red-700 font-medium">
+                  <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                  <span>{createCommunityError}</span>
+                </div>
+              )}
+              {createCommunitySuccess && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2 text-xs text-emerald-700 font-bold">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{createCommunitySuccess}</span>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="pt-2 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="px-4 py-2.5 text-xs font-semibold text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingCommunity}
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold text-xs rounded-xl shadow-md shadow-blue-500/25 transition-all flex items-center gap-2"
+                >
+                  {isSubmittingCommunity ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Creating Hub...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4" />
+                      <span>Create Community Hub</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+            </form>
+
+          </div>
+        </div>
+      )}
 
     </div>
   );

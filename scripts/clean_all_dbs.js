@@ -14,6 +14,7 @@ async function cleanBothDatabases() {
     await conn.collection('groups').deleteMany({});
     await conn.collection('journeys').deleteMany({});
     await conn.collection('communityposts').deleteMany({});
+    await conn.collection('communities').deleteMany({ name: { $regex: /test|valley/i } });
     await conn.collection('communities').updateMany({}, { $set: { members_count: 0 } });
     
     const users = await conn.collection('users').countDocuments();

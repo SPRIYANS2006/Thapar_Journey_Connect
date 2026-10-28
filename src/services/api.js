@@ -125,6 +125,12 @@ export const api = {
   // Communities
   getCommunities: () => request('/communities'),
 
+  createCommunity: (data) =>
+    request('/communities', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
   joinCommunity: (communityId, userId) =>
     request(`/communities/${communityId}/join`, {
       method: 'POST',

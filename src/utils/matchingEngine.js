@@ -74,6 +74,11 @@ export function calculateMatchScore(userReq, candidate) {
     return { score: 0, reasons: [] };
   }
 
+  // Check travel date match
+  if (userReq.date && candidate.date && userReq.date !== candidate.date) {
+    return { score: 0, reasons: [] };
+  }
+
   const userTimeMins = timeToMinutes(userReq.departureTime);
   const candidateTimeMins = timeToMinutes(candidate.departureTime);
   const timeDiff = Math.abs(userTimeMins - candidateTimeMins);

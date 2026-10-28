@@ -17,7 +17,7 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
   const [name, setName] = useState(user?.name || '');
   const [degree, setDegree] = useState(user?.degree || 'B.Tech Computer Engineering');
   const [year, setYear] = useState(user?.year || '3rd Year (Batch of 2026)');
-  const [hostel, setHostel] = useState(user?.hostel || 'HA');
+  const [hostel, setHostel] = useState(user?.hostel && user.hostel !== 'HA' ? user.hostel : (HOSTELS[0]?.name || 'Agira Hall (Previously known as Hostel-A)'));
   const [phone, setPhone] = useState(user?.phone || '+91 98765 00000');
   const [prefTransport, setPrefTransport] = useState(user?.preferredTransport || 'Shared Cab');
   const [joinedCommunity, setJoinedCommunity] = useState(user?.joinedCommunity || 'jal');

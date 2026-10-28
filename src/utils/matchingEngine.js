@@ -37,8 +37,6 @@ export function getHostelProximity(hostelA, hostelB) {
   }
 
   const clean = (h) => (h || '').replace(/hostel\s*/i, '').trim().toLowerCase();
-  const cA = clean(hostelA);
-  const cB = clean(hostelB);
 
   const findH = (val) => {
     const c = clean(val);

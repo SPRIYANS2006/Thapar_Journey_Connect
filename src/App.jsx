@@ -56,14 +56,14 @@ export default function App() {
     async function loadData() {
       try {
         const [fetchedGroups, fetchedCommunities, fetchedPosts] = await Promise.all([
-          api.getGroups().catch(() => INITIAL_GROUPS),
+          api.getGroups().catch(() => []),
           api.getCommunities().catch(() => INITIAL_COMMUNITIES),
           api.getCommunityPosts('jal').catch(() => INITIAL_COMMUNITY_POSTS)
         ]);
 
-        if (fetchedGroups && fetchedGroups.length > 0) setGroups(fetchedGroups);
-        if (fetchedCommunities && fetchedCommunities.length > 0) setCommunities(fetchedCommunities);
-        if (fetchedPosts && fetchedPosts.length > 0) setCommunityPosts(fetchedPosts);
+        if (Array.isArray(fetchedGroups)) setGroups(fetchedGroups);
+        if (Array.isArray(fetchedCommunities) && fetchedCommunities.length > 0) setCommunities(fetchedCommunities);
+        if (Array.isArray(fetchedPosts) && fetchedPosts.length > 0) setCommunityPosts(fetchedPosts);
       } catch (err) {
         console.warn('Initial data load warning:', err.message);
       }
@@ -711,9 +711,9 @@ export default function App() {
           <div className="flex items-center gap-2">
             <span className="font-bold text-slate-800">Thapar Journey Connect</span>
             <span>•</span>
-            <span className="text-blue-600 font-semibold">Full-Stack Edition</span>
+            <span className="text-blue-600 font-semibold">Full-Stack Cloud Edition</span>
             <span>•</span>
-            <span>Node.js / Express + SQLite</span>
+            <span>Node.js / Express + MongoDB Atlas</span>
           </div>
           <p className="text-slate-400">
             Designed exclusively for Thapar Institute of Engineering & Technology (TIET) students.

@@ -3,7 +3,7 @@ services:
     name: thapar-journey-connect
     env: node
     plan: free
-    buildCommand: npm install && npm run build
+    buildCommand: npm install --include=dev && npm run build
     startCommand: npm start
     envVars:
       - key: NODE_ENV
@@ -13,4 +13,4 @@ services:
       - key: VITE_GOOGLE_CLIENT_ID
         value: 629250761631-k5eo83notfq2e1vuu3qvimbf1jq3lueo.apps.googleusercontent.com
       - key: MONGODB_URI
-        sync: false
+        value: mongodb+srv://psoni1be24_db_user:g1A5fLmc2frxKZtN@thaparclusters.mk83gfu.mongodb.net/thapar_journey?retryWrites=true&w=majority

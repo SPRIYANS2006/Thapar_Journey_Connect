@@ -681,7 +681,7 @@ app.put('/api/auth/profile', async (req, res) => {
       if (year) updateData.year = year;
       if (joinedCommunity !== undefined) updateData.joined_community = joinedCommunity;
 
-      const updated = await User.findOneAndUpdate({ id: userId }, updateData, { new: true });
+      const updated = await User.findOneAndUpdate({ id: userId }, updateData, { returnDocument: 'after' });
       if (!updated) return res.status(404).json({ error: 'User not found' });
 
       return res.json({
@@ -1679,7 +1679,7 @@ app.post('/api/communities/posts/:postId/like', async (req, res) => {
 
   if (isMongo()) {
     try {
-      const updated = await CommunityPost.findOneAndUpdate({ id: postId }, { $inc: { likes: 1 } }, { new: true });
+      const updated = await CommunityPost.findOneAndUpdate({ id: postId }, { $inc: { likes: 1 } }, { returnDocument: 'after' });
       return res.json({ success: true, likes: updated?.likes || 0 });
     } catch (err) {
       return res.status(500).json({ error: 'Failed to like post' });

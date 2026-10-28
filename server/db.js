@@ -241,7 +241,7 @@ function seedDefaultData() {
     }
   }
 
-  // 3. Seed Default User (Kartik Arora)
+  // 3. Seed Default User (Kartik Arora) - Fresh Clean State
   const defaultUser = db.prepare('SELECT * FROM users WHERE email = ?').get('student@thapar.edu');
   if (!defaultUser) {
     db.prepare(`
@@ -256,8 +256,8 @@ function seedDefaultData() {
       '+91 98765 12345',
       'B.Tech Computer Engineering',
       '3rd Year (Batch of 2026)',
-      4.8,
-      12,
+      5.0,
+      0,
       'jal'
     );
   }
@@ -440,83 +440,8 @@ function seedDefaultData() {
     }
   }
 
-  // 6. Seed Groups & Group Members
-  const groupCount = db.prepare('SELECT COUNT(*) as c FROM groups').get().c;
-  if (groupCount === 0) {
-    const insertGroup = db.prepare(`
-      INSERT INTO groups (id, destination_id, destination_name, departure_time, date, status, max_members, pickup_point, match_score)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    const insertMember = db.prepare(`
-      INSERT INTO group_members (id, group_id, user_id, name, avatar, hostel, departure_time, role, phone)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    const insertMsg = db.prepare(`
-      INSERT INTO group_messages (id, group_id, sender_id, sender_name, avatar, text)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
-
-    // Group 104: Patiala Railway Station (3/4 Open for new student)
-    insertGroup.run(
-      '104',
-      'railway',
-      'Patiala Railway Station',
-      '17:15',
-      'Today',
-      'Open',
-      4,
-      'Main Gate (Near Executive Mess)',
-      96
-    );
-
-    insertMember.run('gm1', '104', 's1', 'Rahul Sharma', 'RS', 'H3', '17:05', 'Group Admin', '+91 98765 43210');
-    insertMember.run('gm2', '104', 's2', 'Aman Verma', 'AV', 'H4', '17:10', 'Member', '+91 98123 45678');
-    insertMember.run('gm3', '104', 's3', 'Simran Kaur', 'SK', 'H4', '17:15', 'Member', '+91 97654 32109');
-
-    insertMsg.run('m1', '104', 's1', 'Rahul Sharma', 'RS', 'Hey everyone! I will book an auto from Main Gate at 5:05 PM.');
-    insertMsg.run('m2', '104', 's2', 'Aman Verma', 'AV', 'Sounds good, I will walk from Hostel H4 by 5:00 PM.');
-    insertMsg.run('m3', '104', 's3', 'Simran Kaur', 'SK', 'Great! I am leaving from H4 too, see you all at Main Gate!');
-
-    // Group 102: Chandigarh Airport
-    insertGroup.run(
-      '102',
-      'chd_airport',
-      'Chandigarh Airport',
-      '06:30',
-      'Tomorrow',
-      'Open',
-      4,
-      'Gate 2 (Opposite COS Complex)',
-      92
-    );
-
-    insertMember.run('gm4', '102', 's5', 'Neha Patel', 'NP', 'H8', '06:30', 'Group Admin', '+91 98712 34567');
-    insertMember.run('gm5', '102', 's6', 'Karan Mehra', 'KM', 'H2', '06:30', 'Member', '+91 99112 33445');
-
-    insertMsg.run('m4', '102', 's5', 'Neha Patel', 'NP', 'Hey guys! Cab fare is around ₹1,350 total. Splitting gives ~₹340/head.');
-
-    // Group 101: Delhi Airport (Confirmed)
-    insertGroup.run(
-      '101',
-      'del_airport',
-      'Delhi Airport',
-      '22:00',
-      'Friday',
-      'Confirmed',
-      4,
-      'Main Gate Security Desk',
-      88
-    );
-
-    insertMember.run('gm6', '101', 's7', 'Vikas Singla', 'VS', 'H10', '22:00', 'Group Admin', '+91 98888 11223');
-    insertMember.run('gm7', '101', 's8', 'Pooja Roy', 'PR', 'HD', '22:00', 'Member', '+91 97777 44332');
-    insertMember.run('gm8', '101', 's9', 'Manan Sethi', 'MS', 'H1', '22:00', 'Member', '+91 96666 55443');
-    insertMember.run('gm9', '101', 's10', 'Ritika Joshi', 'RJ', 'HM', '22:00', 'Member', '+91 95555 66778');
-
-    insertMsg.run('m5', '101', 's7', 'Vikas Singla', 'VS', 'All 4 confirmed. Driver contact: Sukhdev Singh (+91 98140 XXXXX). Innova leaves sharp at 10 PM.');
-  }
+  // 6. Dynamic Groups Table - starts completely fresh (0 pre-added groups)
+  // New groups are dynamically formed when students coordinate rides
 }
 
 export default db;

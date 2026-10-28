@@ -23,7 +23,7 @@ export default function MatchingResultsPage({
   onJoinGroup, 
   onCreateGroupWithStudent 
 }) {
-  const currentUid = currentUser?.id || 'user_main';
+  const currentUid = currentUser?.id;
   const destName = journeyReq?.destinationName || 'Selected Transit Point';
   const filteredGroups = (activeGroups || []).filter(g => g.destinationId === journeyReq?.destinationId);
 
@@ -88,8 +88,8 @@ export default function MatchingResultsPage({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {filteredGroups.map((group) => {
-              const isFull = group.members.length >= group.maxMembers;
-              const isUserMember = group.members && group.members.some(m => m.id === currentUid || m.user_id === currentUid);
+              const isFull = (group.members || []).length >= (group.maxMembers || 4);
+              const isUserMember = group.members && group.members.some(m => (m.id && m.id === currentUid) || (m.user_id && m.user_id === currentUid));
 
               return (
                 <div 

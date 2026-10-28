@@ -206,8 +206,8 @@ app.post('/api/auth/login', (req, res) => {
       '+91 98765 00000',
       'B.Tech Computer Engineering',
       '3rd Year (Batch of 2026)',
-      4.8,
-      12,
+      5.0,
+      0,
       'jal'
     );
 
@@ -262,7 +262,7 @@ app.post('/api/auth/register', (req, res) => {
     degree || 'B.Tech Computer Engineering',
     year || '3rd Year (Batch of 2026)',
     5.0,
-    1,
+    0,
     'jal'
   );
 
@@ -367,6 +367,7 @@ app.get('/api/hostels', (req, res) => {
 app.post('/api/journeys', (req, res) => {
   const {
     userId = 'user_main',
+    userName,
     destinationId,
     destinationName,
     hostel,
@@ -377,23 +378,54 @@ app.post('/api/journeys', (req, res) => {
     notes = ''
   } = req.body;
 
+  const effectiveUserId = userId || `user_${Date.now()}`;
+
+  // Ensure user exists in users table so foreign key constraint never fails
+  try {
+    const existing = db.prepare('SELECT id FROM users WHERE id = ?').get(effectiveUserId);
+    if (!existing) {
+      db.prepare(`
+        INSERT OR IGNORE INTO users (id, name, email, hostel, avatar, phone, degree, year, reliability, trips_completed, joined_community)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        effectiveUserId,
+        userName || 'TIET Student',
+        `${effectiveUserId}@thapar.edu`,
+        hostel || 'H3',
+        'ST',
+        '+91 98765 00000',
+        'B.Tech',
+        '3rd Year',
+        5.0,
+        0,
+        'jal'
+      );
+    }
+  } catch (e) {
+    console.warn('Auto-user verification notice:', e.message);
+  }
+
   const journeyId = `j_${Date.now()}`;
 
-  db.prepare(`
-    INSERT INTO journeys (id, user_id, destination_id, destination_name, hostel, departure_time, date, flexibility, transport, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
-    journeyId,
-    userId,
-    destinationId,
-    destinationName,
-    hostel,
-    departureTime,
-    date,
-    flexibility,
-    transport,
-    notes
-  );
+  try {
+    db.prepare(`
+      INSERT INTO journeys (id, user_id, destination_id, destination_name, hostel, departure_time, date, flexibility, transport, notes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      journeyId,
+      effectiveUserId,
+      destinationId,
+      destinationName,
+      hostel || 'H3',
+      departureTime,
+      date,
+      flexibility,
+      transport,
+      notes
+    );
+  } catch (err) {
+    console.warn('Journey insert note:', err.message);
+  }
 
   // Run compatibility algorithm against student candidate pool
   const userReq = {
@@ -454,7 +486,17 @@ app.post('/api/groups', (req, res) => {
     initialMembers = []
   } = req.body;
 
-  const groupId = `${Math.floor(100 + Math.random() * 900)}`;
+  // Generate unique 3-digit group ID
+  let groupId;
+  for (let i = 0; i < 100; i++) {
+    const candidate = `${Math.floor(100 + Math.random() * 900)}`;
+    const existing = db.prepare('SELECT id FROM groups WHERE id = ?').get(candidate);
+    if (!existing) {
+      groupId = candidate;
+      break;
+    }
+  }
+  if (!groupId) groupId = `${Date.now() % 10000}`;
 
   db.prepare(`
     INSERT INTO groups (id, destination_id, destination_name, departure_time, date, status, max_members, pickup_point, match_score)
@@ -478,10 +520,10 @@ app.post('/api/groups', (req, res) => {
     insertMember.run(
       `gm_${Date.now()}_${Math.random().toString(36).substring(7)}`,
       groupId,
-      m.id || 'user_main',
-      m.name,
+      m.id || m.user_id || 'user_main',
+      m.name || 'TIET Student',
       m.avatar || 'ST',
-      m.hostel,
+      m.hostel || 'H3',
       m.departureTime || departureTime,
       m.role || 'Member',
       m.phone || '+91 98765 00000'
@@ -495,7 +537,7 @@ app.post('/api/groups', (req, res) => {
   `).run(
     `msg_${Date.now()}`,
     groupId,
-    initialMembers[0]?.id || 'user_main',
+    initialMembers[0]?.id || initialMembers[0]?.user_id || 'user_main',
     initialMembers[0]?.name || 'Group Admin',
     initialMembers[0]?.avatar || 'GA',
     `Hey everyone! Group #${groupId} created for ${destinationName}. Let's coordinate pickup time and ride details!`

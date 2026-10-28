@@ -52,14 +52,14 @@ export default function AuthPage({ onLoginSuccess }) {
       const userInitials = displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'KA';
 
       const fallbackUserData = {
-        id: 'user_main',
+        id: `user_${Date.now()}`,
         name: displayName,
         email: email.trim(),
         hostel: hostel,
         avatar: userInitials,
         phone: phone,
-        tripsCompleted: 12,
-        reliability: 4.8,
+        tripsCompleted: 0,
+        reliability: 5.0,
         joinedCommunity: 'jal'
       };
       onLoginSuccess(fallbackUserData);

@@ -15,46 +15,11 @@ import { formatTime24to12 } from '../utils/matchingEngine';
 export default function MyJourneysPage({ activeGroups, currentUser, onViewGroupDetails, onOpenChat }) {
   const [activeTab, setActiveTab] = useState('upcoming');
 
-  const currentUserId = currentUser?.id || 'user_main';
   const upcomingJourneys = (activeGroups || []).filter(g =>
-    g.members && g.members.some(m => m.id === currentUserId || m.id === 'user_main' || m.user_id === currentUserId || m.user_id === 'user_main')
+    g.members && g.members.some(m => (m.id && m.id === currentUser?.id) || (m.user_id && m.user_id === currentUser?.id))
   );
 
-  const completedJourneys = [
-    {
-      id: 'past_1',
-      groupId: '92',
-      destinationName: 'Chandigarh Airport',
-      date: '28 Aug 2026',
-      departureTime: '18:00',
-      membersCount: 3,
-      partners: ['Priya S.', 'Tanmay J.'],
-      rating: 5.0,
-      pickupPoint: 'Hostel D Gate'
-    },
-    {
-      id: 'past_2',
-      groupId: '78',
-      destinationName: 'Patiala Bus Stand',
-      date: '10 Aug 2026',
-      departureTime: '07:30',
-      membersCount: 4,
-      partners: ['Rahul S.', 'Aman V.', 'Dev M.'],
-      rating: 4.8,
-      pickupPoint: 'Main Gate'
-    },
-    {
-      id: 'past_3',
-      groupId: '64',
-      destinationName: 'Patiala Railway Station',
-      date: '15 July 2026',
-      departureTime: '17:00',
-      membersCount: 4,
-      partners: ['Arjun G.', 'Neha P.', 'Simran K.'],
-      rating: 4.9,
-      pickupPoint: 'Main Gate'
-    }
-  ];
+  const completedJourneys = [];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-in fade-in duration-300">
@@ -202,45 +167,59 @@ export default function MyJourneysPage({ activeGroups, currentUser, onViewGroupD
       {/* COMPLETED JOURNEYS TAB */}
       {activeTab === 'completed' && (
         <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {completedJourneys.map((trip) => (
-              <div
-                key={trip.id}
-                className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm flex flex-col justify-between"
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-[10px] uppercase font-bold bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-md border border-slate-200">
-                      Group #{trip.groupId}
-                    </span>
-                    <span className="text-xs font-bold text-emerald-600 flex items-center gap-1">
-                      <CheckCircle className="w-3.5 h-3.5" />
-                      Completed
-                    </span>
-                  </div>
-
-                  <h3 className="font-bold text-slate-900 text-base">
-                    TIET → {trip.destinationName}
-                  </h3>
-
-                  <div className="mt-3 space-y-1.5 text-xs text-slate-500">
-                    <div>Date: <strong className="text-slate-800 font-semibold">{trip.date}</strong></div>
-                    <div>Departure: <strong className="text-slate-800 font-semibold">{formatTime24to12(trip.departureTime)}</strong></div>
-                    <div>Pickup: <strong className="text-slate-800 font-semibold">{trip.pickupPoint}</strong></div>
-                    <div>Travel Partners: <strong className="text-slate-800 font-semibold">{trip.partners.join(', ')}</strong></div>
-                  </div>
-                </div>
-
-                <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-xs">
-                  <span className="text-slate-500">Ride Reliability</span>
-                  <div className="flex items-center gap-1 text-amber-600 font-bold">
-                    <Star className="w-4 h-4 fill-amber-500" />
-                    <span>{trip.rating} / 5.0</span>
-                  </div>
-                </div>
+          {completedJourneys.length === 0 ? (
+            <div className="bg-white rounded-3xl border border-slate-200/80 p-12 text-center space-y-4 shadow-sm">
+              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-400">
+                <Calendar className="w-8 h-8 text-blue-600" />
               </div>
-            ))}
-          </div>
+              <div className="space-y-1">
+                <h3 className="font-bold text-slate-900 text-lg">No Completed Journeys Yet</h3>
+                <p className="text-slate-500 text-xs max-w-md mx-auto">
+                  Your past shared rides and student reviews will be archived here once you finish your upcoming journeys.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {completedJourneys.map((trip) => (
+                <div
+                  key={trip.id}
+                  className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[10px] uppercase font-bold bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-md border border-slate-200">
+                        Group #{trip.groupId}
+                      </span>
+                      <span className="text-xs font-bold text-emerald-600 flex items-center gap-1">
+                        <CheckCircle className="w-3.5 h-3.5" />
+                        Completed
+                      </span>
+                    </div>
+
+                    <h3 className="font-bold text-slate-900 text-base">
+                      TIET → {trip.destinationName}
+                    </h3>
+
+                    <div className="mt-3 space-y-1.5 text-xs text-slate-500">
+                      <div>Date: <strong className="text-slate-800 font-semibold">{trip.date}</strong></div>
+                      <div>Departure: <strong className="text-slate-800 font-semibold">{formatTime24to12(trip.departureTime)}</strong></div>
+                      <div>Pickup: <strong className="text-slate-800 font-semibold">{trip.pickupPoint}</strong></div>
+                      <div>Travel Partners: <strong className="text-slate-800 font-semibold">{trip.partners.join(', ')}</strong></div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-xs">
+                    <span className="text-slate-500">Ride Reliability</span>
+                    <div className="flex items-center gap-1 text-amber-600 font-bold">
+                      <Star className="w-4 h-4 fill-amber-500" />
+                      <span>{trip.rating} / 5.0</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

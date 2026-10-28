@@ -12,9 +12,8 @@ export default function DashboardPage({
   communities = [], 
   onNavigateToCommunities 
 }) {
-  const currentUserId = user?.id || 'user_main';
   const activeUserGroup = (activeGroups || []).find(g =>
-    g.members && g.members.some(m => m.id === currentUserId || m.id === 'user_main' || m.user_id === currentUserId || m.user_id === 'user_main')
+    g.members && g.members.some(m => (m.id && m.id === user?.id) || (m.user_id && m.user_id === user?.id))
   );
   const userCommunity = communities.find(c => c.id === user?.joinedCommunity) || communities[0];
 

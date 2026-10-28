@@ -219,123 +219,7 @@ export const MOCK_STUDENTS = [
   }
 ];
 
-export const INITIAL_GROUPS = [
-  {
-    id: '104',
-    destinationId: 'railway',
-    destinationName: 'Patiala Railway Station',
-    departureTime: '17:10', // 5:10 PM target
-    date: 'Today',
-    status: 'Open', // Open, Full, Confirmed
-    members: [
-      {
-        id: 's1',
-        name: 'Rahul Sharma',
-        avatar: 'RS',
-        hostel: 'H3',
-        departureTime: '17:05',
-        role: 'Group Admin',
-        phone: '+91 98765 43210'
-      },
-      {
-        id: 's2',
-        name: 'Aman Verma',
-        avatar: 'AV',
-        hostel: 'H4',
-        departureTime: '17:10',
-        role: 'Member',
-        phone: '+91 98123 45678'
-      },
-      {
-        id: 's3',
-        name: 'Simran Kaur',
-        avatar: 'SK',
-        hostel: 'H4',
-        departureTime: '17:15',
-        role: 'Member',
-        phone: '+91 97654 32109'
-      }
-    ],
-    maxMembers: 4,
-    pickupPoint: 'Main Gate (Near Executive Mess)',
-    matchScore: 94,
-    chatMessages: [
-      {
-        id: 'm1',
-        senderId: 's1',
-        senderName: 'Rahul Sharma',
-        avatar: 'RS',
-        text: 'Hey everyone! Excited for the trip. Should we meet at the main gate?',
-        time: '4:45 PM'
-      },
-      {
-        id: 'm2',
-        senderId: 'user_main',
-        senderName: 'Kartik Arora',
-        avatar: 'KA',
-        text: 'Yes! I will reach the main gate by 5:05 PM from H3.',
-        time: '4:47 PM'
-      },
-      {
-        id: 'm3',
-        senderId: 's2',
-        senderName: 'Aman Verma',
-        avatar: 'AV',
-        text: 'Same here! I will head over from H4 around 5:05 PM.',
-        time: '4:49 PM'
-      },
-      {
-        id: 'm4',
-        senderId: 's3',
-        senderName: 'Simran Kaur',
-        avatar: 'SK',
-        text: 'Hi everyone! Just joined as 4th member. Leaving from H4, see you all at Main Gate!',
-        time: '4:52 PM'
-      }
-    ]
-  },
-  {
-    id: '108',
-    destinationId: 'chd_airport',
-    destinationName: 'Chandigarh Airport',
-    departureTime: '18:10',
-    date: 'Tomorrow',
-    status: 'Open',
-    members: [
-      {
-        id: 's6',
-        name: 'Priya Sundaram',
-        avatar: 'PS',
-        hostel: 'Hostel D',
-        departureTime: '18:00',
-        role: 'Group Admin',
-        phone: '+91 91234 56789'
-      },
-      {
-        id: 's7',
-        name: 'Tanmay Joshi',
-        avatar: 'TJ',
-        hostel: 'Hostel H1',
-        departureTime: '18:15',
-        role: 'Member',
-        phone: '+91 93456 78901'
-      }
-    ],
-    maxMembers: 4,
-    pickupPoint: 'Hostel D Gate / Main Exit',
-    matchScore: 91,
-    chatMessages: [
-      {
-        id: 'm10',
-        senderId: 's6',
-        senderName: 'Priya Sundaram',
-        avatar: 'PS',
-        text: 'Hey! I booked an Uber XL for 6 PM. Looking for 2 more people!',
-        time: '3:15 PM'
-      }
-    ]
-  }
-];
+export const INITIAL_GROUPS = [];
 
 export const INITIAL_COMMUNITIES = [
   {
@@ -502,8 +386,8 @@ export const INITIAL_USER_PROFILE = {
   hometown: 'Jalandhar',
   joinedCommunity: 'jal',
   phone: '+91 98765 00000',
-  tripsCompleted: 12,
-  reliability: 4.8,
+  tripsCompleted: 0,
+  reliability: 5.0,
   preferredTransport: 'Shared Cab'
 };
 

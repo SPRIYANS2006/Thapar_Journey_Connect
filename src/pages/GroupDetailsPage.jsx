@@ -36,10 +36,24 @@ export default function GroupDetailsPage({
   const [showFareSplit, setShowFareSplit] = useState(false);
   const [showSOS, setShowSOS] = useState(false);
 
-  if (!group) return null;
+  if (!group) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center space-y-4 animate-in fade-in duration-300">
+        <h2 className="text-xl font-bold text-slate-800">No Group Selected</h2>
+        <p className="text-sm text-slate-500">Please choose or form a group from the dashboard.</p>
+        <button
+          onClick={onBack}
+          className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition-colors shadow-sm inline-flex items-center gap-2"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to Dashboard</span>
+        </button>
+      </div>
+    );
+  }
 
-  const isFull = group.members.length >= group.maxMembers;
-  const isMember = group.members.some(m => m.id === currentUser?.id || m.id === 'user_main');
+  const isFull = (group.members || []).length >= (group.maxMembers || 4);
+  const isMember = (group.members || []).some(m => (m.id && m.id === currentUser?.id) || (m.user_id && m.user_id === currentUser?.id));
 
   const handleConfirm = () => {
     setIsConfirmed(true);
@@ -205,7 +219,7 @@ export default function GroupDetailsPage({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {group.members.map((member) => {
-            const isMe = member.id === 'user_main' || member.user_id === currentUser?.id;
+            const isMe = (member.id && member.id === currentUser?.id) || (member.user_id && member.user_id === currentUser?.id);
             return (
               <div
                 key={member.id}

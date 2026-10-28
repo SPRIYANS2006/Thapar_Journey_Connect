@@ -19,9 +19,9 @@ export default function GroupChatModal({ group, currentUser, onClose, onSendMess
 
     const newMessage = {
       id: `m_${Date.now()}`,
-      senderId: 'user_main',
-      senderName: currentUser?.name || 'Kartik Arora',
-      avatar: currentUser?.avatar || 'KA',
+      senderId: currentUser?.id || 'user_main',
+      senderName: currentUser?.name || 'Student',
+      avatar: currentUser?.avatar || 'ST',
       text: inputText.trim(),
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
@@ -87,7 +87,7 @@ export default function GroupChatModal({ group, currentUser, onClose, onSendMess
         {/* Chat Messages Body */}
         <div className="flex-1 p-6 overflow-y-auto space-y-4 bg-slate-50/50">
           {group.chatMessages.map((msg) => {
-            const isMe = msg.senderId === 'user_main';
+            const isMe = (msg.senderId && msg.senderId === currentUser?.id) || (currentUser?.name && msg.senderName === currentUser?.name);
             return (
               <div
                 key={msg.id}

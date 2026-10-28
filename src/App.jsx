@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Users, Compass } from 'lucide-react';
 import Navbar from './components/Navbar';
 import AuthPage from './pages/AuthPage';
 import DashboardPage from './pages/DashboardPage';
@@ -42,7 +43,7 @@ export default function App() {
 
   // Groups & Chat State
   const [groups, setGroups] = useState(INITIAL_GROUPS);
-  const [selectedGroupId, setSelectedGroupId] = useState('104');
+  const [selectedGroupId, setSelectedGroupId] = useState(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatGroupId, setChatGroupId] = useState(null);
 
@@ -151,9 +152,9 @@ export default function App() {
   const handleJoinGroup = async (groupId) => {
     try {
       const res = await api.joinGroup(groupId, {
-        userId: user.id || 'user_main',
+        userId: user.id,
         name: user.name,
-        avatar: user.avatar || 'KA',
+        avatar: user.avatar || 'ST',
         hostel: user.hostel,
         departureTime: currentJourneyReq?.departureTime || '17:00',
         phone: user.phone
@@ -167,12 +168,13 @@ export default function App() {
       setGroups((prevGroups) =>
         prevGroups.map((g) => {
           if (g.id === groupId) {
-            const exists = g.members.some((m) => m.id === 'user_main' || m.id === user.id);
+            const exists = g.members.some((m) => (m.id && m.id === user.id) || (m.user_id && m.user_id === user.id));
             if (exists || g.members.length >= g.maxMembers) return g;
             const userMember = {
-              id: user.id || 'user_main',
+              id: user.id,
+              user_id: user.id,
               name: user.name,
-              avatar: user.avatar || 'KA',
+              avatar: user.avatar || 'ST',
               hostel: user.hostel,
               departureTime: currentJourneyReq?.departureTime || '17:00',
               role: 'Member',
@@ -202,16 +204,18 @@ export default function App() {
       matchScore: 96,
       initialMembers: [
         {
-          id: user.id || 'user_main',
+          id: user.id,
+          user_id: user.id,
           name: user.name,
-          avatar: user.avatar || 'KA',
+          avatar: user.avatar || 'ST',
           hostel: user.hostel,
-          departureTime: currentJourneyReq?.departureTime || '17:00',
+          departureTime: currentJourneyReq?.departureTime || candidateStudent.departureTime,
           role: 'Group Admin',
           phone: user.phone
         },
         {
           id: candidateStudent.id,
+          user_id: candidateStudent.id,
           name: candidateStudent.name,
           avatar: candidateStudent.avatar,
           hostel: candidateStudent.hostel,
@@ -225,7 +229,7 @@ export default function App() {
     try {
       const res = await api.createGroup(newGroupPayload);
       if (res && res.group) {
-        setGroups((prev) => [res.group, ...prev]);
+        setGroups((prev) => [res.group, ...prev.filter(g => g.id !== res.group.id)]);
         setSelectedGroupId(res.group.id);
       }
     } catch (err) {
@@ -239,7 +243,7 @@ export default function App() {
         members: newGroupPayload.initialMembers,
         chatMessages: [
           {
-            id: 'm_init',
+            id: `m_init_${Date.now()}`,
             senderId: candidateStudent.id,
             senderName: candidateStudent.name,
             avatar: candidateStudent.avatar,
@@ -259,16 +263,16 @@ export default function App() {
     if (!window.confirm('Are you sure you want to leave this travel group?')) return;
 
     try {
-      await api.leaveGroup(groupId, user.id || 'user_main');
+      await api.leaveGroup(groupId, user.id);
       const updated = await api.getGroups();
-      setGroups(updated);
+      setGroups(updated || []);
     } catch (err) {
       setGroups((prev) =>
         prev.map((g) => {
           if (g.id === groupId) {
             return {
               ...g,
-              members: g.members.filter((m) => m.id !== 'user_main' && m.id !== user.id)
+              members: g.members.filter((m) => m.id !== user.id && m.user_id !== user.id)
             };
           }
           return g;
@@ -486,7 +490,7 @@ export default function App() {
     handleOpenJourneyForm(syntheticDest);
   };
 
-  const selectedGroupObj = groups.find((g) => g.id === selectedGroupId) || groups[0];
+  const selectedGroupObj = groups.find((g) => g.id === selectedGroupId) || (groups.length > 0 ? groups[0] : null);
   const activeChatGroupObj = groups.find((g) => g.id === chatGroupId);
 
   // If user is not logged in, render AuthPage
@@ -502,8 +506,8 @@ export default function App() {
         activePage={activePage}
         setActivePage={(page) => {
           if (page === 'my-groups') {
-            const currentUid = user?.id || 'user_main';
-            const myGroup = groups.find((g) => g.members && g.members.some((m) => m.id === currentUid || m.id === 'user_main' || m.user_id === currentUid || m.user_id === 'user_main'));
+            const currentUid = user?.id;
+            const myGroup = groups.find((g) => g.members && g.members.some((m) => (m.id && m.id === currentUid) || (m.user_id && m.user_id === currentUid)));
             if (myGroup) {
               setSelectedGroupId(myGroup.id);
               setActivePage('group-details');
@@ -514,7 +518,7 @@ export default function App() {
         }}
         user={user}
         onLogout={handleLogout}
-        myGroupsCount={groups.filter((g) => g.members && g.members.some((m) => m.id === (user?.id || 'user_main') || m.id === 'user_main' || m.user_id === (user?.id || 'user_main') || m.user_id === 'user_main')).length}
+        myGroupsCount={groups.filter((g) => g.members && g.members.some((m) => (m.id && m.id === user?.id) || (m.user_id && m.user_id === user?.id))).length}
       />
 
       {/* Main View Area */}
@@ -552,21 +556,42 @@ export default function App() {
             onBack={() => setActivePage('dashboard')}
             onOpenChat={handleOpenChatModal}
             onSimulateJoin={handleSimulateJoin}
-            onResetGroup={() => handleResetGroup(selectedGroupObj.id)}
+            onResetGroup={() => handleResetGroup(selectedGroupObj?.id)}
             onConfirmJourney={handleConfirmJourney}
             onLeaveGroup={handleLeaveGroup}
             onShareToChat={(groupId, fareText) => {
               handleSendMessage(groupId, {
                 id: `msg_fare_${Date.now()}`,
-                senderId: user.id || 'user_main',
+                senderId: user.id,
                 senderName: user.name,
-                avatar: user.avatar || 'KA',
+                avatar: user.avatar || 'ST',
                 text: fareText,
                 time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
               });
               handleOpenChatModal(groupId);
             }}
           />
+        )}
+
+        {activePage === 'my-groups' && (
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center space-y-6 animate-in fade-in duration-300">
+            <div className="w-20 h-20 bg-blue-50 text-blue-600 rounded-3xl mx-auto flex items-center justify-center border border-blue-200/60 shadow-sm">
+              <Users className="w-10 h-10" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-2xl font-black text-slate-900">No Active Travel Groups Yet</h2>
+              <p className="text-sm text-slate-500 max-w-md mx-auto">
+                You haven't formed or joined any travel groups yet. Pick your transit destination on the dashboard to match with fellow Thapar students and form your first ride group!
+              </p>
+            </div>
+            <button
+              onClick={() => setActivePage('dashboard')}
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl shadow-md transition-all inline-flex items-center gap-2"
+            >
+              <Compass className="w-4 h-4" />
+              <span>Explore Destinations</span>
+            </button>
+          </div>
         )}
 
         {activePage === 'my-journeys' && (

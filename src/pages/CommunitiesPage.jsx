@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Avatar from '../components/Avatar';
 import { 
   Users, 
   MapPin, 
@@ -76,9 +77,9 @@ export default function CommunitiesPage({
     const newPost = {
       id: `post-${Date.now()}`,
       communityId: activeCommunity.id,
-      author: user?.name || 'Kartik Arora',
-      authorAvatar: user?.avatar || 'KA',
-      authorHostel: user?.hostel || 'H3',
+      author: user?.name || 'TIET Student',
+      authorAvatar: user?.avatar || (user?.name ? user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'ST'),
+      authorHostel: user?.hostel || 'Hostel',
       timeAgo: 'Just now',
       category: postCategory,
       title: postTitle.trim(),
@@ -431,9 +432,14 @@ export default function CommunitiesPage({
                     <div key={post.id} className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shadow-xs">
-                            {post.authorAvatar}
-                          </div>
+                          <Avatar
+                            src={post.authorAvatar}
+                            name={post.author}
+                            size="w-9 h-9"
+                            textSize="text-xs"
+                            rounded="rounded-full"
+                            bg="bg-blue-600"
+                          />
                           <div>
                             <div className="flex items-center gap-2">
                               <span className="font-bold text-xs text-slate-900">{post.author}</span>

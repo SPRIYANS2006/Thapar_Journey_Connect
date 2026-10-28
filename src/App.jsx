@@ -431,7 +431,7 @@ export default function App() {
       const res = await api.sendMessage(groupId, {
         senderId: user.id || 'user_main',
         senderName: user.name,
-        avatar: user.avatar || 'KA',
+        avatar: user.avatar || 'ST',
         text: messageObj.text
       });
 
@@ -528,7 +528,7 @@ export default function App() {
       const res = await api.createCommunityPost(newPost.communityId, {
         authorId: user.id || 'user_main',
         authorName: user.name,
-        authorAvatar: user.avatar || 'KA',
+        authorAvatar: user.avatar || 'ST',
         authorHostel: user.hostel,
         category: newPost.category,
         title: newPost.title,
@@ -564,7 +564,7 @@ export default function App() {
       const res = await api.addComment(postId, {
         authorId: user.id || 'user_main',
         authorName: user.name,
-        authorAvatar: user.avatar || 'KA',
+        authorAvatar: user.avatar || 'ST',
         authorHostel: user.hostel,
         text
       });

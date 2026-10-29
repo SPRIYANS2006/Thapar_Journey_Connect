@@ -15,7 +15,8 @@ import {
   AlertCircle,
   Calculator,
   ShieldAlert,
-  LogOut
+  LogOut,
+  UserPlus
 } from 'lucide-react';
 import FareSplitModal from '../components/FareSplitModal';
 import EmergencySOSModal from '../components/EmergencySOSModal';
@@ -30,15 +31,18 @@ export default function GroupDetailsPage({
   onResetGroup,
   onConfirmJourney,
   onLeaveGroup,
-  onShareToChat
+  onShareToChat,
+  onJoinGroup
 }) {
   const [isConfirmed, setIsConfirmed] = useState(group?.status === 'Confirmed');
   const [showFareSplit, setShowFareSplit] = useState(false);
   const [showSOS, setShowSOS] = useState(false);
   const [revealedPhones, setRevealedPhones] = useState({});
 
-  const isCurrentUserInGroup = group?.members?.some(
-    (m) => (m.id && m.id === currentUser?.id) || (m.user_id && m.user_id === currentUser?.id)
+  const isCurrentUserInGroup = (group?.members || []).some(
+    (m) => (m.id && m.id === currentUser?.id) || 
+           (m.user_id && m.user_id === currentUser?.id) ||
+           (currentUser?.name && m.name === currentUser.name)
   );
 
   if (!group) {
@@ -180,70 +184,88 @@ export default function GroupDetailsPage({
 
           {/* Header Action Buttons */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
-            <button
-              onClick={() => onOpenChat(group.id)}
-              className="px-5 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-2xl shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 transition-all"
-            >
-              <MessageSquare className="w-4 h-4" />
-              <span>Open Group Chat</span>
-            </button>
+            {isMember ? (
+              <>
+                <button
+                  onClick={() => onOpenChat(group.id)}
+                  className="px-5 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-2xl shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  <span>Open Group Chat</span>
+                </button>
 
-            {!(group.status === 'Confirmed' || isConfirmed) ? (
-              <button
-                onClick={handleConfirm}
-                className="px-5 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-2xl shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2 transition-all"
-              >
-                <CheckCircle className="w-4 h-4" />
-                <span>Confirm Journey</span>
-              </button>
-            ) : (
-              <div className="flex items-center gap-2">
-                <div className="px-4 py-3 bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 font-bold text-xs rounded-2xl flex items-center justify-center gap-2">
-                  <CheckCircle className="w-4 h-4" />
-                  <span>Journey Confirmed</span>
-                </div>
-                <a
-                  href={`https://wa.me/?text=${encodeURIComponent(
-                    `🚖 *Thapar Journey Connect - Group #${group.id}*
+                {!(group.status === 'Confirmed' || isConfirmed) ? (
+                  <button
+                    onClick={handleConfirm}
+                    className="px-5 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-2xl shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    <span>Confirm Journey</span>
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <div className="px-4 py-3 bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 font-bold text-xs rounded-2xl flex items-center justify-center gap-2">
+                      <CheckCircle className="w-4 h-4" />
+                      <span>Journey Confirmed</span>
+                    </div>
+                    <a
+                      href={`https://wa.me/?text=${encodeURIComponent(
+                        `🚖 *Thapar Journey Connect - Group #${group.id}*
 📍 Destination: ${group.destinationName}
 ⏰ Departure: ${group.departureTime} (${group.date || 'Today'})
 📍 Pickup Point: ${group.pickupPoint}
 👥 Members: ${group.members.map(m => m.name).join(', ')}
 Coordinated via Thapar Journey Connect`
-                  )}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-4 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-2xl shadow-md flex items-center justify-center gap-1.5 transition-all"
-                  title="Share details to WhatsApp"
-                >
-                  <span>Share on WhatsApp</span>
-                </a>
-              </div>
-            )}
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-2xl shadow-md flex items-center justify-center gap-1.5 transition-all"
+                      title="Share details to WhatsApp"
+                    >
+                      <span>Share on WhatsApp</span>
+                    </a>
+                  </div>
+                )}
 
-            {isMember && onLeaveGroup && (
-              <button
-                onClick={() => onLeaveGroup(group.id)}
-                className={`px-4 py-3 font-bold text-xs rounded-2xl border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  isCriticalCancellation
-                    ? 'bg-rose-900/60 hover:bg-rose-800 text-rose-200 border-rose-500/50'
-                    : isLateCancellation
-                    ? 'bg-amber-900/60 hover:bg-amber-800 text-amber-200 border-amber-500/50'
-                    : 'bg-slate-800/80 hover:bg-red-900/60 text-slate-300 hover:text-red-200 border-slate-700'
-                }`}
-                title={
-                  isCriticalCancellation
-                    ? '⚠️ Last 30 mins: Leaving will decrease your reliability rating by -0.8⭐'
-                    : isLateCancellation
-                    ? '⚠️ Under 4 hours: Leaving will decrease your reliability rating by -0.3⭐'
-                    : 'Free cancellation up to 4 hours before departure'
-                }
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span>
-                  Leave {isCriticalCancellation ? '(-0.8⭐ penalty)' : isLateCancellation ? '(-0.3⭐ penalty)' : ''}
-                </span>
-              </button>
+                {onLeaveGroup && (
+                  <button
+                    onClick={() => onLeaveGroup(group.id)}
+                    className={`px-4 py-3 font-bold text-xs rounded-2xl border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      isCriticalCancellation
+                        ? 'bg-rose-900/60 hover:bg-rose-800 text-rose-200 border-rose-500/50'
+                        : isLateCancellation
+                        ? 'bg-amber-900/60 hover:bg-amber-800 text-amber-200 border-amber-500/50'
+                        : 'bg-slate-800/80 hover:bg-red-900/60 text-slate-300 hover:text-red-200 border-slate-700'
+                    }`}
+                    title={
+                      isCriticalCancellation
+                        ? '⚠️ Last 30 mins: Leaving will decrease your reliability rating by -0.8⭐'
+                        : isLateCancellation
+                        ? '⚠️ Under 4 hours: Leaving will decrease your reliability rating by -0.3⭐'
+                        : 'Free cancellation up to 4 hours before departure'
+                    }
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>
+                      Leave {isCriticalCancellation ? '(-0.8⭐ penalty)' : isLateCancellation ? '(-0.3⭐ penalty)' : ''}
+                    </span>
+                  </button>
+                )}
+              </>
+            ) : (
+              isFull ? (
+                <div className="px-5 py-3 bg-slate-800 text-slate-400 font-bold text-xs rounded-2xl border border-slate-700 text-center">
+                  Group Full (4/4 Members)
+                </div>
+              ) : (
+                <button
+                  onClick={() => onJoinGroup && onJoinGroup(group.id)}
+                  className="px-6 py-3.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-sm rounded-2xl shadow-xl shadow-blue-500/40 flex items-center justify-center gap-2.5 transition-all cursor-pointer ring-2 ring-white/30 animate-pulse"
+                >
+                  <UserPlus className="w-5 h-5" />
+                  <span>Join Group #{group.id} ({group.members.length}/4)</span>
+                </button>
+              )
             )}
           </div>
 
@@ -268,6 +290,28 @@ Coordinated via Thapar Journey Connect`
           {hoursLeft <= 0.5 ? '⚠️ < 30 Mins Left (-0.8⭐)' : hoursLeft <= 4 ? `⚠️ ~${Math.max(1, Math.round(hoursLeft * 60))} Mins Left (-0.3⭐)` : '✅ Free Cancellation Active'}
         </span>
       </div>
+
+      {/* Suggested Pickup Point Banner */}
+      {!isMember && !isFull && (
+        <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 rounded-3xl p-6 text-white shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in">
+          <div className="space-y-1 text-center sm:text-left">
+            <h3 className="text-lg font-black tracking-tight flex items-center justify-center sm:justify-start gap-2">
+              <Sparkles className="w-5 h-5 text-amber-300" />
+              <span>Spots Available in Group #{group.id}</span>
+            </h3>
+            <p className="text-xs text-blue-100">
+              Departing at {formatTime24to12(group.departureTime)} from {group.pickupPoint}. Join this ride to coordinate with co-riders and split the cab fare!
+            </p>
+          </div>
+          <button
+            onClick={() => onJoinGroup && onJoinGroup(group.id)}
+            className="px-6 py-3 bg-white hover:bg-blue-50 text-blue-800 font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-2 shrink-0 cursor-pointer"
+          >
+            <UserPlus className="w-4 h-4 text-blue-700" />
+            <span>Join This Ride Now</span>
+          </button>
+        </div>
+      )}
 
       {/* Suggested Pickup Point Banner */}
       <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">

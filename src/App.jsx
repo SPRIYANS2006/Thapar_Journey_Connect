@@ -469,9 +469,47 @@ export default function App() {
     // Single-Active-Group Rule enforcement
     const currentActiveGroup = (groups || []).find(g =>
       (g.status === 'Open' || g.status === 'Confirmed') &&
-      g.members && g.members.some(m => (m.id && m.id === user?.id) || (m.user_id && m.user_id === user?.id))
+      g.members && g.members.some(m => 
+        (m.id && m.id === user?.id) || 
+        (m.user_id && m.user_id === user?.id) ||
+        (user?.name && m.name === user.name)
+      )
     );
+
     if (currentActiveGroup) {
+      // If the current active group is heading to the same destination, merge rider into this group
+      const isSameTrip = 
+        currentActiveGroup.destinationId === (currentJourneyReq?.destinationId || candidateStudent.destinationId) ||
+        (currentActiveGroup.destinationName && currentJourneyReq?.destinationName &&
+         currentActiveGroup.destinationName.toLowerCase() === currentJourneyReq.destinationName.toLowerCase());
+
+      if (isSameTrip && (currentActiveGroup.members || []).length < (currentActiveGroup.maxMembers || 4)) {
+        handleSimulateJoin(currentActiveGroup.id, {
+          id: candidateStudent.id,
+          user_id: candidateStudent.id,
+          name: candidateStudent.name,
+          avatar: candidateStudent.avatar || 'ST',
+          hostel: candidateStudent.hostel,
+          departureTime: candidateStudent.departureTime,
+          role: 'Member',
+          phone: candidateStudent.phone || ''
+        });
+        setSelectedGroupId(currentActiveGroup.id);
+        setActivePage('group-details');
+        triggerToast({
+          id: `merged_${Date.now()}`,
+          type: 'success',
+          title: 'Rider Added to Your Group!',
+          message: `${candidateStudent.name} was added to your existing Group #${currentActiveGroup.id}.`,
+          actionLabel: 'View Group',
+          onAction: () => {
+            setSelectedGroupId(currentActiveGroup.id);
+            setActivePage('group-details');
+          }
+        });
+        return;
+      }
+
       alert(`Single-Ride Policy: You are already a member of active Group #${currentActiveGroup.id} for ${currentActiveGroup.destinationName}. You can only belong to one active ride group at a time. Please leave that group first before forming a new one!`);
       setSelectedGroupId(currentActiveGroup.id);
       setActivePage('group-details');
@@ -941,6 +979,7 @@ Are you sure you want to proceed?`;
             onResetGroup={() => handleResetGroup(selectedGroupObj?.id)}
             onConfirmJourney={handleConfirmJourney}
             onLeaveGroup={handleLeaveGroup}
+            onJoinGroup={handleJoinGroup}
             onShareToChat={(groupId, fareText) => {
               handleSendMessage(groupId, {
                 id: `msg_fare_${Date.now()}`,

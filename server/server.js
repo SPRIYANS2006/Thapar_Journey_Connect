@@ -822,8 +822,92 @@ app.post('/api/journeys', async (req, res) => {
   });
 });
 
+// Automatically clean up duplicate or redundant groups where the same student is in multiple active groups
+async function cleanupDuplicateUserGroups() {
+  if (isMongo()) {
+    try {
+      const allGroups = await Group.find({ status: { $in: ['Open', 'Confirmed'] } });
+      const userGroupMap = new Map();
+
+      for (const g of allGroups) {
+        for (const m of (g.members || [])) {
+          const key = (m.name || m.user_id || m.id || '').trim().toLowerCase();
+          if (!key) continue;
+          if (!userGroupMap.has(key)) userGroupMap.set(key, []);
+          userGroupMap.get(key).push({ groupId: g.id, count: (g.members || []).length });
+        }
+      }
+
+      for (const [userKey, gEntries] of userGroupMap.entries()) {
+        if (gEntries.length > 1) {
+          // Sort descending by member count: group with more riders has priority
+          gEntries.sort((a, b) => b.count - a.count);
+          const keepGroupId = gEntries[0].groupId;
+
+          for (let i = 1; i < gEntries.length; i++) {
+            const dupGroupId = gEntries[i].groupId;
+            if (dupGroupId === keepGroupId) continue;
+            const targetGroup = await Group.findOne({ id: dupGroupId });
+            if (targetGroup) {
+              targetGroup.members = (targetGroup.members || []).filter(m => {
+                const mKey = (m.name || m.user_id || m.id || '').trim().toLowerCase();
+                return mKey !== userKey;
+              });
+
+              if (targetGroup.members.length === 0) {
+                await Group.deleteOne({ id: dupGroupId });
+              } else {
+                await targetGroup.save();
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Group deduplication warning:', e.message);
+    }
+  } else {
+    // SQLite cleanup
+    try {
+      const allRows = db.prepare(`
+        SELECT gm.group_id, gm.name, gm.user_id,
+               (SELECT COUNT(*) FROM group_members WHERE group_id = gm.group_id) as member_count
+        FROM group_members gm
+        JOIN groups g ON g.id = gm.group_id
+        WHERE g.status IN ('Open', 'Confirmed')
+      `).all();
+
+      const userGroupMap = new Map();
+      for (const row of allRows) {
+        const key = (row.name || row.user_id || '').trim().toLowerCase();
+        if (!key) continue;
+        if (!userGroupMap.has(key)) userGroupMap.set(key, []);
+        userGroupMap.get(key).push(row);
+      }
+
+      for (const [userKey, rowList] of userGroupMap.entries()) {
+        if (rowList.length > 1) {
+          rowList.sort((a, b) => b.member_count - a.member_count);
+          for (let i = 1; i < rowList.length; i++) {
+            const dup = rowList[i];
+            db.prepare('DELETE FROM group_members WHERE group_id = ? AND (LOWER(name) = ? OR user_id = ?)').run(dup.group_id, userKey, userKey);
+            const remaining = db.prepare('SELECT COUNT(*) as count FROM group_members WHERE group_id = ?').get(dup.group_id);
+            if (remaining && remaining.count === 0) {
+              db.prepare('DELETE FROM groups WHERE id = ?').run(dup.group_id);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('SQLite deduplication error:', e.message);
+    }
+  }
+}
+
 // 9. Groups: List all groups
 app.get('/api/groups', async (req, res) => {
+  await cleanupDuplicateUserGroups();
+
   if (isMongo()) {
     try {
       const rows = await Group.find().sort({ created_at: -1 }).lean();
@@ -884,9 +968,14 @@ app.post('/api/groups', async (req, res) => {
   if (isMongo()) {
     try {
       // Enforce Single-Active-Group Rule on group creation
+      const creatorName = initialMembers[0]?.name;
       const activeOther = await Group.findOne({
         status: { $in: ['Open', 'Confirmed'] },
-        $or: [{ 'members.user_id': creatorId }, { 'members.id': creatorId }]
+        $or: [
+          { 'members.user_id': creatorId }, 
+          { 'members.id': creatorId },
+          ...(creatorName ? [{ 'members.name': creatorName }] : [])
+        ]
       });
       if (activeOther) {
         return res.status(400).json({
@@ -952,12 +1041,13 @@ app.post('/api/groups', async (req, res) => {
   }
 
   // SQLite fallback
+  const creatorName = initialMembers[0]?.name;
   const existingActive = db.prepare(`
     SELECT gm.group_id, g.destination_name 
     FROM group_members gm
     JOIN groups g ON g.id = gm.group_id
-    WHERE gm.user_id = ? AND g.status IN ('Open', 'Confirmed')
-  `).get(creatorId);
+    WHERE (gm.user_id = ? OR (gm.name = ? AND ? != '')) AND g.status IN ('Open', 'Confirmed')
+  `).get(creatorId, creatorName || '', creatorName || '');
   if (existingActive) {
     return res.status(400).json({
       error: `Single-Ride Policy: You are already part of active Group #${existingActive.group_id} (${existingActive.destination_name}). Please leave your current ride group before forming a new one.`

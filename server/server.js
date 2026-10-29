@@ -894,14 +894,16 @@ app.post('/api/groups', async (req, res) => {
         });
       }
 
-      for (let i = 0; i < 20; i++) {
-        const candidate = `${Math.floor(100 + Math.random() * 900)}`;
-        const existing = await Group.findOne({ id: candidate });
-        if (!existing) {
-          groupId = candidate;
-          break;
+      // Sequential Integer Group ID (1, 2, 3...)
+      const allGroups = await Group.find({}, { id: 1 }).lean();
+      let maxNum = 0;
+      for (const g of allGroups) {
+        const val = parseInt(g.id, 10);
+        if (!isNaN(val) && val > maxNum) {
+          maxNum = val;
         }
       }
+      groupId = String(maxNum + 1);
 
       const members = initialMembers.map(m => ({
         id: `gm_${Date.now()}_${Math.random().toString(36).substring(7)}`,
@@ -962,15 +964,9 @@ app.post('/api/groups', async (req, res) => {
     });
   }
 
-  for (let i = 0; i < 100; i++) {
-    const candidate = `${Math.floor(100 + Math.random() * 900)}`;
-    const existing = db.prepare('SELECT id FROM groups WHERE id = ?').get(candidate);
-    if (!existing) {
-      groupId = candidate;
-      break;
-    }
-  }
-  if (!groupId) groupId = `${Date.now() % 10000}`;
+  // Sequential Integer Group ID (1, 2, 3...)
+  const maxRow = db.prepare("SELECT MAX(CAST(id AS INTEGER)) as maxId FROM groups").get();
+  groupId = String((maxRow?.maxId || 0) + 1);
 
   db.prepare(`
     INSERT INTO groups (id, destination_id, destination_name, departure_time, date, status, max_members, pickup_point, match_score)
@@ -1039,7 +1035,7 @@ app.post('/api/groups/:id/join', async (req, res) => {
       );
       if (alreadyJoined) {
         const full = await getGroup(groupId);
-        return res.json({ success: true, message: 'Already a member', group: full });
+        return res.status(400).json({ error: 'You are already a member of this ride group.', alreadyMember: true, group: full });
       }
 
       if (group.members.length >= (group.max_members || 4)) {
@@ -1118,9 +1114,9 @@ app.post('/api/groups/:id/join', async (req, res) => {
     });
   }
 
-  const alreadyJoined = currentMembers.some(m => m.user_id === userId);
+  const alreadyJoined = currentMembers.some(m => m.user_id === userId || (name && m.name === name));
   if (alreadyJoined) {
-    return res.json({ success: true, message: 'Already a member', group: getFullGroup(groupId) });
+    return res.status(400).json({ error: 'You are already a member of this ride group.', alreadyMember: true, group: getFullGroup(groupId) });
   }
 
   db.prepare(`
@@ -1155,7 +1151,35 @@ app.post('/api/groups/:id/join', async (req, res) => {
   res.json({ success: true, group: updatedGroup });
 });
 
-// 13. Groups: Leave group
+// Helper to calculate hours left until ride departure
+function calculateHoursUntilDeparture(dateStr, timeStr) {
+  if (!timeStr) return 999;
+  const now = new Date();
+  let targetDate = new Date();
+
+  if (dateStr) {
+    const s = dateStr.trim();
+    if (/tomorrow/i.test(s)) {
+      targetDate.setDate(targetDate.getDate() + 1);
+    } else if (!/today/i.test(s)) {
+      const cleanDate = s.replace(/^[A-Za-z]+,\s*/, '').replace(/^[A-Za-z]+\s*\([^)]*\)\s*/, '');
+      const parsed = Date.parse(`${cleanDate} ${targetDate.getFullYear()}`);
+      if (!isNaN(parsed)) {
+        targetDate = new Date(parsed);
+      }
+    }
+  }
+
+  const [hStr, mStr] = (timeStr || '').split(':');
+  const h = parseInt(hStr, 10) || 0;
+  const m = parseInt(mStr, 10) || 0;
+  targetDate.setHours(h, m, 0, 0);
+
+  const diffMs = targetDate.getTime() - now.getTime();
+  return diffMs / (1000 * 60 * 60);
+}
+
+// 13. Groups: Leave group (With late cancellation penalty if <= 4 hrs, especially last 30 mins)
 app.post('/api/groups/:id/leave', async (req, res) => {
   const groupId = req.params.id;
   const { userId = 'user_main', name } = req.body;
@@ -1163,27 +1187,107 @@ app.post('/api/groups/:id/leave', async (req, res) => {
   if (isMongo()) {
     try {
       const group = await Group.findOne({ id: groupId });
-      if (group) {
-        group.members = group.members.filter(m => 
-          m.user_id !== userId && 
-          m.id !== userId && 
-          (name ? m.name !== name : true)
-        );
-        if (group.members.length === 0) {
-          await Group.deleteOne({ id: groupId });
-          io.emit('groups_updated');
-          return res.json({ success: true, message: 'Group removed as all members left' });
-        } else {
-          await group.save();
+      if (!group) return res.status(404).json({ error: 'Group not found' });
+
+      const leavingMember = group.members.find(m => 
+        (m.user_id && m.user_id === userId) || 
+        (m.id && m.id === userId) || 
+        (name && m.name === name)
+      );
+
+      // Calculate hours remaining until departure
+      const hoursLeft = calculateHoursUntilDeparture(group.date, group.departure_time || group.departureTime);
+      let penaltyApplied = false;
+      let penaltyAmount = 0;
+      let newReliability = null;
+
+      // Late Cancellation Policy:
+      // Can cancel up to 4 hours before departure without penalty.
+      // If cancelled within 4 hours (and especially in last 30 mins), reduce reliability rating!
+      if (hoursLeft <= 4) {
+        penaltyApplied = true;
+        penaltyAmount = hoursLeft <= 0.5 ? 0.8 : 0.3;
+
+        const effectiveUserId = leavingMember?.user_id || userId;
+        const userDoc = await User.findOne({ 
+          $or: [{ id: effectiveUserId }, { name: leavingMember?.name || name }] 
+        });
+
+        if (userDoc) {
+          const curRating = Number(userDoc.reliability) || 5.0;
+          userDoc.reliability = Math.max(1.0, +(curRating - penaltyAmount).toFixed(1));
+          await userDoc.save();
+          newReliability = userDoc.reliability;
         }
+
+        const minsLeft = Math.max(0, Math.round(hoursLeft * 60));
+        const penaltyNotice = hoursLeft <= 0.5
+          ? `⚠️ ${leavingMember?.name || 'A rider'} cancelled within 30 minutes of departure (${minsLeft}m left). Student reliability score reduced by -0.8⭐.`
+          : `⚠️ ${leavingMember?.name || 'A rider'} cancelled within 4 hours of departure (${Math.max(1, Math.round(hoursLeft))}h left). Student reliability score reduced by -0.3⭐.`;
+
+        group.chat_messages.push({
+          id: `m_sys_${Date.now()}`,
+          sender_id: 'system',
+          sender_name: 'Policy Notice',
+          avatar: '⚠️',
+          text: penaltyNotice,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          timestamp: new Date()
+        });
       }
+
+      group.members = group.members.filter(m => 
+        m.user_id !== userId && 
+        m.id !== userId && 
+        (name ? m.name !== name : true)
+      );
+
+      if (group.members.length === 0) {
+        await Group.deleteOne({ id: groupId });
+        io.emit('groups_updated');
+        return res.json({ 
+          success: true, 
+          message: 'Group removed as all members left', 
+          penaltyApplied, 
+          penaltyAmount, 
+          newReliability,
+          hoursLeft 
+        });
+      }
+
+      await group.save();
       const updatedGroup = await getGroup(groupId);
       io.to(`group_${groupId}`).emit('member_left', updatedGroup);
       io.emit('groups_updated');
-      return res.json({ success: true, group: updatedGroup });
+      return res.json({ 
+        success: true, 
+        group: updatedGroup, 
+        penaltyApplied, 
+        penaltyAmount, 
+        newReliability,
+        hoursLeft 
+      });
     } catch (err) {
       console.error('Mongo leave group error:', err.message);
       return res.status(500).json({ error: 'Failed to leave group' });
+    }
+  }
+
+  // SQLite fallback
+  const group = getFullGroup(groupId);
+  if (!group) return res.status(404).json({ error: 'Group not found' });
+  const hoursLeft = calculateHoursUntilDeparture(group.date, group.departureTime);
+  let penaltyApplied = false;
+  let penaltyAmount = 0;
+  let newReliability = null;
+
+  if (hoursLeft <= 4) {
+    penaltyApplied = true;
+    penaltyAmount = hoursLeft <= 0.5 ? 0.8 : 0.3;
+    const curUser = db.prepare('SELECT reliability FROM users WHERE id = ? OR name = ?').get(userId, name || '');
+    if (curUser) {
+      newReliability = Math.max(1.0, +((curUser.reliability || 5.0) - penaltyAmount).toFixed(1));
+      db.prepare('UPDATE users SET reliability = ? WHERE id = ? OR name = ?').run(newReliability, userId, name || '');
     }
   }
 
@@ -1195,7 +1299,14 @@ app.post('/api/groups/:id/leave', async (req, res) => {
   const updatedGroup = getFullGroup(groupId);
   io.to(`group_${groupId}`).emit('member_left', updatedGroup);
   io.emit('groups_updated');
-  res.json({ success: true, group: updatedGroup });
+  res.json({ 
+    success: true, 
+    group: updatedGroup, 
+    penaltyApplied, 
+    penaltyAmount, 
+    newReliability, 
+    hoursLeft 
+  });
 });
 
 // 14. Groups: Confirm journey
@@ -1330,6 +1441,15 @@ app.post('/api/groups/:id/messages', async (req, res) => {
       }));
 
       io.to(`group_${groupId}`).emit('new_message', { groupId, messages });
+      io.emit('new_chat_message', {
+        groupId,
+        destinationName: group.destination_name || group.destinationName,
+        senderId,
+        senderName,
+        avatar,
+        text: text.trim(),
+        time: msgTime
+      });
       return res.json({ success: true, messages });
     } catch (err) {
       return res.status(500).json({ error: 'Failed to send message' });
@@ -1349,6 +1469,14 @@ app.post('/api/groups/:id/messages', async (req, res) => {
   `).all(groupId);
 
   io.to(`group_${groupId}`).emit('new_message', { groupId, messages });
+  io.emit('new_chat_message', {
+    groupId,
+    senderId,
+    senderName,
+    avatar,
+    text: text.trim(),
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  });
   res.json({ success: true, messages });
 });
 
@@ -1721,6 +1849,15 @@ app.post('/api/communities/:id/posts', async (req, res) => {
 
   if (isMongo()) {
     try {
+      // Access check: only verified members of this community can create notices/posts
+      const user = await User.findOne({ $or: [{ id: authorId }, { name: authorName }] });
+      const userComm = user?.joined_community || user?.joinedCommunity;
+      if (userComm && userComm !== communityId) {
+        return res.status(403).json({ 
+          error: 'Access Denied: Under Thapar hometown privacy policy, you can only create posts in your joined community.' 
+        });
+      }
+
       await CommunityPost.create({
         id: postId,
         community_id: communityId,
@@ -1760,6 +1897,14 @@ app.post('/api/communities/:id/posts', async (req, res) => {
     } catch (err) {
       return res.status(500).json({ error: 'Failed to create post' });
     }
+  }
+
+  // SQLite fallback
+  const authorUser = db.prepare('SELECT joined_community FROM users WHERE id = ? OR name = ?').get(authorId, authorName);
+  if (authorUser && authorUser.joined_community && authorUser.joined_community !== communityId) {
+    return res.status(403).json({ 
+      error: 'Access Denied: Under Thapar hometown privacy policy, you can only create posts in your joined community.' 
+    });
   }
 
   db.prepare(`
@@ -1836,6 +1981,16 @@ app.post('/api/communities/posts/:postId/comments', async (req, res) => {
       const post = await CommunityPost.findOne({ id: postId });
       if (!post) return res.status(404).json({ error: 'Post not found' });
 
+      // Access check: only verified members of this community can reply
+      const user = await User.findOne({ $or: [{ id: authorId }, { name: authorName }] });
+      const userComm = user?.joined_community || user?.joinedCommunity;
+      const postComm = post.community_id || post.communityId;
+      if (userComm && userComm !== postComm) {
+        return res.status(403).json({ 
+          error: 'Access Denied: Only members of this community can reply to notices.' 
+        });
+      }
+
       const newComment = {
         id: commentId,
         postId: postId,
@@ -1865,6 +2020,16 @@ app.post('/api/communities/posts/:postId/comments', async (req, res) => {
     } catch (err) {
       return res.status(500).json({ error: 'Failed to add comment' });
     }
+  }
+
+  // SQLite fallback
+  const postRow = db.prepare('SELECT community_id FROM community_posts WHERE id = ?').get(postId);
+  if (!postRow) return res.status(404).json({ error: 'Post not found' });
+  const commentUser = db.prepare('SELECT joined_community FROM users WHERE id = ? OR name = ?').get(authorId, authorName);
+  if (commentUser && commentUser.joined_community && commentUser.joined_community !== postRow.community_id) {
+    return res.status(403).json({ 
+      error: 'Access Denied: Only members of this community can reply to notices.' 
+    });
   }
 
   db.prepare(`

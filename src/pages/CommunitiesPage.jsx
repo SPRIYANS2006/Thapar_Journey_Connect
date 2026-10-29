@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Avatar from '../components/Avatar';
 import { 
   Users, 
@@ -19,7 +19,8 @@ import {
   CornerDownRight,
   X,
   Car,
-  Info
+  Info,
+  Lock
 } from 'lucide-react';
 
 export default function CommunitiesPage({ 
@@ -32,7 +33,8 @@ export default function CommunitiesPage({
   onAddPost, 
   onSelectCommunityTravel,
   onLikePost,
-  onAddComment
+  onAddComment,
+  onSelectCommunity
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCommunityId, setSelectedCommunityId] = useState(user?.joinedCommunity || (communities && communities[0]?.id) || 'del');
@@ -86,8 +88,19 @@ export default function CommunitiesPage({
   const activePosts = (posts || []).filter((p) => p.communityId === activeCommunity?.id);
   const isUserJoined = user?.joinedCommunity === activeCommunity?.id;
 
+  // Auto-sync posts when active community selection changes
+  useEffect(() => {
+    if (onSelectCommunity && selectedCommunityId) {
+      onSelectCommunity(selectedCommunityId);
+    }
+  }, [selectedCommunityId, onSelectCommunity]);
+
   const handlePostSubmit = (e) => {
     e.preventDefault();
+    if (!isUserJoined) {
+      alert(`Access Restricted: Under Thapar hometown privacy policy, only verified members of ${activeCommunity.name} community can create posts or ride notices.`);
+      return;
+    }
     if (!postTitle.trim() || !postContent.trim()) return;
 
     const newPost = {
@@ -113,6 +126,10 @@ export default function CommunitiesPage({
 
   const handleCommentSubmit = (postId, e) => {
     e.preventDefault();
+    if (!isUserJoined) {
+      alert(`Access Restricted: Only members of ${activeCommunity.name} community can reply to notices.`);
+      return;
+    }
     if (!replyInputText.trim()) return;
 
     if (onAddComment) {
@@ -413,19 +430,26 @@ export default function CommunitiesPage({
                 </span>
               </div>
 
-              {!isPosting && (
-                <button
-                  onClick={() => setIsPosting(true)}
-                  className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-xs transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Post Notice / Carpool</span>
-                </button>
+              {isUserJoined ? (
+                !isPosting && (
+                  <button
+                    onClick={() => setIsPosting(true)}
+                    className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Post Notice / Carpool</span>
+                  </button>
+                )
+              ) : (
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-500 text-xs font-semibold rounded-xl border border-slate-200">
+                  <Lock className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Members Only</span>
+                </div>
               )}
             </div>
 
             {/* Post Creator Box */}
-            {isPosting && (
+            {isUserJoined && isPosting && (
               <form onSubmit={handlePostSubmit} className="bg-white rounded-2xl border border-blue-200 p-5 shadow-sm space-y-3 animate-in fade-in">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-blue-700 flex items-center gap-1.5">
@@ -480,7 +504,7 @@ export default function CommunitiesPage({
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl flex items-center gap-1 shadow-xs"
+                    className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl flex items-center gap-1 shadow-xs cursor-pointer"
                   >
                     <Send className="w-3.5 h-3.5" />
                     <span>Publish Post</span>
@@ -489,132 +513,183 @@ export default function CommunitiesPage({
               </form>
             )}
 
-            {/* Posts Stream */}
-            <div className="space-y-4">
-              {activePosts.length === 0 ? (
-                <div className="bg-white rounded-2xl border border-dashed border-slate-200 p-8 text-center space-y-2">
-                  <MessageSquare className="w-8 h-8 text-slate-300 mx-auto" />
-                  <p className="text-sm font-bold text-slate-700">No community notices yet</p>
-                  <p className="text-xs text-slate-400">
-                    Be the first student to post a travel plan or carpool request for {activeCommunity.name}!
-                  </p>
-                  <button
-                    onClick={() => setIsPosting(true)}
-                    className="mt-2 inline-flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 text-xs font-bold rounded-xl hover:bg-blue-100"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Create First Post
-                  </button>
+            {/* Posts Stream or Locked Screen */}
+            {!isUserJoined ? (
+              <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-8 sm:p-10 text-white text-center shadow-xl border border-indigo-900/50 space-y-6 animate-in fade-in">
+                <div className="w-16 h-16 rounded-3xl bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 flex items-center justify-center mx-auto shadow-inner">
+                  <Lock className="w-8 h-8 text-indigo-300" />
                 </div>
-              ) : (
-                activePosts.map((post) => {
-                  const isReplyBoxOpen = openReplyPostId === post.id;
-                  const commentsList = post.comments || [];
+                <div className="max-w-md mx-auto space-y-2">
+                  <h3 className="text-xl sm:text-2xl font-black tracking-tight text-white">
+                    {activeCommunity.name} Community Hub is Private
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                    Under Thapar Hometown Privacy Policy, community discussion boards, carpools, and train cohort notices are restricted exclusively to enrolled members of <strong>{activeCommunity.name}</strong>.
+                  </p>
+                </div>
 
-                  return (
-                    <div key={post.id} className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2.5">
-                          <Avatar
-                            src={post.authorAvatar}
-                            name={post.author}
-                            size="w-9 h-9"
-                            textSize="text-xs"
-                            rounded="rounded-full"
-                            bg="bg-blue-600"
-                          />
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-xs text-slate-900">{post.author}</span>
-                              <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-medium">
-                                {post.authorHostel}
-                              </span>
-                            </div>
-                            <span className="text-[11px] text-slate-400">{post.timeAgo || 'Recently'}</span>
-                          </div>
-                        </div>
+                {user?.joinedCommunity ? (
+                  <div className="bg-white/10 backdrop-blur-md rounded-2xl p-5 max-w-md mx-auto border border-white/15 text-xs text-slate-200 space-y-3">
+                    <p className="leading-relaxed">
+                      You are currently enrolled in the <strong>{communities.find(c => c.id === user.joinedCommunity)?.name || 'another'} Community</strong>.
+                    </p>
+                    <p className="text-[11px] text-amber-300 font-medium">
+                      Single-Community Policy: You can belong to 1 official hometown hub at a time. Leave your current community if you wish to switch here.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm(`Switch hometown hub to ${activeCommunity.name}? You will leave ${communities.find(c => c.id === user.joinedCommunity)?.name || 'your current community'}.`)) {
+                          onLeaveCommunity(user.joinedCommunity);
+                          setTimeout(() => onJoinCommunity(activeCommunity.id), 250);
+                        }
+                      }}
+                      className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <span>Switch to {activeCommunity.name} Community</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() => onJoinCommunity(activeCommunity.id)}
+                      className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-blue-500/30 transition-all inline-flex items-center gap-2 cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Join {activeCommunity.name} to Unlock Board & Notices</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {activePosts.length === 0 ? (
+                  <div className="bg-white rounded-2xl border border-dashed border-slate-200 p-8 text-center space-y-2">
+                    <MessageSquare className="w-8 h-8 text-slate-300 mx-auto" />
+                    <p className="text-sm font-bold text-slate-700">No community notices yet</p>
+                    <p className="text-xs text-slate-400">
+                      Be the first student to post a travel plan or carpool request for {activeCommunity.name}!
+                    </p>
+                    <button
+                      onClick={() => setIsPosting(true)}
+                      className="mt-2 inline-flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 text-xs font-bold rounded-xl hover:bg-blue-100"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Create First Post
+                    </button>
+                  </div>
+                ) : (
+                  activePosts.map((post) => {
+                    const isReplyBoxOpen = openReplyPostId === post.id;
+                    const commentsList = post.comments || [];
 
-                        <span className="text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 px-2 py-0.5 rounded-full">
-                          {post.category}
-                        </span>
-                      </div>
-
-                      <div>
-                        <h4 className="font-bold text-sm text-slate-900 mb-1">{post.title}</h4>
-                        <p className="text-xs text-slate-600 leading-relaxed">{post.content}</p>
-                      </div>
-
-                      <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500">
-                        <div className="flex items-center gap-4">
-                          <button
-                            onClick={() => onLikePost && onLikePost(post.id)}
-                            className="flex items-center gap-1 hover:text-rose-600 transition-colors"
-                          >
-                            <Heart className={`w-3.5 h-3.5 ${post.likes > 0 ? 'text-rose-500 fill-rose-500' : ''}`} />
-                            <span>{post.likes}</span>
-                          </button>
-                          
-                          <button
-                            onClick={() => setOpenReplyPostId(isReplyBoxOpen ? null : post.id)}
-                            className="flex items-center gap-1 hover:text-blue-600 transition-colors"
-                          >
-                            <MessageSquare className="w-3.5 h-3.5" />
-                            <span>{commentsList.length || post.repliesCount || 0} replies</span>
-                          </button>
-                        </div>
-
-                        <button 
-                          onClick={() => setOpenReplyPostId(isReplyBoxOpen ? null : post.id)}
-                          className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1"
-                        >
-                          <span>{isReplyBoxOpen ? 'Close Replies' : 'Reply / Coordinate'}</span>
-                          <span>&rarr;</span>
-                        </button>
-                      </div>
-
-                      {/* Comments & Reply Thread */}
-                      {isReplyBoxOpen && (
-                        <div className="mt-3 pt-3 border-t border-slate-100 space-y-3 bg-slate-50/60 p-3 rounded-xl animate-in fade-in">
-                          {commentsList.length > 0 && (
-                            <div className="space-y-2">
-                              {commentsList.map((c) => (
-                                <div key={c.id} className="flex items-start gap-2 text-xs bg-white p-2.5 rounded-lg border border-slate-200">
-                                  <CornerDownRight className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" />
-                                  <div className="flex-1">
-                                    <div className="flex items-center gap-1.5 font-bold text-slate-800">
-                                      <span>{c.author}</span>
-                                      <span className="text-[10px] text-slate-400 font-normal">({c.authorHostel})</span>
-                                    </div>
-                                    <p className="text-slate-600 text-[11px] mt-0.5">{c.text}</p>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Reply Input Form */}
-                          <form onSubmit={(e) => handleCommentSubmit(post.id, e)} className="flex items-center gap-2">
-                            <input
-                              type="text"
-                              value={replyInputText}
-                              onChange={(e) => setReplyInputText(e.target.value)}
-                              placeholder={`Reply to ${post.author}...`}
-                              className="flex-1 px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    return (
+                      <div key={post.id} className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <Avatar
+                              src={post.authorAvatar}
+                              name={post.author}
+                              size="w-9 h-9"
+                              textSize="text-xs"
+                              rounded="rounded-full"
+                              bg="bg-blue-600"
                             />
-                            <button
-                              type="submit"
-                              className="px-3 py-1.5 bg-blue-600 text-white font-bold text-xs rounded-lg hover:bg-blue-700 transition-colors shrink-0"
-                            >
-                              Send
-                            </button>
-                          </form>
-                        </div>
-                      )}
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-xs text-slate-900">{post.author}</span>
+                                <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-medium">
+                                  {post.authorHostel}
+                                </span>
+                              </div>
+                              <span className="text-[11px] text-slate-400">{post.timeAgo || 'Recently'}</span>
+                            </div>
+                          </div>
 
-                    </div>
-                  );
-                })
-              )}
-            </div>
+                          <span className="text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 px-2 py-0.5 rounded-full">
+                            {post.category}
+                          </span>
+                        </div>
+
+                        <div>
+                          <h4 className="font-bold text-sm text-slate-900 mb-1">{post.title}</h4>
+                          <p className="text-xs text-slate-600 leading-relaxed">{post.content}</p>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500">
+                          <div className="flex items-center gap-4">
+                            <button
+                              onClick={() => onLikePost && onLikePost(post.id)}
+                              className="flex items-center gap-1 hover:text-rose-600 transition-colors cursor-pointer"
+                            >
+                              <Heart className={`w-3.5 h-3.5 ${post.likes > 0 ? 'text-rose-500 fill-rose-500' : ''}`} />
+                              <span>{post.likes}</span>
+                            </button>
+                            
+                            <button
+                              onClick={() => setOpenReplyPostId(isReplyBoxOpen ? null : post.id)}
+                              className="flex items-center gap-1 hover:text-blue-600 transition-colors cursor-pointer"
+                            >
+                              <MessageSquare className="w-3.5 h-3.5" />
+                              <span>{commentsList.length || post.repliesCount || 0} replies</span>
+                            </button>
+                          </div>
+
+                          <button 
+                            onClick={() => setOpenReplyPostId(isReplyBoxOpen ? null : post.id)}
+                            className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 cursor-pointer"
+                          >
+                            <span>{isReplyBoxOpen ? 'Close Replies' : 'Reply / Coordinate'}</span>
+                            <span>&rarr;</span>
+                          </button>
+                        </div>
+
+                        {/* Comments & Reply Thread */}
+                        {isReplyBoxOpen && (
+                          <div className="mt-3 pt-3 border-t border-slate-100 space-y-3 bg-slate-50/60 p-3 rounded-xl animate-in fade-in">
+                            {commentsList.length > 0 && (
+                              <div className="space-y-2">
+                                {commentsList.map((c) => (
+                                  <div key={c.id} className="flex items-start gap-2 text-xs bg-white p-2.5 rounded-lg border border-slate-200">
+                                    <CornerDownRight className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" />
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-1.5 font-bold text-slate-800">
+                                        <span>{c.author}</span>
+                                        <span className="text-[10px] text-slate-400 font-normal">({c.authorHostel})</span>
+                                      </div>
+                                      <p className="text-slate-600 text-[11px] mt-0.5">{c.text}</p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Reply Input Form */}
+                            <form onSubmit={(e) => handleCommentSubmit(post.id, e)} className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={replyInputText}
+                                onChange={(e) => setReplyInputText(e.target.value)}
+                                placeholder={`Reply to ${post.author}...`}
+                                className="flex-1 px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                              <button
+                                type="submit"
+                                className="px-3 py-1.5 bg-blue-600 text-white font-bold text-xs rounded-lg hover:bg-blue-700 transition-colors shrink-0 cursor-pointer"
+                              >
+                                Send
+                              </button>
+                            </form>
+                          </div>
+                        )}
+
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
           </div>
 
         </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Users, Compass } from 'lucide-react';
 import Navbar from './components/Navbar';
 import AuthPage from './pages/AuthPage';
@@ -12,6 +12,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 
 import JourneyFormModal from './components/JourneyFormModal';
 import GroupChatModal from './components/GroupChatModal';
+import NotificationToast from './components/NotificationToast';
 
 import { 
   INITIAL_USER_PROFILE, 
@@ -55,6 +56,15 @@ export default function App() {
 
   const [activePage, setActivePage] = useState('dashboard');
 
+  // Notifications State for Real-Time Toast Popups
+  const [notifications, setNotifications] = useState([]);
+  const triggerToast = (toastObj) => {
+    setNotifications((prev) => [toastObj, ...prev.filter(n => n.id !== toastObj.id).slice(0, 4)]);
+  };
+  const dismissToast = (id) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  };
+
   // Journey & Matching State
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedDestination, setSelectedDestination] = useState(null);
@@ -63,6 +73,11 @@ export default function App() {
 
   // Groups & Chat State
   const [groups, setGroups] = useState(INITIAL_GROUPS);
+  const groupsRef = useRef(groups);
+  useEffect(() => {
+    groupsRef.current = groups;
+  }, [groups]);
+
   const [selectedGroupId, setSelectedGroupId] = useState(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatGroupId, setChatGroupId] = useState(null);
@@ -117,7 +132,7 @@ export default function App() {
     }
   }, []);
 
-  // Real-time WebSockets synchronization for groups & members
+  // Real-time WebSockets synchronization for groups, members & chat messages
   useEffect(() => {
     const socket = getSocket();
     if (!socket) return;
@@ -134,6 +149,66 @@ export default function App() {
         setGroups((prev) =>
           prev.map((g) => (g.id === updatedGroup.id ? updatedGroup : g))
         );
+
+        // Alert user if another rider joined their active group
+        if (user) {
+          const isUserInGroup = (updatedGroup.members || []).some(
+            (m) => (m.id && m.id === user.id) || (m.user_id && m.user_id === user.id) || (user.name && m.name === user.name)
+          );
+          if (isUserInGroup) {
+            const latestMember = updatedGroup.members[updatedGroup.members.length - 1];
+            if (latestMember && latestMember.id !== user.id && latestMember.name !== user.name) {
+              triggerToast({
+                id: `joined_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+                type: 'success',
+                title: `New Rider in Group #${updatedGroup.id}!`,
+                message: `${latestMember.name} (${latestMember.hostel || 'Hostel'}) joined your ride to ${updatedGroup.destinationName}.`,
+                actionLabel: 'View Group',
+                onAction: () => {
+                  setSelectedGroupId(updatedGroup.id);
+                  setActivePage('group-details');
+                }
+              });
+            }
+          }
+        }
+      }
+    };
+
+    // Chat Message In-App Popup on Screen
+    const handleNewChatMessage = (msgData) => {
+      if (!msgData) return;
+      // Do not popup user's own sent message
+      if (user && (msgData.senderId === user.id || msgData.senderName === user.name)) {
+        return;
+      }
+
+      // Check if user is a member of this group
+      const inThisGroup = (groupsRef.current || []).some(
+        (g) =>
+          String(g.id) === String(msgData.groupId) &&
+          g.members &&
+          g.members.some(
+            (m) => (m.id && m.id === user?.id) || (m.user_id && m.user_id === user?.id) || (user?.name && m.name === user.name)
+          )
+      );
+
+      // Display popup toast on screen if user belongs to this group and chat modal for this group is not currently open
+      if (inThisGroup && !(isChatOpen && chatGroupId === msgData.groupId)) {
+        triggerToast({
+          id: `chat_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+          type: 'chat',
+          title: `Group #${msgData.groupId} (${msgData.destinationName || 'Ride Chat'})`,
+          sender: msgData.senderName,
+          avatar: msgData.avatar,
+          text: msgData.text,
+          time: msgData.time || 'Just now',
+          actionLabel: 'Reply',
+          onAction: () => {
+            setChatGroupId(msgData.groupId);
+            setIsChatOpen(true);
+          }
+        });
       }
     };
 
@@ -141,6 +216,7 @@ export default function App() {
     socket.on('member_joined', handleMemberUpdate);
     socket.on('member_left', handleMemberUpdate);
     socket.on('group_confirmed', handleMemberUpdate);
+    socket.on('new_chat_message', handleNewChatMessage);
 
     // Auto-sync polling every 8s + window focus fallback for reliable multi-device syncing
     const interval = setInterval(handleGroupsUpdated, 8000);
@@ -153,8 +229,9 @@ export default function App() {
       socket.off('member_joined', handleMemberUpdate);
       socket.off('member_left', handleMemberUpdate);
       socket.off('group_confirmed', handleMemberUpdate);
+      socket.off('new_chat_message', handleNewChatMessage);
     };
-  }, []);
+  }, [user, isChatOpen, chatGroupId]);
 
   // Real-time Chat via WebSockets when chat modal is open
   useEffect(() => {
@@ -241,6 +318,42 @@ export default function App() {
       if (freshGroups && Array.isArray(freshGroups)) {
         setGroups(freshGroups);
       }
+
+      // Check if open matching groups exist for this journey
+      const matchingGroups = (freshGroups || groups || []).filter(
+        (g) =>
+          g.status === 'Open' &&
+          (g.destinationId === journeyData.destinationId ||
+            (g.destinationName &&
+              journeyData.destinationName &&
+              g.destinationName.toLowerCase() === journeyData.destinationName.toLowerCase()))
+      );
+
+      if (matchingGroups.length > 0) {
+        const topMatch = matchingGroups[0];
+        triggerToast({
+          id: `match_${Date.now()}`,
+          type: 'match',
+          title: `🎉 Travel Group Found!`,
+          message: `Active Group #${topMatch.id} for ${topMatch.destinationName} (${topMatch.members.length}/4 riders). Click to join!`,
+          actionLabel: `View Group #${topMatch.id}`,
+          onAction: () => {
+            setSelectedGroupId(topMatch.id);
+            setActivePage('group-details');
+          }
+        });
+      } else {
+        triggerToast({
+          id: `match_${Date.now()}`,
+          type: 'success',
+          title: `Matching Co-Riders Found!`,
+          message: `Found co-passengers departing around ${journeyData.departureTime}. Form a new group!`,
+          actionLabel: 'View Matches',
+          onAction: () => {
+            setActivePage('matching');
+          }
+        });
+      }
     } catch (err) {
       console.warn('Backend match fallback:', err.message);
       const matchedResults = MOCK_STUDENTS.map((student) => {
@@ -269,6 +382,12 @@ export default function App() {
       (user?.name && m.name === user.name)
     );
     if (isAlreadyMember) {
+      triggerToast({
+        id: `already_${Date.now()}`,
+        type: 'info',
+        title: 'Already a Member',
+        message: `You are already part of Group #${groupId}. Opening your ride details.`
+      });
       setSelectedGroupId(groupId);
       setActivePage('group-details');
       return;
@@ -301,6 +420,17 @@ export default function App() {
         setGroups((prev) => prev.map((g) => (g.id === groupId ? res.group : g)));
       }
     } catch (err) {
+      if (err.message && (err.message.includes('already a member') || err.message.includes('alreadyMember'))) {
+        triggerToast({
+          id: `already_${Date.now()}`,
+          type: 'info',
+          title: 'Already a Member',
+          message: 'You are already a member of this ride group.'
+        });
+        setSelectedGroupId(groupId);
+        setActivePage('group-details');
+        return;
+      }
       if (err.message && err.message.includes('Single-Ride Policy')) {
         alert(err.message);
         return;
@@ -414,11 +544,81 @@ export default function App() {
     setActivePage('group-details');
   };
 
+  // Calculate hours left until ride departure
+  const calculateHoursUntilDeparture = (dateStr, timeStr) => {
+    if (!timeStr) return 999;
+    const now = new Date();
+    let target = new Date();
+
+    if (dateStr) {
+      const s = dateStr.trim();
+      if (/tomorrow/i.test(s)) {
+        target.setDate(target.getDate() + 1);
+      } else if (!/today/i.test(s)) {
+        const cleanDate = s.replace(/^[A-Za-z]+,\s*/, '').replace(/^[A-Za-z]+\s*\([^)]*\)\s*/, '');
+        const parsed = Date.parse(`${cleanDate} ${target.getFullYear()}`);
+        if (!isNaN(parsed)) {
+          target = new Date(parsed);
+        }
+      }
+    }
+
+    const [hStr, mStr] = (timeStr || '').split(':');
+    const h = parseInt(hStr, 10) || 0;
+    const m = parseInt(mStr, 10) || 0;
+    target.setHours(h, m, 0, 0);
+
+    const diffMs = target.getTime() - now.getTime();
+    return diffMs / (1000 * 60 * 60);
+  };
+
   const handleLeaveGroup = async (groupId) => {
-    if (!window.confirm('Are you sure you want to leave this travel group?')) return;
+    const targetGroup = (groups || []).find((g) => g.id === groupId);
+    const hoursLeft = calculateHoursUntilDeparture(targetGroup?.date, targetGroup?.departureTime);
+
+    let confirmPrompt = 'Are you sure you want to leave this travel group?';
+    if (hoursLeft <= 0.5) {
+      confirmPrompt = `⚠️ CRITICAL CANCELLATION WARNING:
+This ride departs in less than 30 minutes!
+Under Thapar Travel Reliability Policy:
+• Dropping out in the final 30 minutes leaves co-passengers stranded with high fare splits.
+• Your reliability rating will decrease by -0.8⭐.
+Are you sure you want to proceed?`;
+    } else if (hoursLeft <= 4) {
+      confirmPrompt = `⚠️ LATE CANCELLATION WARNING:
+This ride departs in less than 4 hours (${Math.max(1, Math.round(hoursLeft * 60))} mins remaining).
+Under Thapar Travel Reliability Policy:
+• Free cancellation is permitted up to 4 hours before departure.
+• Leaving now will decrease your reliability rating by -0.3⭐.
+Are you sure you want to proceed?`;
+    } else {
+      confirmPrompt = `Are you sure you want to leave Group #${groupId}?
+(Free cancellation: more than 4 hours remain before scheduled departure)`;
+    }
+
+    if (!window.confirm(confirmPrompt)) return;
 
     try {
-      await api.leaveGroup(groupId, user);
+      const res = await api.leaveGroup(groupId, user);
+      if (res && res.penaltyApplied) {
+        const updatedUser = { ...user, reliability: res.newReliability };
+        setUser(updatedUser);
+        localStorage.setItem('tiet_user', JSON.stringify(updatedUser));
+        triggerToast({
+          id: `penalty_${Date.now()}`,
+          type: 'warning',
+          title: 'Reliability Rating Decreased',
+          message: `Due to late cancellation (${hoursLeft <= 0.5 ? '< 30 mins' : '< 4 hrs'}), a -${res.penaltyAmount}⭐ penalty was applied. New Rating: ${res.newReliability}⭐.`
+        });
+      } else {
+        triggerToast({
+          id: `leave_${Date.now()}`,
+          type: 'info',
+          title: 'Left Travel Group',
+          message: `You have successfully left Group #${groupId}.`
+        });
+      }
+
       const updated = await api.getGroups();
       setGroups(updated || []);
     } catch (err) {
@@ -800,6 +1000,12 @@ export default function App() {
             onSelectCommunityTravel={handleSelectCommunityTravel}
             onLikePost={handleLikePost}
             onAddComment={handleAddComment}
+            onSelectCommunity={async (commId) => {
+              try {
+                const fresh = await api.getCommunityPosts(commId);
+                if (Array.isArray(fresh)) setCommunityPosts(fresh);
+              } catch (e) {}
+            }}
           />
         )}
 
@@ -835,6 +1041,9 @@ export default function App() {
           onSendMessage={handleSendMessage}
         />
       )}
+
+      {/* Toast Notifications Overlay */}
+      <NotificationToast notifications={notifications} onDismiss={dismissToast} />
 
       {/* Persistent Footer */}
       <footer className="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-500">

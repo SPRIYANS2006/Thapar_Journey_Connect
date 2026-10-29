@@ -58,7 +58,44 @@ export default function GroupDetailsPage({
   }
 
   const isFull = (group.members || []).length >= (group.maxMembers || 4);
-  const isMember = (group.members || []).some(m => (m.id && m.id === currentUser?.id) || (m.user_id && m.user_id === currentUser?.id));
+  const isMember = (group.members || []).some(m => 
+    (m.id && m.id === currentUser?.id) || 
+    (m.user_id && m.user_id === currentUser?.id) ||
+    (currentUser?.name && m.name === currentUser.name) ||
+    (currentUser?.email && m.email === currentUser.email)
+  );
+
+  // Helper to calculate hours left until ride departure
+  const calculateHoursUntilDeparture = (dateStr, timeStr) => {
+    if (!timeStr) return 999;
+    const now = new Date();
+    let target = new Date();
+
+    if (dateStr) {
+      const s = dateStr.trim();
+      if (/tomorrow/i.test(s)) {
+        target.setDate(target.getDate() + 1);
+      } else if (!/today/i.test(s)) {
+        const cleanDate = s.replace(/^[A-Za-z]+,\s*/, '').replace(/^[A-Za-z]+\s*\([^)]*\)\s*/, '');
+        const parsed = Date.parse(`${cleanDate} ${target.getFullYear()}`);
+        if (!isNaN(parsed)) {
+          target = new Date(parsed);
+        }
+      }
+    }
+
+    const [hStr, mStr] = (timeStr || '').split(':');
+    const h = parseInt(hStr, 10) || 0;
+    const m = parseInt(mStr, 10) || 0;
+    target.setHours(h, m, 0, 0);
+
+    const diffMs = target.getTime() - now.getTime();
+    return diffMs / (1000 * 60 * 60);
+  };
+
+  const hoursLeft = calculateHoursUntilDeparture(group.date, group.departureTime);
+  const isLateCancellation = hoursLeft <= 4;
+  const isCriticalCancellation = hoursLeft <= 0.5;
 
   const handleConfirm = () => {
     setIsConfirmed(true);
@@ -187,16 +224,49 @@ Coordinated via Thapar Journey Connect`
             {isMember && onLeaveGroup && (
               <button
                 onClick={() => onLeaveGroup(group.id)}
-                className="px-4 py-3 bg-slate-800/80 hover:bg-red-900/60 text-slate-300 hover:text-red-200 font-bold text-xs rounded-2xl border border-slate-700 transition-all flex items-center justify-center gap-1.5"
-                title="Leave this travel group"
+                className={`px-4 py-3 font-bold text-xs rounded-2xl border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  isCriticalCancellation
+                    ? 'bg-rose-900/60 hover:bg-rose-800 text-rose-200 border-rose-500/50'
+                    : isLateCancellation
+                    ? 'bg-amber-900/60 hover:bg-amber-800 text-amber-200 border-amber-500/50'
+                    : 'bg-slate-800/80 hover:bg-red-900/60 text-slate-300 hover:text-red-200 border-slate-700'
+                }`}
+                title={
+                  isCriticalCancellation
+                    ? '⚠️ Last 30 mins: Leaving will decrease your reliability rating by -0.8⭐'
+                    : isLateCancellation
+                    ? '⚠️ Under 4 hours: Leaving will decrease your reliability rating by -0.3⭐'
+                    : 'Free cancellation up to 4 hours before departure'
+                }
               >
                 <LogOut className="w-3.5 h-3.5" />
-                <span>Leave</span>
+                <span>
+                  Leave {isCriticalCancellation ? '(-0.8⭐ penalty)' : isLateCancellation ? '(-0.3⭐ penalty)' : ''}
+                </span>
               </button>
             )}
           </div>
 
         </div>
+      </div>
+
+      {/* Cancellation Policy Banner */}
+      <div className={`p-4 rounded-2xl border text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
+        isCriticalCancellation
+          ? 'bg-rose-50 border-rose-200 text-rose-900'
+          : isLateCancellation
+          ? 'bg-amber-50 border-amber-200 text-amber-900'
+          : 'bg-slate-50 border-slate-200 text-slate-700'
+      }`}>
+        <div className="flex items-center gap-2">
+          <Clock className="w-4 h-4 shrink-0 text-slate-500" />
+          <span>
+            <strong>Cancellation Policy:</strong> Free cancellation up to 4 hours before departure. Cancellations within 4 hours incur a <strong>-0.3⭐</strong> reliability penalty (<strong>-0.8⭐</strong> in the final 30 minutes).
+          </span>
+        </div>
+        <span className="font-bold text-[11px] whitespace-nowrap px-2.5 py-1 rounded-lg bg-white/80 border border-current shadow-xs">
+          {hoursLeft <= 0.5 ? '⚠️ < 30 Mins Left (-0.8⭐)' : hoursLeft <= 4 ? `⚠️ ~${Math.max(1, Math.round(hoursLeft * 60))} Mins Left (-0.3⭐)` : '✅ Free Cancellation Active'}
+        </span>
       </div>
 
       {/* Suggested Pickup Point Banner */}

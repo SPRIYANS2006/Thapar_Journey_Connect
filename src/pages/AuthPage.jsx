@@ -11,7 +11,7 @@ import {
   X
 } from 'lucide-react';
 import { api } from '../services/api';
-import { HOSTELS } from '../data/mockData';
+import { HOSTELS, COLLEGE_DEGREES, ACADEMIC_YEARS } from '../data/mockData';
 
 // Helper to decode JWT from Google Identity Services
 function parseJwt(token) {
@@ -36,6 +36,8 @@ export default function AuthPage({ onLoginSuccess }) {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [hostel, setHostel] = useState('');
+  const [degree, setDegree] = useState('');
+  const [year, setYear] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -184,7 +186,9 @@ export default function AuthPage({ onLoginSuccess }) {
           name: name.trim() || undefined,
           email: email.trim().toLowerCase(),
           password: password.trim(),
-          hostel: hostel
+          hostel: hostel,
+          degree: degree,
+          year: year
         });
       } else {
         res = await api.login(email.trim().toLowerCase(), password.trim());
@@ -387,33 +391,79 @@ export default function AuthPage({ onLoginSuccess }) {
               </div>
 
               {isRegister && (
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
-                    Select Residence Hall
-                  </label>
-                  <select
-                    value={hostel}
-                    onChange={(e) => setHostel(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">-- Choose Your Hostel / Hall (Optional) --</option>
-                    <optgroup label="Boys Hostels (Official TIET)">
-                      {HOSTELS.filter(h => h.gender === 'Boys').map(h => (
-                        <option key={h.id} value={h.name}>{h.name}</option>
+                <>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
+                      Degree / Academic Program
+                    </label>
+                    <select
+                      value={degree}
+                      onChange={(e) => setDegree(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    >
+                      <option value="">-- Choose Your Degree / Program (Optional) --</option>
+                      <optgroup label="Undergraduate / Lateral Entry">
+                        {COLLEGE_DEGREES.filter(d => d.startsWith('BE')).map(d => (
+                          <option key={d} value={d}>{d}</option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="Postgraduate (Masters)">
+                        {COLLEGE_DEGREES.filter(d => d.startsWith('M') && !d.startsWith('PhD')).map(d => (
+                          <option key={d} value={d}>{d}</option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="Doctoral / PhD">
+                        {COLLEGE_DEGREES.filter(d => d.startsWith('PhD')).map(d => (
+                          <option key={d} value={d}>{d}</option>
+                        ))}
+                      </optgroup>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
+                      Academic Year
+                    </label>
+                    <select
+                      value={year}
+                      onChange={(e) => setYear(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    >
+                      <option value="">-- Choose Year of Study (Optional) --</option>
+                      {ACADEMIC_YEARS.map(y => (
+                        <option key={y} value={y}>{y}</option>
                       ))}
-                    </optgroup>
-                    <optgroup label="Girls Hostels (Official TIET)">
-                      {HOSTELS.filter(h => h.gender === 'Girls').map(h => (
-                        <option key={h.id} value={h.name}>{h.name}</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="PG / Research Halls">
-                      {HOSTELS.filter(h => h.gender === 'Co-ed').map(h => (
-                        <option key={h.id} value={h.name}>{h.name}</option>
-                      ))}
-                    </optgroup>
-                  </select>
-                </div>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
+                      Select Residence Hall
+                    </label>
+                    <select
+                      value={hostel}
+                      onChange={(e) => setHostel(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    >
+                      <option value="">-- Choose Your Hostel / Hall (Optional) --</option>
+                      <optgroup label="Boys Hostels (Official TIET)">
+                        {HOSTELS.filter(h => h.gender === 'Boys').map(h => (
+                          <option key={h.id} value={h.name}>{h.name}</option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="Girls Hostels (Official TIET)">
+                        {HOSTELS.filter(h => h.gender === 'Girls').map(h => (
+                          <option key={h.id} value={h.name}>{h.name}</option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="PG / Research Halls">
+                        {HOSTELS.filter(h => h.gender === 'Co-ed').map(h => (
+                          <option key={h.id} value={h.name}>{h.name}</option>
+                        ))}
+                      </optgroup>
+                    </select>
+                  </div>
+                </>
               )}
 
               <div>

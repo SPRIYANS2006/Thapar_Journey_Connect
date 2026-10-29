@@ -147,6 +147,29 @@ export const INITIAL_COMMUNITIES = [
 
 export const INITIAL_COMMUNITY_POSTS = [];
 
+export const COLLEGE_DEGREES = [
+  'BE/Lateral Entry (DSAI, COE, CSE, CSBS, ENC)',
+  'BE/BTech/ Lateral Entry (BT, ECE, EEC, EVD, RAI)',
+  'BE/BTech/ Lateral Entry (Others)',
+  'MCA',
+  'MSc',
+  'ME/MTech- CSED, ECED, MED, EIED',
+  'ME / MTech - Others',
+  'MA (2 Years)',
+  'MA (1 Year)',
+  'PhD (Regular)',
+  'PhD (Part-time)'
+];
+
+export const ACADEMIC_YEARS = [
+  '1st Year',
+  '2nd Year',
+  '3rd Year',
+  '4th Year',
+  '5th Year',
+  'PhD Scholar'
+];
+
 export const INITIAL_USER_PROFILE = {
   id: '',
   name: '',

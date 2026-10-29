@@ -12,7 +12,7 @@ import {
   Check, 
   Edit3 
 } from 'lucide-react';
-import { INITIAL_USER_PROFILE, HOSTELS } from '../data/mockData';
+import { INITIAL_USER_PROFILE, HOSTELS, COLLEGE_DEGREES, ACADEMIC_YEARS } from '../data/mockData';
 
 export default function ProfilePage({ user, communities = [], onUpdateProfile }) {
   const [name, setName] = useState(user?.name || '');
@@ -165,34 +165,58 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
               />
             </div>
 
-            {/* Degree / Branch */}
+            {/* Degree / Branch Dropdown */}
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                 <GraduationCap className="w-4 h-4 text-blue-600" />
-                <span>Degree / Engineering Branch</span>
+                <span>Degree / Academic Program</span>
               </label>
-              <input
-                type="text"
+              <select
                 value={degree}
                 onChange={(e) => setDegree(e.target.value)}
-                placeholder="e.g. B.Tech Computer Engineering"
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              />
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer"
+              >
+                <option value="">-- Choose Your Degree / Program --</option>
+                {degree && !COLLEGE_DEGREES.includes(degree) && (
+                  <option value={degree}>{degree} (Current)</option>
+                )}
+                <optgroup label="Undergraduate / Lateral Entry">
+                  {COLLEGE_DEGREES.filter(d => d.startsWith('BE')).map(d => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="Postgraduate (Masters)">
+                  {COLLEGE_DEGREES.filter(d => d.startsWith('M') && !d.startsWith('PhD')).map(d => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="Doctoral / PhD">
+                  {COLLEGE_DEGREES.filter(d => d.startsWith('PhD')).map(d => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </optgroup>
+              </select>
             </div>
 
-            {/* Year of Study */}
+            {/* Year of Study Dropdown */}
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                 <GraduationCap className="w-4 h-4 text-blue-600" />
-                <span>Academic Year / Batch</span>
+                <span>Academic Year of Study</span>
               </label>
-              <input
-                type="text"
+              <select
                 value={year}
                 onChange={(e) => setYear(e.target.value)}
-                placeholder="e.g. 3rd Year (Batch of 2026)"
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              />
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer"
+              >
+                <option value="">-- Choose Academic Year --</option>
+                {year && !ACADEMIC_YEARS.includes(year) && (
+                  <option value={year}>{year} (Current)</option>
+                )}
+                {ACADEMIC_YEARS.map(y => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
             </div>
 
             {/* Hostel Selector */}

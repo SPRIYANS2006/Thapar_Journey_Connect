@@ -17,6 +17,13 @@ import {
   X,
   Lock
 } from 'lucide-react';
+import { 
+  INDIA_LOCATIONS, 
+  ALL_INDIAN_STATES, 
+  POPULAR_STATES, 
+  getCitiesByState, 
+  getCityDetails 
+} from '../data/indiaLocations';
 
 export default function CommunitiesPage({ 
   communities, 
@@ -37,8 +44,9 @@ export default function CommunitiesPage({
   
   // Create New Community Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newCityName, setNewCityName] = useState('');
-  const [newState, setNewState] = useState('');
+  const [newState, setNewState] = useState('Punjab');
+  const [selectedCity, setSelectedCity] = useState('');
+  const [customCityName, setCustomCityName] = useState('');
   const [newIcon, setNewIcon] = useState('🏙️');
   const [newDistance, setNewDistance] = useState('');
   const [newTransport, setNewTransport] = useState('Trains, Shared Cabs, Express Buses');
@@ -128,36 +136,123 @@ export default function CommunitiesPage({
     setReplyInputText('');
   };
 
+  const handleOpenCreateModal = (prefillQuery = '') => {
+    const query = (prefillQuery || searchQuery || '').trim().toLowerCase();
+    let matchedState = '';
+    let matchedCity = '';
+
+    if (query) {
+      const stateMatch = INDIA_LOCATIONS.find((loc) => loc.state.toLowerCase().includes(query));
+      if (stateMatch) {
+        matchedState = stateMatch.state;
+      } else {
+        for (const loc of INDIA_LOCATIONS) {
+          const cityMatch = loc.cities.find((c) => c.name.toLowerCase().includes(query));
+          if (cityMatch) {
+            matchedState = loc.state;
+            matchedCity = cityMatch.name;
+            break;
+          }
+        }
+      }
+    }
+
+    if (matchedState) {
+      setNewState(matchedState);
+      if (matchedCity) {
+        setSelectedCity(matchedCity);
+        const details = getCityDetails(matchedState, matchedCity);
+        if (details) {
+          if (details.distance !== undefined) setNewDistance(String(details.distance));
+          if (details.transport) setNewTransport(details.transport);
+          if (details.icon) setNewIcon(details.icon);
+          setNewDesc(`Official student community for Thapar students hailing from ${details.name}, ${matchedState}. Coordinate holiday cab rides, train batches, and campus meetups!`);
+        }
+      } else {
+        setSelectedCity('');
+        setCustomCityName('');
+      }
+    } else {
+      setNewState('Punjab');
+      setSelectedCity('');
+      setCustomCityName('');
+      setNewDistance('');
+      setNewTransport('Trains, Shared Cabs, Express Buses');
+      setNewIcon('🏙️');
+      setNewDesc('');
+    }
+
+    setCreateCommunityError('');
+    setCreateCommunitySuccess('');
+    setShowCreateModal(true);
+  };
+
+  const handleStateChange = (stateName) => {
+    setNewState(stateName);
+    setSelectedCity('');
+    setCustomCityName('');
+    setCreateCommunityError('');
+    setNewDistance('');
+    setNewTransport('Trains, Shared Cabs, Express Buses');
+    setNewIcon('🏙️');
+    setNewDesc('');
+  };
+
+  const handleCityChange = (cityVal) => {
+    setSelectedCity(cityVal);
+    setCreateCommunityError('');
+    if (cityVal === '__custom__') {
+      setCustomCityName('');
+      return;
+    }
+    if (cityVal) {
+      const details = getCityDetails(newState, cityVal);
+      if (details) {
+        if (details.distance !== undefined) setNewDistance(String(details.distance));
+        if (details.transport) setNewTransport(details.transport);
+        if (details.icon) setNewIcon(details.icon);
+        setNewDesc(`Official student community for Thapar students hailing from ${details.name}, ${newState}. Coordinate holiday cab rides, train batches, and campus meetups!`);
+      }
+    }
+  };
+
   const handleCreateCommunitySubmit = async (e) => {
     e.preventDefault();
     setCreateCommunityError('');
     setCreateCommunitySuccess('');
 
-    if (!newCityName.trim()) {
-      setCreateCommunityError('Please enter a City or Region name.');
+    if (!newState.trim()) {
+      setCreateCommunityError('Please select a valid State / Province from the dropdown.');
+      return;
+    }
+
+    const finalCityName = selectedCity === '__custom__' ? customCityName.trim() : selectedCity.trim();
+    if (!finalCityName) {
+      setCreateCommunityError(selectedCity === '__custom__' ? 'Please enter your custom city or town name.' : 'Please select a City or Region from the dropdown.');
       return;
     }
 
     try {
       setIsSubmittingCommunity(true);
       const created = await onCreateCommunity({
-        name: newCityName.trim(),
-        state: newState.trim() || 'North India',
+        name: finalCityName,
+        state: newState.trim(),
         icon: newIcon.trim() || '🏙️',
         distanceFromThapar: newDistance.trim() ? `${newDistance.trim()} km` : '250 km',
         popularTransport: newTransport.trim() || 'Trains, Shared Cabs, Express Buses',
-        description: newDesc.trim() || `Official student community for Thapar students hailing from ${newCityName.trim()}. Coordinate rides and campus meetups!`,
-        tags: [newCityName.trim(), 'Campus Carpool', 'Weekend Trip']
+        description: newDesc.trim() || `Official student community for Thapar students hailing from ${finalCityName}, ${newState.trim()}. Coordinate rides and campus meetups!`,
+        tags: [finalCityName, newState.trim(), 'Campus Carpool', 'Weekend Trip']
       });
 
-      setCreateCommunitySuccess(`Community "${created.name}" created successfully!`);
+      setCreateCommunitySuccess(`Community "${created.name}" (${newState}) created successfully!`);
       if (created?.id) {
         setSelectedCommunityId(created.id);
       }
       setTimeout(() => {
         setShowCreateModal(false);
-        setNewCityName('');
-        setNewState('');
+        setNewState('Punjab');
+        setSelectedCity('');
+        setCustomCityName('');
         setNewDistance('');
         setNewDesc('');
         setCreateCommunitySuccess('');
@@ -243,11 +338,8 @@ export default function CommunitiesPage({
 
             {/* Add Custom Community Hub Trigger Button */}
             <button
-              onClick={() => {
-                setNewCityName(searchQuery.trim());
-                setShowCreateModal(true);
-              }}
-              className="w-full py-2.5 px-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all"
+              onClick={() => handleOpenCreateModal(searchQuery)}
+              className="w-full py-2.5 px-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Can't find your city? Add Community Hub</span>
@@ -264,11 +356,8 @@ export default function CommunitiesPage({
                   <p className="text-xs text-slate-400 mt-1">Be the first to start a hub for your hometown!</p>
                 </div>
                 <button
-                  onClick={() => {
-                    setNewCityName(searchQuery.trim());
-                    setShowCreateModal(true);
-                  }}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm inline-flex items-center gap-1.5"
+                  onClick={() => handleOpenCreateModal(searchQuery)}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm inline-flex items-center gap-1.5 cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Add "{searchQuery || 'New City'}" as Hub</span>
@@ -716,44 +805,45 @@ export default function CommunitiesPage({
             {/* Form */}
             <form onSubmit={handleCreateCommunitySubmit} className="space-y-4">
               
-              {/* City / Hub Name */}
+              {/* State / Province Dropdown */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  City or Region Name <span className="text-red-500">*</span>
+                <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+                  <span>State / Province <span className="text-red-500">*</span></span>
+                  <span className="text-[10px] font-normal text-slate-400">Official States & UTs only</span>
                 </label>
-                <input
-                  type="text"
+                <select
                   required
-                  placeholder="e.g. Lucknow, Shimla, Dehradun, Jammu, Jaipur"
-                  value={newCityName}
-                  onChange={(e) => setNewCityName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              {/* State */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  State / Province <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Uttar Pradesh, Himachal Pradesh, Jammu & Kashmir"
                   value={newState}
-                  onChange={(e) => setNewState(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
-                />
+                  onChange={(e) => handleStateChange(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-slate-800 cursor-pointer"
+                >
+                  <option value="">-- Choose Official State / Province --</option>
+                  <optgroup label="Popular Northern States (TIET Network)">
+                    {POPULAR_STATES.map((st) => (
+                      <option key={st} value={st}>
+                        {st}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="All Indian States & Union Territories">
+                    {ALL_INDIAN_STATES.filter((st) => !POPULAR_STATES.includes(st)).map((st) => (
+                      <option key={st} value={st}>
+                        {st}
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
+
                 {/* State Quick Picks */}
-                <div className="flex flex-wrap gap-1.5">
-                  {['Uttar Pradesh', 'Himachal Pradesh', 'Jammu & Kashmir', 'Uttarakhand', 'Punjab', 'Haryana', 'Rajasthan', 'Delhi / NCR'].map((st) => (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {POPULAR_STATES.map((st) => (
                     <button
                       key={st}
                       type="button"
-                      onClick={() => setNewState(st)}
+                      onClick={() => handleStateChange(st)}
                       className={`text-[11px] px-2.5 py-1 rounded-lg border font-medium transition-colors ${
                         newState === st
-                          ? 'bg-blue-50 border-blue-300 text-blue-700 font-bold'
+                          ? 'bg-blue-600 border-blue-600 text-white font-bold shadow-xs'
                           : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
                       }`}
                     >
@@ -761,6 +851,59 @@ export default function CommunitiesPage({
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* City or Region Dropdown */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+                  <span>City or Region Name <span className="text-red-500">*</span></span>
+                  {newState && (
+                    <span className="text-[10px] font-semibold text-blue-600">
+                      {getCitiesByState(newState).length} pre-listed cities in {newState}
+                    </span>
+                  )}
+                </label>
+                <select
+                  required
+                  disabled={!newState}
+                  value={selectedCity}
+                  onChange={(e) => handleCityChange(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-sm bg-slate-50 disabled:bg-slate-100 disabled:text-slate-400 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-slate-800 cursor-pointer"
+                >
+                  <option value="">
+                    {newState ? `-- Select City in ${newState} --` : '-- Select a State first --'}
+                  </option>
+                  {getCitiesByState(newState).map((city) => (
+                    <option key={city.name} value={city.name}>
+                      {city.icon} {city.name} (~{city.distance} km from TIET)
+                    </option>
+                  ))}
+                  {newState && (
+                    <option value="__custom__">
+                      ✏️ + Other city in {newState} (specify custom town)
+                    </option>
+                  )}
+                </select>
+
+                {/* Custom City Name Input if '__custom__' selected */}
+                {selectedCity === '__custom__' && (
+                  <div className="mt-2.5 p-3 bg-blue-50/70 border border-blue-200 rounded-xl space-y-1.5 animate-in fade-in">
+                    <label className="block text-[11px] font-bold text-blue-900">
+                      Specify City or Town in {newState}:
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder={`e.g. Nangal, Dinanagar, Rajpura, Abohar...`}
+                      value={customCityName}
+                      onChange={(e) => setCustomCityName(e.target.value)}
+                      className="w-full px-3 py-2 text-xs bg-white border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-slate-800"
+                    />
+                    <p className="text-[10px] text-blue-700">
+                      State is securely bound to <strong>{newState}</strong> to prevent fragmented or misspelled regional communities.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Icon / Emoji Picker */}

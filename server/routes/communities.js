@@ -45,7 +45,12 @@ router.post('/', async (req, res, next) => {
       throw new HttpError(400, 'Community / City name is required.');
     }
 
+    if (!state || typeof state !== 'string' || !state.trim()) {
+      throw new HttpError(400, 'State / Province is required.');
+    }
+
     const cleanName = name.trim().slice(0, 100);
+    const cleanState = state.trim().slice(0, 100);
     const idSlug = cleanName
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
@@ -66,7 +71,7 @@ router.post('/', async (req, res, next) => {
     const comm = await Community.create({
       id: idSlug,
       name: cleanName,
-      state: (state || 'North India').trim().slice(0, 100),
+      state: cleanState,
       icon: (icon || '🏙️').trim().slice(0, 10),
       members_count: 0,
       distance_from_thapar: (distanceFromThapar || '250 km').trim(),

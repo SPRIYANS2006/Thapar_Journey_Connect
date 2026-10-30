@@ -204,28 +204,38 @@ router.post('/:id/posts', validateCommunityPost, async (req, res, next) => {
   }
 });
 
-// 7. Toggle Like on Post: Stored per user
+// 7. Toggle Like on Post: Stored per user atomically (cannot be spammed)
 router.post('/posts/:postId/like', async (req, res, next) => {
   try {
     const post = await CommunityPost.findOne({ id: req.params.postId });
     if (!post) throw new HttpError(404, 'Post not found.');
 
-    const userId = req.user.id;
-    let isLiked = false;
-
-    if (post.likes.includes(userId)) {
-      post.likes = post.likes.filter((id) => id !== userId);
-      isLiked = false;
-    } else {
-      post.likes.push(userId);
-      isLiked = true;
+    // Under Thapar community rules, only verified members can react/like posts in their community
+    if (req.user.joined_community !== post.community_id) {
+      throw new HttpError(
+        403,
+        'Access Denied: Only verified members of this community can react to posts.'
+      );
     }
 
-    await post.save();
+    const userId = req.user.id;
+    const isCurrentlyLiked = Array.isArray(post.likes) && post.likes.includes(userId);
 
+    // Atomic MongoDB toggle: $pull to unlike, $addToSet to like (ensures zero spam / duplicate likes)
+    const update = isCurrentlyLiked
+      ? { $pull: { likes: userId } }
+      : { $addToSet: { likes: userId } };
+
+    const updatedPost = await CommunityPost.findOneAndUpdate(
+      { id: req.params.postId },
+      update,
+      { returnDocument: 'after' }
+    );
+
+    const isLiked = !isCurrentlyLiked;
     res.json({
       success: true,
-      likes: post.likes.length,
+      likes: updatedPost.likes.length,
       isLiked
     });
   } catch (err) {

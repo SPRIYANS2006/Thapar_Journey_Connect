@@ -117,7 +117,9 @@ export function useCommunities() {
     const res = await api.likePost(postId);
     setPosts((prev) =>
       prev.map((p) =>
-        p.id === postId ? { ...p, likes: res.likes, likesCount: res.likesCount } : p
+        p.id === postId
+          ? { ...p, likes: res.likes, isLiked: res.isLiked }
+          : p
       )
     );
     return res;

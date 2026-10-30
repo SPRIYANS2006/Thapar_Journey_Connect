@@ -121,6 +121,34 @@ export default function CommunitiesPage({
     setIsPosting(false);
   };
 
+  const [likingPostIds, setLikingPostIds] = useState(new Set());
+
+  const handleLikeClick = async (postId) => {
+    if (!isUserJoined) {
+      setBoardNotice(`Access Restricted: Under Thapar community rules, only verified members of ${activeCommunity.name} community can react to notices.`);
+      setTimeout(() => setBoardNotice(''), 4000);
+      return;
+    }
+
+    if (likingPostIds.has(postId)) return; // Prevent spamming / concurrent rapid clicks
+
+    setLikingPostIds((prev) => new Set(prev).add(postId));
+    try {
+      if (onLikePost) {
+        await onLikePost(postId);
+      }
+    } catch (err) {
+      setBoardNotice(err.message || 'Could not update like.');
+      setTimeout(() => setBoardNotice(''), 4000);
+    } finally {
+      setLikingPostIds((prev) => {
+        const next = new Set(prev);
+        next.delete(postId);
+        return next;
+      });
+    }
+  };
+
   const handleCommentSubmit = (postId, e) => {
     e.preventDefault();
     if (!isUserJoined) {
@@ -697,13 +725,37 @@ export default function CommunitiesPage({
                         </div>
 
                         <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500">
-                          <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-3">
                             <button
-                              onClick={() => onLikePost && onLikePost(post.id)}
-                              className="flex items-center gap-1 hover:text-rose-600 transition-colors cursor-pointer"
+                              type="button"
+                              disabled={likingPostIds.has(post.id)}
+                              onClick={() => handleLikeClick(post.id)}
+                              title={
+                                !isUserJoined
+                                  ? 'Join this community to like notices'
+                                  : post.isLiked
+                                    ? 'Unlike this notice'
+                                    : 'Like this notice'
+                              }
+                              className={`group flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                                post.isLiked
+                                  ? 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 shadow-xs'
+                                  : 'text-slate-500 hover:text-rose-600 hover:bg-slate-100'
+                              } ${likingPostIds.has(post.id) ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
-                              <Heart className={`w-3.5 h-3.5 ${post.likes > 0 ? 'text-rose-500 fill-rose-500' : ''}`} />
-                              <span>{post.likes}</span>
+                              <Heart
+                                className={`w-3.5 h-3.5 transition-transform duration-150 ${
+                                  post.isLiked
+                                    ? 'text-rose-600 fill-rose-600 scale-110'
+                                    : 'text-slate-400 group-hover:text-rose-500 group-hover:scale-105'
+                                }`}
+                              />
+                              <span className={post.isLiked ? 'font-bold text-rose-700' : ''}>
+                                {post.likes || 0}
+                              </span>
+                              <span className="text-[10px] font-normal text-slate-400 group-hover:text-slate-600">
+                                {post.isLiked ? 'Liked' : 'Like'}
+                              </span>
                             </button>
                             
                             <button

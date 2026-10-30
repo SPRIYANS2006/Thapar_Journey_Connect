@@ -435,4 +435,49 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     assert.equal(res.status, 400);
     assert.match(res.body.error, /past/i);
   });
+
+  // 12. Community post like is a unique toggle per user and cannot be spammed
+  it('12. Community post like is a unique toggle per user and cannot be spammed', async () => {
+    const { CommunityPost } = await import('../server/models/index.js');
+    const { user: studentA, token: tokenA } = await createTestStudent({
+      name: 'Community Member A',
+      joined_community: 'jal'
+    });
+    const { token: outsiderToken } = await createTestStudent({
+      name: 'Outsider Student',
+      joined_community: 'del'
+    });
+
+    const post = await CommunityPost.create({
+      id: 'post_like_test_1',
+      community_id: 'jal',
+      author_id: studentA.id,
+      author_name: studentA.name,
+      title: 'Cab to Jalandhar',
+      content: 'Leaving 5pm Friday',
+      likes: []
+    });
+
+    // 12a: Non-member cannot like post -> HTTP 403
+    const outsiderRes = await request(app)
+      .post(`/api/communities/posts/${post.id}/like`)
+      .set('Authorization', `Bearer ${outsiderToken}`);
+    assert.equal(outsiderRes.status, 403);
+
+    // 12b: Member likes post -> count = 1, isLiked = true
+    const likeRes = await request(app)
+      .post(`/api/communities/posts/${post.id}/like`)
+      .set('Authorization', `Bearer ${tokenA}`);
+    assert.equal(likeRes.status, 200);
+    assert.equal(likeRes.body.likes, 1);
+    assert.equal(likeRes.body.isLiked, true);
+
+    // 12c: Member toggles like again -> count = 0, isLiked = false
+    const unlikeRes = await request(app)
+      .post(`/api/communities/posts/${post.id}/like`)
+      .set('Authorization', `Bearer ${tokenA}`);
+    assert.equal(unlikeRes.status, 200);
+    assert.equal(unlikeRes.body.likes, 0);
+    assert.equal(unlikeRes.body.isLiked, false);
+  });
 });

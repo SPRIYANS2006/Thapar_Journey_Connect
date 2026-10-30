@@ -1,54 +1,45 @@
 import mongoose from 'mongoose';
 
 const commentSchema = new mongoose.Schema({
-  id: String,
-  post_id: String,
-  postId: String,
-  author_id: String,
-  authorId: String,
-  author: String,
-  author_name: String,
-  author_avatar: String,
-  authorAvatar: String,
-  author_hostel: String,
-  authorHostel: String,
-  text: String,
-  content: String,
-  created_at: { type: Date, default: Date.now },
-  createdAt: { type: Date, default: Date.now }
-});
+  id: { type: String, required: true },
+  post_id: { type: String, required: true },
+  author_id: { type: String, required: true },
+  author_name: { type: String, required: true },
+  author_avatar: { type: String, default: 'ST' },
+  author_hostel: { type: String, default: '' },
+  text: { type: String, required: true, maxlength: 500 },
+  created_at: { type: Date, default: Date.now }
+}, { _id: false });
 
 const postSchema = new mongoose.Schema({
   id: { type: String, unique: true, required: true },
-  community_id: { type: String, required: true },
-  communityId: String,
+  community_id: { type: String, required: true, index: true },
   author_id: { type: String, required: true },
-  authorId: String,
-  author: String,
-  author_name: String,
-  author_avatar: String,
-  authorAvatar: String,
-  author_hostel: String,
-  authorHostel: String,
-  category: { type: String, default: 'General' },
-  title: { type: String, required: true },
-  content: { type: String, required: true },
-  likes: { type: Number, default: 0 },
+  author_name: { type: String, required: true },
+  author_avatar: { type: String, default: 'ST' },
+  author_hostel: { type: String, default: '' },
+  category: { type: String, default: 'Ride Sharing' },
+  title: { type: String, required: true, maxlength: 120 },
+  content: { type: String, required: true, maxlength: 2000 },
+  likes: { type: [String], default: [] },
   comments: [commentSchema],
-  created_at: { type: Date, default: Date.now },
-  createdAt: { type: Date, default: Date.now }
+  created_at: { type: Date, default: Date.now, index: true }
 });
+
+postSchema.index({ community_id: 1, created_at: -1 });
 
 const communitySchema = new mongoose.Schema({
   id: { type: String, unique: true, required: true },
   name: { type: String, required: true },
   state: { type: String, required: true },
-  icon: { type: String, required: true },
+  icon: { type: String, default: '🏙️' },
   members_count: { type: Number, default: 0 },
-  distance_from_thapar: String,
-  popular_transport: String,
-  description: String,
-  tags: [String]
+  distance_from_thapar: { type: String, default: '' },
+  popular_transport: { type: String, default: '' },
+  description: { type: String, default: '' },
+  tags: { type: [String], default: [] },
+  created_by: { type: String, default: null },
+  created_at: { type: Date, default: Date.now }
 });
 
 export const Community = mongoose.models.Community || mongoose.model('Community', communitySchema);

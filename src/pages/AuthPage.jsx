@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Navigation, 
   ShieldCheck, 
@@ -7,167 +7,113 @@ import {
   ArrowRight, 
   CheckCircle2, 
   AlertCircle, 
-  Loader2, 
-  X
+  Loader2 
 } from 'lucide-react';
 import { api } from '../services/api';
-import { HOSTELS, COLLEGE_DEGREES, ACADEMIC_YEARS } from '../data/mockData';
-
-// Helper to decode JWT from Google Identity Services
-function parseJwt(token) {
-  try {
-    const base64Url = token.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split('')
-        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join('')
-    );
-    return JSON.parse(jsonPayload);
-  } catch (e) {
-    return null;
-  }
-}
+import { useAuth } from '../context/useAuth';
 
 export default function AuthPage({ onLoginSuccess }) {
-  const [isRegister, setIsRegister] = useState(false);
+  const { loginWithGoogle, loginWithPassword } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [hostel, setHostel] = useState('');
-  const [degree, setDegree] = useState('');
-  const [year, setYear] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [googleClientId, setGoogleClientId] = useState('');
+  const [gisLoaded, setGisLoaded] = useState(false);
+  const googleBtnRef = useRef(null);
 
-  // Single Google Button State
-  const [gisRendered, setGisRendered] = useState(false);
-  const [showManualGoogleModal, setShowManualGoogleModal] = useState(false);
-  const [customThaparInput, setCustomThaparInput] = useState('');
-  const [googleLoading, setGoogleLoading] = useState(false);
-  const [googleError, setGoogleError] = useState('');
+  // 1. Fetch server config for dynamic Google Client ID
+  useEffect(() => {
+    let isMounted = true;
+    api.getConfig()
+      .then((cfg) => {
+        if (isMounted && cfg?.googleClientId) {
+          setGoogleClientId(cfg.googleClientId);
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not fetch config:', err.message);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
-  const handleGoogleCredentialResponse = useCallback(async (response) => {
-    setLoading(true);
-    setError('');
-    try {
-      const payload = parseJwt(response.credential);
-      if (!payload || !payload.email || !payload.email.toLowerCase().endsWith('@thapar.edu')) {
-        setError('Access Denied: Only official @thapar.edu Google accounts from TIET are permitted.');
-        setLoading(false);
+  // 2. Handle Google Identity credential callback
+  const handleCredentialResponse = useCallback(
+    async (response) => {
+      if (!response?.credential) {
+        setError('No credential received from Google. Please try again.');
         return;
       }
-
-      const res = await api.googleLogin({
-        email: payload.email.toLowerCase(),
-        name: payload.name || payload.email.split('@')[0],
-        avatar: payload.picture,
-        token: response.credential
-      });
-
-      if (res && res.user) {
-        onLoginSuccess(res.user);
-      }
-    } catch (err) {
-      setError(err.message || 'Google authentication failed.');
-    } finally {
-      setLoading(false);
-    }
-  }, [onLoginSuccess]);
-
-  // Initialize official Google Identity Services with Client ID
-  useEffect(() => {
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '629250761631-k5eo83notfq2e1vuu3qvimbf1jq3lueo.apps.googleusercontent.com';
-    if (typeof window !== 'undefined' && window.google?.accounts?.id && clientId) {
+      setLoading(true);
+      setError('');
       try {
-        window.google.accounts.id.initialize({
-          client_id: clientId,
-          callback: handleGoogleCredentialResponse,
-          auto_select: false,
-          cancel_on_tap_outside: true
-        });
-
-        const officialBtn = document.getElementById('googleOfficialBtn');
-        if (officialBtn) {
-          window.google.accounts.id.renderButton(officialBtn, {
-            theme: 'outline',
-            size: 'large',
-            text: 'continue_with',
-            shape: 'pill',
-            width: 340,
-            logo_alignment: 'left'
-          });
-          setTimeout(() => setGisRendered(true), 0);
+        const loggedUser = await loginWithGoogle(response.credential);
+        if (onLoginSuccess) {
+          onLoginSuccess(loggedUser);
         }
       } catch (err) {
-        console.warn('Google Identity Services notice:', err.message);
+        setError(
+          err.message ||
+            'Access Denied: Only official @thapar.edu Google accounts are permitted.'
+        );
+      } finally {
+        setLoading(false);
       }
-    }
-  }, [handleGoogleCredentialResponse]);
+    },
+    [loginWithGoogle, onLoginSuccess]
+  );
 
-  const handleGoogleBtnClick = () => {
-    setGoogleError('');
-    if (typeof window !== 'undefined' && window.google?.accounts?.id) {
-      try {
-        window.google.accounts.id.prompt((notification) => {
-          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-            setShowManualGoogleModal(true);
+  // 3. Initialize Google Identity Services when both GIS script and client ID are available
+  useEffect(() => {
+    if (!googleClientId) return;
+
+    let timerId = null;
+    const checkGIS = () => {
+      if (typeof window !== 'undefined' && window.google?.accounts?.id) {
+        setGisLoaded(true);
+        try {
+          window.google.accounts.id.initialize({
+            client_id: googleClientId,
+            callback: handleCredentialResponse,
+            auto_select: false,
+            cancel_on_tap_outside: true
+          });
+
+          if (googleBtnRef.current) {
+            googleBtnRef.current.innerHTML = '';
+            window.google.accounts.id.renderButton(googleBtnRef.current, {
+              theme: 'outline',
+              size: 'large',
+              text: 'continue_with',
+              shape: 'pill',
+              width: 320,
+              logo_alignment: 'left'
+            });
           }
-        });
-      } catch (e) {
-        setShowManualGoogleModal(true);
+        } catch (err) {
+          console.warn('GIS initialization error:', err.message);
+        }
+      } else {
+        timerId = setTimeout(checkGIS, 200);
       }
-    } else {
-      setShowManualGoogleModal(true);
-    }
-  };
+    };
 
-  const handleManualGoogleSubmit = async (e) => {
-    e.preventDefault();
-    setGoogleError('');
+    checkGIS();
 
-    let fullEmail = customThaparInput.trim().toLowerCase();
-    if (!fullEmail) {
-      setGoogleError('Please enter your Thapar email or roll number.');
-      return;
-    }
+    return () => {
+      if (timerId) clearTimeout(timerId);
+    };
+  }, [googleClientId, handleCredentialResponse]);
 
-    if (!fullEmail.includes('@')) {
-      fullEmail = `${fullEmail}@thapar.edu`;
-    }
-
-    if (!fullEmail.endsWith('@thapar.edu')) {
-      setGoogleError('Access Denied: Only official @thapar.edu Google accounts are allowed.');
-      return;
-    }
-
-    setGoogleLoading(true);
-
-    try {
-      const derivedName = fullEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
-      const res = await api.googleLogin({
-        email: fullEmail,
-        name: derivedName
-      });
-
-      if (res && res.user) {
-        setShowManualGoogleModal(false);
-        onLoginSuccess(res.user);
-      }
-    } catch (err) {
-      setGoogleError(err.message || 'Failed to authenticate with Thapar Google account.');
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
-
-  // Standard Email/Password Submission
-  const handleEmailSubmit = async (e) => {
+  // 4. Standard Campus Password Login
+  const handlePasswordSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
-    if (!email.trim().toLowerCase().endsWith('@thapar.edu')) {
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!trimmedEmail.endsWith('@thapar.edu')) {
       setError('Only official @thapar.edu email addresses are allowed.');
       return;
     }
@@ -180,25 +126,12 @@ export default function AuthPage({ onLoginSuccess }) {
     setLoading(true);
 
     try {
-      let res;
-      if (isRegister) {
-        res = await api.register({
-          name: name.trim() || undefined,
-          email: email.trim().toLowerCase(),
-          password: password.trim(),
-          hostel: hostel,
-          degree: degree,
-          year: year
-        });
-      } else {
-        res = await api.login(email.trim().toLowerCase(), password.trim());
-      }
-
-      if (res && res.user) {
-        onLoginSuccess(res.user);
+      const loggedUser = await loginWithPassword(trimmedEmail, password.trim());
+      if (onLoginSuccess) {
+        onLoginSuccess(loggedUser);
       }
     } catch (err) {
-      setError(err.message || 'Login failed. Please check your credentials.');
+      setError(err.message || 'Invalid email or password.');
     } finally {
       setLoading(false);
     }
@@ -206,7 +139,6 @@ export default function AuthPage({ onLoginSuccess }) {
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col justify-between relative overflow-hidden">
-      
       {/* Background Glow Accents */}
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none" />
@@ -235,7 +167,6 @@ export default function AuthPage({ onLoginSuccess }) {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto w-full px-6 py-12 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center z-10 flex-1">
-        
         {/* Left Hero Section */}
         <div className="lg:col-span-7 space-y-6 text-left">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-300 text-xs font-semibold uppercase tracking-wider">
@@ -262,7 +193,9 @@ export default function AuthPage({ onLoginSuccess }) {
               </div>
               <div>
                 <h4 className="font-bold text-white text-sm">Hostel Proximity Matching</h4>
-                <p className="text-slate-400 text-xs mt-0.5">Prioritizes students from your residence hall or quad.</p>
+                <p className="text-slate-400 text-xs mt-0.5">
+                  Prioritizes students from your residence hall or quad.
+                </p>
               </div>
             </div>
 
@@ -271,8 +204,10 @@ export default function AuthPage({ onLoginSuccess }) {
                 <CheckCircle2 className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="font-bold text-white text-sm">Instant Google Workspace SSO</h4>
-                <p className="text-slate-400 text-xs mt-0.5">1-click login with your @thapar.edu Google account.</p>
+                <h4 className="font-bold text-white text-sm">Official Google Workspace SSO</h4>
+                <p className="text-slate-400 text-xs mt-0.5">
+                  Verified with your @thapar.edu Google ID token.
+                </p>
               </div>
             </div>
           </div>
@@ -281,45 +216,35 @@ export default function AuthPage({ onLoginSuccess }) {
         {/* Right Auth Card */}
         <div className="lg:col-span-5">
           <div className="bg-slate-800/90 border border-slate-700/80 rounded-3xl p-8 shadow-2xl backdrop-blur-xl">
-            
-            {/* Single Clean Google Sign-In Container */}
-            <div className="space-y-3">
-              <div id="googleOfficialBtn" className="w-full flex justify-center min-h-[44px]" />
-              
-              {/* Fallback button shown only if GIS iframe is not active */}
-              {!gisRendered && (
-                <button
-                  type="button"
-                  onClick={handleGoogleBtnClick}
-                  disabled={loading}
-                  className="w-full py-3 px-4 bg-white hover:bg-slate-50 text-slate-900 font-bold text-sm rounded-full shadow-md border border-slate-200 transition-all flex items-center justify-center gap-3 active:scale-[0.99] group cursor-pointer"
-                >
-                  <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                  </svg>
-                  <span className="font-semibold text-slate-800 group-hover:text-blue-700 transition-colors">
-                    Continue with Google (@thapar.edu)
-                  </span>
-                </button>
-              )}
+            {error && (
+              <div className="mb-6 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
+                <span className="leading-relaxed">{error}</span>
+              </div>
+            )}
 
-              <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 font-medium pt-1">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Verified with Google Workspace (@thapar.edu)</span>
+            {/* Official Google Sign-In Container */}
+            <div className="space-y-3">
+              <div className="text-center space-y-1 mb-2">
+                <h3 className="font-bold text-white text-base">Sign In with TIET Account</h3>
+                <p className="text-xs text-slate-400">
+                  New and returning students authenticate with official Google SSO
+                </p>
               </div>
 
-              <div className="text-center pt-1">
-                <button
-                  type="button"
-                  onClick={() => { setShowManualGoogleModal(true); setGoogleError(''); }}
-                  className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors hover:underline cursor-pointer inline-flex items-center gap-1"
-                >
-                  <span>Can't switch Google account? Sign in with Thapar Roll No. / Email</span>
-                  <span>→</span>
-                </button>
+              <div className="flex justify-center min-h-[44px]">
+                <div ref={googleBtnRef} />
+                {!gisLoaded && (
+                  <div className="flex items-center gap-2 text-xs text-slate-400 py-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+                    <span>Loading Google Sign-In...</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 font-medium pt-2">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Verified with Google Workspace (@thapar.edu)</span>
               </div>
             </div>
 
@@ -327,52 +252,16 @@ export default function AuthPage({ onLoginSuccess }) {
             <div className="relative my-6 flex items-center justify-center">
               <div className="border-t border-slate-700/80 w-full" />
               <span className="bg-slate-800 px-3 text-[11px] uppercase tracking-wider text-slate-400 font-bold absolute">
-                or use campus password
+                or with campus password
               </span>
             </div>
 
-            {/* Login / Register Toggle */}
-            <div className="flex bg-slate-900/80 p-1 rounded-2xl mb-5 border border-slate-700/60">
-              <button
-                type="button"
-                onClick={() => { setIsRegister(false); setError(''); }}
-                className={`flex-1 py-2 rounded-xl font-bold text-xs transition-all ${
-                  !isRegister ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Email Login
-              </button>
-              <button
-                type="button"
-                onClick={() => { setIsRegister(true); setError(''); }}
-                className={`flex-1 py-2 rounded-xl font-bold text-xs transition-all ${
-                  isRegister ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Register Account
-              </button>
-            </div>
-
-            <form onSubmit={handleEmailSubmit} className="space-y-4">
-              {isRegister && (
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. Priyanshu Soni"
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              )}
-
+            {/* Password Login Form */}
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1 flex items-center justify-between">
                   <span>Thapar Email</span>
-                  <span className="text-[10px] text-blue-400 font-semibold">Only @thapar.edu</span>
+                  <span className="text-[10px] text-blue-400 font-semibold">@thapar.edu only</span>
                 </label>
                 <div className="relative">
                   <Mail className="w-5 h-5 text-slate-500 absolute left-3.5 top-3.5" />
@@ -385,86 +274,7 @@ export default function AuthPage({ onLoginSuccess }) {
                     required
                   />
                 </div>
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Only official @thapar.edu email addresses are allowed.
-                </p>
               </div>
-
-              {isRegister && (
-                <>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
-                      Degree / Academic Program
-                    </label>
-                    <select
-                      value={degree}
-                      onChange={(e) => setDegree(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                    >
-                      <option value="">-- Choose Your Degree / Program (Optional) --</option>
-                      <optgroup label="Undergraduate / Lateral Entry">
-                        {COLLEGE_DEGREES.filter(d => d.startsWith('BE')).map(d => (
-                          <option key={d} value={d}>{d}</option>
-                        ))}
-                      </optgroup>
-                      <optgroup label="Postgraduate (Masters)">
-                        {COLLEGE_DEGREES.filter(d => d.startsWith('M') && !d.startsWith('PhD')).map(d => (
-                          <option key={d} value={d}>{d}</option>
-                        ))}
-                      </optgroup>
-                      <optgroup label="Doctoral / PhD">
-                        {COLLEGE_DEGREES.filter(d => d.startsWith('PhD')).map(d => (
-                          <option key={d} value={d}>{d}</option>
-                        ))}
-                      </optgroup>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
-                      Academic Year
-                    </label>
-                    <select
-                      value={year}
-                      onChange={(e) => setYear(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                    >
-                      <option value="">-- Choose Year of Study (Optional) --</option>
-                      {ACADEMIC_YEARS.map(y => (
-                        <option key={y} value={y}>{y}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
-                      Select Residence Hall
-                    </label>
-                    <select
-                      value={hostel}
-                      onChange={(e) => setHostel(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                    >
-                      <option value="">-- Choose Your Hostel / Hall (Optional) --</option>
-                      <optgroup label="Boys Hostels (Official TIET)">
-                        {HOSTELS.filter(h => h.gender === 'Boys').map(h => (
-                          <option key={h.id} value={h.name}>{h.name}</option>
-                        ))}
-                      </optgroup>
-                      <optgroup label="Girls Hostels (Official TIET)">
-                        {HOSTELS.filter(h => h.gender === 'Girls').map(h => (
-                          <option key={h.id} value={h.name}>{h.name}</option>
-                        ))}
-                      </optgroup>
-                      <optgroup label="PG / Research Halls">
-                        {HOSTELS.filter(h => h.gender === 'Co-ed').map(h => (
-                          <option key={h.id} value={h.name}>{h.name}</option>
-                        ))}
-                      </optgroup>
-                    </select>
-                  </div>
-                </>
-              )}
 
               <div>
                 <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
@@ -476,136 +286,42 @@ export default function AuthPage({ onLoginSuccess }) {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
+                    placeholder="Enter your campus password"
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-11 pr-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   />
                 </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Passwords can only be set from your profile after Google verification.
+                </p>
               </div>
-
-              {/* Error Notification */}
-              {error && (
-                <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-xs flex items-center gap-2 animate-in fade-in">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{error}</span>
-                </div>
-              )}
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm rounded-xl shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-2 mt-2 disabled:opacity-50 cursor-pointer"
+                className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-500/20 cursor-pointer"
               >
                 {loading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Connecting to TIET Server...</span>
+                    <span>Signing in...</span>
                   </>
                 ) : (
                   <>
-                    <span>{isRegister ? 'Register & Access Dashboard' : 'Login & Access Dashboard'}</span>
+                    <span>Sign In</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
               </button>
             </form>
-
           </div>
         </div>
-
       </main>
 
-      {/* Manual Fallback Thapar Google Sign-In Dialog */}
-      {showManualGoogleModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white text-slate-800 rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl relative border border-slate-200">
-            
-            <button
-              onClick={() => {
-                if (!googleLoading) setShowManualGoogleModal(false);
-              }}
-              className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="text-left mb-6">
-              <div className="w-10 h-10 mb-3 flex items-center justify-center">
-                <svg className="w-9 h-9" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 tracking-tight">
-                Thapar Google Workspace SSO
-              </h3>
-              <p className="text-xs text-slate-500 mt-1">
-                Sign in to <span className="font-semibold text-slate-800">Thapar Journey Connect</span> using your official institutional account.
-              </p>
-            </div>
-
-            {googleError && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs flex items-start gap-2.5">
-                <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-                <span className="font-medium">{googleError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleManualGoogleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Enter your Thapar email or roll number:
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={customThaparInput}
-                    onChange={(e) => setCustomThaparInput(e.target.value)}
-                    placeholder="e.g. 102303001 or roll.name"
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-3 pr-24 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
-                    autoFocus
-                  />
-                  <span className="absolute right-3 top-2.5 text-xs text-slate-400 font-mono font-medium pointer-events-none">
-                    @thapar.edu
-                  </span>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={googleLoading}
-                className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shadow-md shadow-blue-500/20"
-              >
-                {googleLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Verifying @thapar.edu account...</span>
-                  </>
-                ) : (
-                  <span>Continue with Thapar Google SSO</span>
-                )}
-              </button>
-            </form>
-
-            <div className="pt-4 text-center text-[11px] text-slate-500 border-t border-slate-100 mt-5 space-y-2">
-              <p>Only @thapar.edu accounts are permitted. Personal Google accounts are strictly restricted.</p>
-              <div className="p-2.5 bg-slate-50 rounded-xl text-left border border-slate-200 text-[11px] text-slate-600">
-                <span className="font-bold text-slate-800 block mb-0.5">💡 Google Cloud Console "origin_mismatch" fix:</span>
-                <span>In Google Cloud Console credentials, add <code className="bg-white px-1 py-0.5 rounded border border-slate-200 text-blue-600 font-mono">http://localhost:5173</code> and <code className="bg-white px-1 py-0.5 rounded border border-slate-200 text-blue-600 font-mono">http://localhost:5000</code> to <strong>Authorized JavaScript origins</strong>.</span>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      )}
-
       {/* Footer */}
-      <footer className="max-w-7xl mx-auto w-full px-6 py-6 text-center text-xs text-slate-500 border-t border-slate-800 z-10">
-        Thapar Journey Connect • Exclusively for Thapar Institute of Engineering & Technology Students & Faculty
+      <footer className="max-w-7xl mx-auto w-full px-6 py-4 text-center text-xs text-slate-500 z-10">
+        Thapar Journey Connect • Official TIET Student Transit Platform
       </footer>
-
     </div>
   );
 }

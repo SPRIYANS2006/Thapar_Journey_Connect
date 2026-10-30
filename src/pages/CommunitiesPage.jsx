@@ -1,25 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import Avatar from '../components/Avatar';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { 
   Users, 
-  MapPin, 
   Search, 
   Plus, 
   MessageSquare, 
   Heart, 
-  Share2, 
   CheckCircle2, 
   AlertCircle, 
   ArrowRight, 
   Sparkles, 
   Send, 
-  Compass,
   Building2,
-  Calendar,
   CornerDownRight,
   X,
-  Car,
-  Info,
   Lock
 } from 'lucide-react';
 
@@ -95,30 +90,24 @@ export default function CommunitiesPage({
     }
   }, [selectedCommunityId, onSelectCommunity]);
 
+  const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
+  const [boardNotice, setBoardNotice] = useState('');
+
   const handlePostSubmit = (e) => {
     e.preventDefault();
     if (!isUserJoined) {
-      alert(`Access Restricted: Under Thapar hometown privacy policy, only verified members of ${activeCommunity.name} community can create posts or ride notices.`);
+      setBoardNotice(`Access Restricted: Under Thapar hometown privacy policy, only verified members of ${activeCommunity.name} community can create posts or ride notices.`);
+      setTimeout(() => setBoardNotice(''), 4000);
       return;
     }
     if (!postTitle.trim() || !postContent.trim()) return;
 
-    const newPost = {
-      id: `post-${Date.now()}`,
+    onAddPost({
       communityId: activeCommunity.id,
-      author: user?.name || 'TIET Student',
-      authorAvatar: user?.avatar || (user?.name ? user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'ST'),
-      authorHostel: user?.hostel || 'Hostel',
-      timeAgo: 'Just now',
       category: postCategory,
       title: postTitle.trim(),
-      content: postContent.trim(),
-      likes: 0,
-      repliesCount: 0,
-      comments: []
-    };
-
-    onAddPost(newPost);
+      content: postContent.trim()
+    });
     setPostTitle('');
     setPostContent('');
     setIsPosting(false);
@@ -127,7 +116,8 @@ export default function CommunitiesPage({
   const handleCommentSubmit = (postId, e) => {
     e.preventDefault();
     if (!isUserJoined) {
-      alert(`Access Restricted: Only members of ${activeCommunity.name} community can reply to notices.`);
+      setBoardNotice(`Access Restricted: Only members of ${activeCommunity.name} community can reply to notices.`);
+      setTimeout(() => setBoardNotice(''), 4000);
       return;
     }
     if (!replyInputText.trim()) return;
@@ -538,12 +528,7 @@ export default function CommunitiesPage({
                     </p>
                     <button
                       type="button"
-                      onClick={() => {
-                        if (window.confirm(`Switch hometown hub to ${activeCommunity.name}? You will leave ${communities.find(c => c.id === user.joinedCommunity)?.name || 'your current community'}.`)) {
-                          onLeaveCommunity(user.joinedCommunity);
-                          setTimeout(() => onJoinCommunity(activeCommunity.id), 250);
-                        }
-                      }}
+                      onClick={() => setShowSwitchConfirm(true)}
                       className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <span>Switch to {activeCommunity.name} Community</span>
@@ -565,6 +550,11 @@ export default function CommunitiesPage({
               </div>
             ) : (
               <div className="space-y-4">
+                {boardNotice && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs font-semibold">
+                    {boardNotice}
+                  </div>
+                )}
                 {activePosts.length === 0 ? (
                   <div className="bg-white rounded-2xl border border-dashed border-slate-200 p-8 text-center space-y-2">
                     <MessageSquare className="w-8 h-8 text-slate-300 mx-auto" />
@@ -896,6 +886,22 @@ export default function CommunitiesPage({
           </div>
         </div>
       )}
+
+      {/* Switch Community Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showSwitchConfirm}
+        title="Switch Hometown Community"
+        message={`Are you sure you want to switch your hometown hub to ${activeCommunity.name}?\n\nUnder TIET policy, you can only belong to one hometown hub at a time. You will leave your current community.`}
+        confirmLabel={`Join ${activeCommunity.name}`}
+        onConfirm={async () => {
+          setShowSwitchConfirm(false);
+          if (user?.joinedCommunity) {
+            await onLeaveCommunity(user.joinedCommunity);
+          }
+          await onJoinCommunity(activeCommunity.id);
+        }}
+        onCancel={() => setShowSwitchConfirm(false)}
+      />
 
     </div>
   );

@@ -1,72 +1,138 @@
-// API client service for Thapar Journey Connect
+// Central API service for Thapar Journey Connect
 import { io } from 'socket.io-client';
 
 const API_BASE = '/api';
+const TOKEN_KEY = 'tiet_token';
 
 let socketInstance = null;
+const unauthorizedListeners = new Set();
+
+export function onUnauthorized(callback) {
+  unauthorizedListeners.add(callback);
+  return () => unauthorizedListeners.delete(callback);
+}
+
+function notifyUnauthorized() {
+  for (const cb of unauthorizedListeners) {
+    try {
+      cb();
+    } catch {
+      // ignore
+    }
+  }
+}
+
+export function getToken() {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setToken(token) {
+  if (typeof window === 'undefined') return;
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token);
+  } else {
+    localStorage.removeItem(TOKEN_KEY);
+  }
+}
+
+export function clearToken() {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(TOKEN_KEY);
+}
+
 export function getSocket() {
-  if (!socketInstance && typeof window !== 'undefined') {
+  if (typeof window === 'undefined') return null;
+  const token = getToken();
+
+  if (!socketInstance) {
     socketInstance = io({
-      transports: ['websocket', 'polling']
+      transports: ['websocket', 'polling'],
+      auth: { token }
     });
+  } else if (token && socketInstance.auth?.token !== token) {
+    socketInstance.auth = { token };
+    socketInstance.disconnect().connect();
   }
   return socketInstance;
 }
 
-async function request(endpoint, options = {}) {
-  try {
-    const res = await fetch(`${API_BASE}${endpoint}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-      },
-      ...options
-    });
-
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || 'Server request failed');
-    }
-    return data;
-  } catch (err) {
-    console.error(`API Error on [${options.method || 'GET'} ${endpoint}]:`, err.message);
-    throw err;
+export function disconnectSocket() {
+  if (socketInstance) {
+    socketInstance.disconnect();
+    socketInstance = null;
   }
 }
 
+async function request(endpoint, options = {}) {
+  const token = getToken();
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...options.headers
+  };
+
+  const res = await fetch(`${API_BASE}${endpoint}`, {
+    ...options,
+    headers
+  });
+
+  if (res.status === 401) {
+    clearToken();
+    notifyUnauthorized();
+  }
+
+  let data = null;
+  try {
+    data = await res.json();
+  } catch {
+    data = null;
+  }
+
+  if (!res.ok) {
+    const errorMsg = data?.error || `Request failed with status ${res.status}`;
+    const err = new Error(errorMsg);
+    err.status = res.status;
+    err.data = data;
+    throw err;
+  }
+
+  return data;
+}
+
 export const api = {
+  // Config & Metadata (Public)
+  getConfig: () => request('/config'),
+  getDestinations: () => request('/destinations'),
+  getHostels: () => request('/hostels'),
+  getStats: () => request('/stats'),
+
   // Auth
+  googleLogin: (credential) =>
+    request('/auth/google', {
+      method: 'POST',
+      body: JSON.stringify({ credential })
+    }),
+
   login: (email, password) =>
     request('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password })
     }),
 
-  register: (userData) =>
-    request('/auth/register', {
+  setPassword: (password) =>
+    request('/auth/password', {
       method: 'POST',
-      body: JSON.stringify(userData)
+      body: JSON.stringify({ password })
     }),
 
-  googleLogin: (googleData) =>
-    request('/auth/google', {
-      method: 'POST',
-      body: JSON.stringify(googleData)
-    }),
-
-  getMe: (userId) =>
-    request(`/auth/me${userId ? `?userId=${userId}` : ''}`),
+  getMe: () => request('/auth/me'),
 
   updateProfile: (profileData) =>
     request('/auth/profile', {
       method: 'PUT',
       body: JSON.stringify(profileData)
     }),
-
-  // Metadata
-  getDestinations: () => request('/destinations'),
-  getHostels: () => request('/hostels'),
-  getStats: () => request('/stats'),
 
   // Journeys & Matching
   createJourney: (journeyData) =>
@@ -75,40 +141,50 @@ export const api = {
       body: JSON.stringify(journeyData)
     }),
 
+  getMyJourneys: () => request('/journeys/mine'),
+
   // Groups
-  getGroups: () => request('/groups'),
+  getMyGroups: () => request('/groups/mine'),
+
   getGroupById: (id) => request(`/groups/${id}`),
 
-  createGroup: (groupData) =>
+  createGroup: ({ journeyId, pickupPoint }) =>
     request('/groups', {
       method: 'POST',
-      body: JSON.stringify(groupData)
+      body: JSON.stringify({ journeyId, pickupPoint })
     }),
 
-  joinGroup: (id, memberData) =>
+  joinGroup: (id, { journeyId } = {}) =>
     request(`/groups/${id}/join`, {
       method: 'POST',
-      body: JSON.stringify(memberData)
+      body: JSON.stringify({ journeyId })
     }),
 
-  leaveGroup: (id, userData) => {
-    const payload = typeof userData === 'string'
-      ? { userId: userData }
-      : { userId: userData?.id, name: userData?.name };
-    return request(`/groups/${id}/leave`, {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    });
-  },
+  leaveGroup: (id) =>
+    request(`/groups/${id}/leave`, {
+      method: 'POST'
+    }),
 
   confirmGroup: (id) =>
     request(`/groups/${id}/confirm`, {
       method: 'POST'
     }),
 
-  resetGroup: (id) =>
-    request(`/groups/${id}/reset`, {
+  completeGroup: (id) =>
+    request(`/groups/${id}/complete`, {
       method: 'POST'
+    }),
+
+  changePickupPoint: (id, pickupPoint) =>
+    request(`/groups/${id}/pickup-point`, {
+      method: 'PATCH',
+      body: JSON.stringify({ pickupPoint })
+    }),
+
+  rateGroup: (id, rating) =>
+    request(`/groups/${id}/rate`, {
+      method: 'POST',
+      body: JSON.stringify({ rating })
     }),
 
   calculateFareSplit: (id, totalAmount, tip = 0) =>
@@ -120,10 +196,10 @@ export const api = {
   // Chat
   getMessages: (groupId) => request(`/groups/${groupId}/messages`),
 
-  sendMessage: (groupId, messageData) =>
+  sendMessage: (groupId, text) =>
     request(`/groups/${groupId}/messages`, {
       method: 'POST',
-      body: JSON.stringify(messageData)
+      body: JSON.stringify({ text })
     }),
 
   // Communities
@@ -135,16 +211,14 @@ export const api = {
       body: JSON.stringify(data)
     }),
 
-  joinCommunity: (communityId, userId) =>
+  joinCommunity: (communityId) =>
     request(`/communities/${communityId}/join`, {
-      method: 'POST',
-      body: JSON.stringify({ userId })
+      method: 'POST'
     }),
 
-  leaveCommunity: (communityId, userId) =>
+  leaveCommunity: (communityId) =>
     request(`/communities/${communityId}/leave`, {
-      method: 'POST',
-      body: JSON.stringify({ userId })
+      method: 'POST'
     }),
 
   getCommunityPosts: (communityId) =>
@@ -161,9 +235,9 @@ export const api = {
       method: 'POST'
     }),
 
-  addComment: (postId, commentData) =>
+  addComment: (postId, text) =>
     request(`/communities/posts/${postId}/comments`, {
       method: 'POST',
-      body: JSON.stringify(commentData)
+      body: JSON.stringify({ text })
     })
 };

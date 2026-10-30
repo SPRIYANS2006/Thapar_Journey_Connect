@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Users, Compass } from 'lucide-react';
 import Navbar from './components/Navbar';
 import AuthPage from './pages/AuthPage';
@@ -14,187 +14,81 @@ import JourneyFormModal from './components/JourneyFormModal';
 import GroupChatModal from './components/GroupChatModal';
 import NotificationToast from './components/NotificationToast';
 
-import { 
-  INITIAL_USER_PROFILE, 
-  INITIAL_GROUPS, 
-  MOCK_STUDENTS,
-  INITIAL_COMMUNITIES,
-  INITIAL_COMMUNITY_POSTS 
-} from './data/mockData';
-import { calculateMatchScore } from './utils/matchingEngine';
-import { api, getSocket } from './services/api';
+import { AuthProvider } from './context/AuthContext';
+import { useAuth } from './context/useAuth';
+import { useGroups } from './hooks/useGroups';
+import { useCommunities } from './hooks/useCommunities';
+import { useJourneys } from './hooks/useJourneys';
+import { getSocket } from './services/api';
 
-export default function App() {
-  // Check local storage for persistent session
-  const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    const savedUser = localStorage.getItem('tiet_user');
-    if (savedUser) {
-      try {
-        const parsed = JSON.parse(savedUser);
-        if (parsed.email === 'student@thapar.edu' || parsed.id === 'user_main') {
-          localStorage.removeItem('tiet_logged_in');
-          localStorage.removeItem('tiet_user');
-          return false;
-        }
-      } catch (e) {}
-    }
-    return localStorage.getItem('tiet_logged_in') === 'true';
-  });
+function AppContent() {
+  const { user, token, logout, updateProfile, refreshUser } = useAuth();
+  const {
+    groups,
+    activeGroup,
+    selectedGroup,
+    setSelectedGroupId,
+    createGroup,
+    joinGroup,
+    leaveGroup,
+    confirmGroup,
+    changePickupPoint
+  } = useGroups();
 
-  const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('tiet_user');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed.email !== 'student@thapar.edu' && parsed.id !== 'user_main') {
-          return parsed;
-        }
-      } catch (e) {}
-    }
-    return null;
-  });
+  const {
+    communities,
+    posts: communityPosts,
+    createCommunity,
+    joinCommunity,
+    leaveCommunity,
+    createPost: handleAddCommunityPost,
+    toggleLike: handleLikePost,
+    addComment: handleAddComment,
+    fetchPosts
+  } = useCommunities();
+
+  const {
+    activeJourney,
+    matchedStudents,
+    matchingGroups,
+    submitJourney
+  } = useJourneys();
 
   const [activePage, setActivePage] = useState('dashboard');
 
   // Notifications State for Real-Time Toast Popups
   const [notifications, setNotifications] = useState([]);
-  const triggerToast = (toastObj) => {
-    setNotifications((prev) => [toastObj, ...prev.filter(n => n.id !== toastObj.id).slice(0, 4)]);
-  };
-  const dismissToast = (id) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-  };
+  const triggerToast = useCallback((toastObj) => {
+    setNotifications((prev) => [
+      toastObj,
+      ...prev.filter((n) => n.id !== toastObj.id).slice(0, 4)
+    ]);
+  }, []);
 
-  // Journey & Matching State
+  const dismissToast = useCallback((id) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  }, []);
+
+  // Journey & Matching Modal State
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedDestination, setSelectedDestination] = useState(null);
-  const [currentJourneyReq, setCurrentJourneyReq] = useState(null);
-  const [matchedStudents, setMatchedStudents] = useState([]);
 
-  // Groups & Chat State
-  const [groups, setGroups] = useState(INITIAL_GROUPS);
-  const groupsRef = useRef(groups);
-  useEffect(() => {
-    groupsRef.current = groups;
-  }, [groups]);
-
-  const [selectedGroupId, setSelectedGroupId] = useState(null);
+  // Chat Modal State
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatGroupId, setChatGroupId] = useState(null);
 
-  // Communities State
-  const [communities, setCommunities] = useState(INITIAL_COMMUNITIES);
-  const [communityPosts, setCommunityPosts] = useState(INITIAL_COMMUNITY_POSTS);
-
-  // Initial Data Fetching from Backend API
+  // Real-time WebSockets synchronization
   useEffect(() => {
-    async function loadData() {
-      try {
-        const [fetchedGroups, fetchedCommunities, fetchedPosts] = await Promise.all([
-          api.getGroups().catch(() => []),
-          api.getCommunities().catch(() => INITIAL_COMMUNITIES),
-          api.getCommunityPosts('del').catch(() => [])
-        ]);
-
-        if (Array.isArray(fetchedGroups)) setGroups(fetchedGroups);
-        if (Array.isArray(fetchedCommunities) && fetchedCommunities.length > 0) setCommunities(fetchedCommunities);
-        if (Array.isArray(fetchedPosts)) setCommunityPosts(fetchedPosts);
-      } catch (err) {
-        console.warn('Initial data load warning:', err.message);
-      }
-    }
-    loadData();
-  }, []);
-
-  // Validate and sync user session on boot
-  useEffect(() => {
-    const savedUserStr = localStorage.getItem('tiet_user');
-    if (savedUserStr) {
-      try {
-        const parsed = JSON.parse(savedUserStr);
-        if (parsed && parsed.id) {
-          api.getMe(parsed.id)
-            .then(freshUser => {
-              if (freshUser && freshUser.id) {
-                setUser(freshUser);
-                localStorage.setItem('tiet_user', JSON.stringify(freshUser));
-              }
-            })
-            .catch(() => {
-              // If user no longer exists in database, clear stale session
-              localStorage.removeItem('tiet_logged_in');
-              localStorage.removeItem('tiet_user');
-              setUser(null);
-              setIsLoggedIn(false);
-            });
-        }
-      } catch (e) {}
-    }
-  }, []);
-
-  // Real-time WebSockets synchronization for groups, members & chat messages
-  useEffect(() => {
+    if (!token || !user) return;
     const socket = getSocket();
     if (!socket) return;
-
-    const handleGroupsUpdated = async () => {
-      try {
-        const latestGroups = await api.getGroups();
-        if (latestGroups) setGroups(latestGroups);
-      } catch (e) {}
-    };
-
-    const handleMemberUpdate = (updatedGroup) => {
-      if (updatedGroup) {
-        setGroups((prev) =>
-          prev.map((g) => (g.id === updatedGroup.id ? updatedGroup : g))
-        );
-
-        // Alert user if another rider joined their active group
-        if (user) {
-          const isUserInGroup = (updatedGroup.members || []).some(
-            (m) => (m.id && m.id === user.id) || (m.user_id && m.user_id === user.id) || (user.name && m.name === user.name)
-          );
-          if (isUserInGroup) {
-            const latestMember = updatedGroup.members[updatedGroup.members.length - 1];
-            if (latestMember && latestMember.id !== user.id && latestMember.name !== user.name) {
-              triggerToast({
-                id: `joined_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-                type: 'success',
-                title: `New Rider in Group #${updatedGroup.id}!`,
-                message: `${latestMember.name} (${latestMember.hostel || 'Hostel'}) joined your ride to ${updatedGroup.destinationName}.`,
-                actionLabel: 'View Group',
-                onAction: () => {
-                  setSelectedGroupId(updatedGroup.id);
-                  setActivePage('group-details');
-                }
-              });
-            }
-          }
-        }
-      }
-    };
 
     // Chat Message In-App Popup on Screen
     const handleNewChatMessage = (msgData) => {
       if (!msgData) return;
-      // Do not popup user's own sent message
-      if (user && (msgData.senderId === user.id || msgData.senderName === user.name)) {
-        return;
-      }
+      if (msgData.senderId === user.id) return;
 
-      // Check if user is a member of this group
-      const inThisGroup = (groupsRef.current || []).some(
-        (g) =>
-          String(g.id) === String(msgData.groupId) &&
-          g.members &&
-          g.members.some(
-            (m) => (m.id && m.id === user?.id) || (m.user_id && m.user_id === user?.id) || (user?.name && m.name === user.name)
-          )
-      );
-
-      // Display popup toast on screen if user belongs to this group and chat modal for this group is not currently open
-      if (inThisGroup && !(isChatOpen && chatGroupId === msgData.groupId)) {
+      if (!(isChatOpen && chatGroupId === msgData.groupId)) {
         triggerToast({
           id: `chat_${Date.now()}_${Math.random().toString(36).substring(7)}`,
           type: 'chat',
@@ -212,79 +106,28 @@ export default function App() {
       }
     };
 
-    socket.on('groups_updated', handleGroupsUpdated);
-    socket.on('member_joined', handleMemberUpdate);
-    socket.on('member_left', handleMemberUpdate);
-    socket.on('group_confirmed', handleMemberUpdate);
-    socket.on('new_chat_message', handleNewChatMessage);
+    const handleGroupFound = (data) => {
+      triggerToast({
+        id: `found_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+        type: 'match',
+        title: '🎉 Travel Group Found!',
+        message: `Group #${data.groupId} for ${data.destinationName} matches your departure.`,
+        actionLabel: 'View Group',
+        onAction: () => {
+          setSelectedGroupId(data.groupId);
+          setActivePage('group-details');
+        }
+      });
+    };
 
-    // Auto-sync polling every 8s + window focus fallback for reliable multi-device syncing
-    const interval = setInterval(handleGroupsUpdated, 8000);
-    window.addEventListener('focus', handleGroupsUpdated);
+    socket.on('new_chat_message', handleNewChatMessage);
+    socket.on('group_found', handleGroupFound);
 
     return () => {
-      clearInterval(interval);
-      window.removeEventListener('focus', handleGroupsUpdated);
-      socket.off('groups_updated', handleGroupsUpdated);
-      socket.off('member_joined', handleMemberUpdate);
-      socket.off('member_left', handleMemberUpdate);
-      socket.off('group_confirmed', handleMemberUpdate);
       socket.off('new_chat_message', handleNewChatMessage);
+      socket.off('group_found', handleGroupFound);
     };
-  }, [user, isChatOpen, chatGroupId]);
-
-  // Real-time Chat via WebSockets when chat modal is open
-  useEffect(() => {
-    if (!isChatOpen || !chatGroupId) return;
-
-    const socket = getSocket();
-    if (socket) {
-      socket.emit('join_group', chatGroupId);
-
-      const handleNewMessage = (data) => {
-        if (data.groupId === chatGroupId && data.messages) {
-          setGroups((prevGroups) =>
-            prevGroups.map((g) =>
-              g.id === chatGroupId ? { ...g, chatMessages: data.messages } : g
-            )
-          );
-        }
-      };
-
-      socket.on('new_message', handleNewMessage);
-
-      // Initial message fetch
-      api.getMessages(chatGroupId).then((msgs) => {
-        if (msgs && msgs.length > 0) {
-          setGroups((prevGroups) =>
-            prevGroups.map((g) => (g.id === chatGroupId ? { ...g, chatMessages: msgs } : g))
-          );
-        }
-      }).catch(() => {});
-
-      return () => {
-        socket.emit('leave_group', chatGroupId);
-        socket.off('new_message', handleNewMessage);
-      };
-    }
-  }, [isChatOpen, chatGroupId]);
-
-  // Auth Handlers
-  const handleLoginSuccess = (userData) => {
-    setUser(userData);
-    setIsLoggedIn(true);
-    localStorage.setItem('tiet_logged_in', 'true');
-    localStorage.setItem('tiet_user', JSON.stringify(userData));
-    setActivePage('dashboard');
-  };
-
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setUser(null);
-    localStorage.removeItem('tiet_logged_in');
-    localStorage.removeItem('tiet_user');
-    setActivePage('dashboard');
-  };
+  }, [token, user, isChatOpen, chatGroupId, triggerToast, setSelectedGroupId]);
 
   // Destination Selection & Journey Creation
   const handleOpenJourneyForm = (destObj) => {
@@ -293,602 +136,248 @@ export default function App() {
   };
 
   const handleSubmitJourney = async (journeyData) => {
-    setCurrentJourneyReq(journeyData);
-
     try {
-      // Call backend API to persist journey and retrieve algorithmic matches
-      const [res, freshGroups] = await Promise.all([
-        api.createJourney({
-          userId: user?.id || 'user_main',
-          destinationId: journeyData.destinationId,
-          destinationName: journeyData.destinationName,
-          hostel: journeyData.hostel,
-          departureTime: journeyData.departureTime,
-          date: journeyData.date,
-          flexibility: journeyData.flexibility,
-          transport: journeyData.transport,
-          notes: journeyData.notes
-        }),
-        api.getGroups().catch(() => null)
-      ]);
+      const res = await submitJourney(journeyData);
+      setIsFormOpen(false);
 
-      if (res && res.matchedStudents) {
-        setMatchedStudents(res.matchedStudents);
-      }
-      if (freshGroups && Array.isArray(freshGroups)) {
-        setGroups(freshGroups);
-      }
-
-      // Check if open matching groups exist for this journey
-      const matchingGroups = (freshGroups || groups || []).filter(
-        (g) =>
-          g.status === 'Open' &&
-          (g.destinationId === journeyData.destinationId ||
-            (g.destinationName &&
-              journeyData.destinationName &&
-              g.destinationName.toLowerCase() === journeyData.destinationName.toLowerCase()))
-      );
-
-      if (matchingGroups.length > 0) {
-        const topMatch = matchingGroups[0];
+      if (res.matchingGroups && res.matchingGroups.length > 0) {
+        const topMatch = res.matchingGroups[0];
         triggerToast({
           id: `match_${Date.now()}`,
           type: 'match',
-          title: `🎉 Travel Group Found!`,
-          message: `Active Group #${topMatch.id} for ${topMatch.destinationName} (${topMatch.members.length}/4 riders). Click to join!`,
-          actionLabel: `View Group #${topMatch.id}`,
+          title: '🎉 Matching Groups Found!',
+          message: `Active Group #${topMatch.group.id} for ${topMatch.group.destinationName} has open seats.`,
+          actionLabel: `View Group #${topMatch.group.id}`,
           onAction: () => {
-            setSelectedGroupId(topMatch.id);
+            setSelectedGroupId(topMatch.group.id);
             setActivePage('group-details');
           }
         });
-      } else {
+      } else if (res.matchedStudents && res.matchedStudents.length > 0) {
         triggerToast({
-          id: `match_${Date.now()}`,
+          id: `students_${Date.now()}`,
           type: 'success',
-          title: `Matching Co-Riders Found!`,
-          message: `Found co-passengers departing around ${journeyData.departureTime}. Form a new group!`,
+          title: 'Matching Co-Riders Found!',
+          message: `Found ${res.matchedStudents.length} co-passengers departing around ${journeyData.departureTime}. Form a new group!`,
           actionLabel: 'View Matches',
           onAction: () => {
             setActivePage('matching');
           }
         });
       }
+
+      setActivePage('matching');
     } catch (err) {
-      console.warn('Backend match fallback:', err.message);
-      const matchedResults = MOCK_STUDENTS.map((student) => {
-        const matchInfo = calculateMatchScore(journeyData, student);
-        return { student, matchInfo };
-      })
-        .filter((item) => item.matchInfo.score > 0)
-        .sort((a, b) => b.matchInfo.score - a.matchInfo.score);
-
-      setMatchedStudents(matchedResults);
+      triggerToast({
+        id: `err_${Date.now()}`,
+        type: 'error',
+        title: 'Journey Request Failed',
+        message: err.message || 'Could not record journey'
+      });
     }
-
-    setIsFormOpen(false);
-    setActivePage('matching');
   };
 
   // Group Handlers
   const handleJoinGroup = async (groupId) => {
+    // 1. If already a member of this group, navigate directly
     const targetGroup = (groups || []).find((g) => g.id === groupId);
-
-    // 1. If already a member of this group, navigate directly without re-joining!
-    const isAlreadyMember = targetGroup && targetGroup.members && targetGroup.members.some((m) =>
-      (m.id && m.id === user?.id) ||
-      (m.user_id && m.user_id === user?.id) ||
-      (user?.email && m.email === user.email) ||
-      (user?.name && m.name === user.name)
+    const isAlreadyMember = (targetGroup?.members || []).some(
+      (m) => (m.userId && m.userId === user?.id) || (m.id && m.id === user?.id)
     );
     if (isAlreadyMember) {
       triggerToast({
         id: `already_${Date.now()}`,
         type: 'info',
         title: 'Already a Member',
-        message: `You are already part of Group #${groupId}. Opening your ride details.`
+        message: `You are already part of Group #${groupId}. Opening ride details.`
       });
       setSelectedGroupId(groupId);
       setActivePage('group-details');
       return;
     }
 
-    // 2. Single-Active-Group Rule enforcement
-    const currentActiveGroup = (groups || []).find(g =>
-      g.id !== groupId &&
-      (g.status === 'Open' || g.status === 'Confirmed') &&
-      g.members && g.members.some(m => (m.id && m.id === user?.id) || (m.user_id && m.user_id === user?.id) || (user?.name && m.name === user.name))
-    );
-    if (currentActiveGroup) {
-      alert(`Single-Ride Policy: You are already a member of Group #${currentActiveGroup.id} for ${currentActiveGroup.destinationName}. In order to prevent conflicting carpool bookings, you can only belong to one active ride group at a time. Please leave that group first before joining another!`);
-      setSelectedGroupId(currentActiveGroup.id);
+    // 2. Single-Ride Policy check
+    if (activeGroup && activeGroup.id !== groupId) {
+      triggerToast({
+        id: `single_ride_${Date.now()}`,
+        type: 'warning',
+        title: 'Single-Ride Policy Active',
+        message: `You are already enrolled in Group #${activeGroup.id} for ${activeGroup.destinationName}. Leave that ride before joining another.`
+      });
+      setSelectedGroupId(activeGroup.id);
       setActivePage('group-details');
       return;
     }
 
     try {
-      const res = await api.joinGroup(groupId, {
-        userId: user.id,
-        name: user.name,
-        avatar: user.avatar || 'ST',
-        hostel: user.hostel,
-        departureTime: currentJourneyReq?.departureTime || '17:00',
-        phone: user.phone
+      await joinGroup(groupId, { journeyId: activeJourney?.id });
+      triggerToast({
+        id: `joined_${Date.now()}`,
+        type: 'success',
+        title: 'Joined Group!',
+        message: `You have successfully joined Group #${groupId}.`
       });
-
-      if (res && res.group) {
-        setGroups((prev) => prev.map((g) => (g.id === groupId ? res.group : g)));
-      }
+      setSelectedGroupId(groupId);
+      setActivePage('group-details');
     } catch (err) {
-      if (err.message && (err.message.includes('already a member') || err.message.includes('alreadyMember'))) {
-        triggerToast({
-          id: `already_${Date.now()}`,
-          type: 'info',
-          title: 'Already a Member',
-          message: 'You are already a member of this ride group.'
-        });
-        setSelectedGroupId(groupId);
-        setActivePage('group-details');
-        return;
-      }
-      if (err.message && err.message.includes('Single-Ride Policy')) {
-        alert(err.message);
-        return;
-      }
-      console.warn('Fallback join group:', err.message);
-      setGroups((prevGroups) =>
-        prevGroups.map((g) => {
-          if (g.id === groupId) {
-            const exists = g.members.some((m) => (m.id && m.id === user.id) || (m.user_id && m.user_id === user.id) || m.name === user.name);
-            if (exists || g.members.length >= g.maxMembers) return g;
-            const userMember = {
-              id: user.id,
-              user_id: user.id,
-              name: user.name,
-              avatar: user.avatar || 'ST',
-              hostel: user.hostel,
-              departureTime: currentJourneyReq?.departureTime || '17:00',
-              role: 'Member',
-              phone: user.phone
-            };
-            return {
-              ...g,
-              members: [...g.members, userMember]
-            };
-          }
-          return g;
-        })
-      );
+      triggerToast({
+        id: `join_err_${Date.now()}`,
+        type: 'error',
+        title: 'Could Not Join Group',
+        message: err.message || 'Unable to join group'
+      });
     }
-
-    setSelectedGroupId(groupId);
-    setActivePage('group-details');
   };
 
   const handleCreateGroupWithStudent = async (candidateStudent) => {
-    // Single-Active-Group Rule enforcement
-    const currentActiveGroup = (groups || []).find(g =>
-      (g.status === 'Open' || g.status === 'Confirmed') &&
-      g.members && g.members.some(m => 
-        (m.id && m.id === user?.id) || 
-        (m.user_id && m.user_id === user?.id) ||
-        (user?.name && m.name === user.name)
-      )
-    );
-
-    if (currentActiveGroup) {
-      // If the current active group is heading to the same destination, merge rider into this group
-      const isSameTrip = 
-        currentActiveGroup.destinationId === (currentJourneyReq?.destinationId || candidateStudent.destinationId) ||
-        (currentActiveGroup.destinationName && currentJourneyReq?.destinationName &&
-         currentActiveGroup.destinationName.toLowerCase() === currentJourneyReq.destinationName.toLowerCase());
-
-      if (isSameTrip && (currentActiveGroup.members || []).length < (currentActiveGroup.maxMembers || 4)) {
-        handleSimulateJoin(currentActiveGroup.id, {
-          id: candidateStudent.id,
-          user_id: candidateStudent.id,
-          name: candidateStudent.name,
-          avatar: candidateStudent.avatar || 'ST',
-          hostel: candidateStudent.hostel,
-          departureTime: candidateStudent.departureTime,
-          role: 'Member',
-          phone: candidateStudent.phone || ''
-        });
-        setSelectedGroupId(currentActiveGroup.id);
-        setActivePage('group-details');
-        triggerToast({
-          id: `merged_${Date.now()}`,
-          type: 'success',
-          title: 'Rider Added to Your Group!',
-          message: `${candidateStudent.name} was added to your existing Group #${currentActiveGroup.id}.`,
-          actionLabel: 'View Group',
-          onAction: () => {
-            setSelectedGroupId(currentActiveGroup.id);
-            setActivePage('group-details');
-          }
-        });
-        return;
-      }
-
-      alert(`Single-Ride Policy: You are already a member of active Group #${currentActiveGroup.id} for ${currentActiveGroup.destinationName}. You can only belong to one active ride group at a time. Please leave that group first before forming a new one!`);
-      setSelectedGroupId(currentActiveGroup.id);
+    // Single-Ride Policy
+    if (activeGroup) {
+      triggerToast({
+        id: `single_ride_create_${Date.now()}`,
+        type: 'warning',
+        title: 'Single-Ride Policy Active',
+        message: `You are already a member of active Group #${activeGroup.id}. Leave that group first before forming a new one.`
+      });
+      setSelectedGroupId(activeGroup.id);
       setActivePage('group-details');
       return;
     }
 
-    const newGroupPayload = {
-      destinationId: currentJourneyReq?.destinationId || 'railway',
-      destinationName: currentJourneyReq?.destinationName || 'Patiala Railway Station',
-      departureTime: candidateStudent.departureTime,
-      date: currentJourneyReq?.date || 'Today',
-      pickupPoint: 'Main Gate (Near Executive Mess)',
-      matchScore: candidateStudent?.id === 'me_open' ? 100 : 96,
-      initialMembers: [
-        {
-          id: user.id,
-          user_id: user.id,
-          name: user.name,
-          avatar: user.avatar || 'ST',
-          hostel: user.hostel,
-          departureTime: currentJourneyReq?.departureTime || candidateStudent?.departureTime,
-          role: 'Group Admin',
-          phone: user.phone || ''
-        },
-        ...(candidateStudent && candidateStudent.id !== 'me_open' ? [
-          {
-            id: candidateStudent.id,
-            user_id: candidateStudent.id,
-            name: candidateStudent.name,
-            avatar: candidateStudent.avatar || 'ST',
-            hostel: candidateStudent.hostel,
-            departureTime: candidateStudent.departureTime,
-            role: 'Member',
-            phone: candidateStudent.phone || ''
-          }
-        ] : [])
-      ]
-    };
-
     try {
-      const res = await api.createGroup(newGroupPayload);
-      if (res && res.group) {
-        setGroups((prev) => [res.group, ...prev.filter(g => g.id !== res.group.id)]);
-        setSelectedGroupId(res.group.id);
-      }
-    } catch (err) {
-      console.warn('Fallback create group:', err.message);
-      const newGroupId = `${Math.floor(100 + Math.random() * 900)}`;
-      const fallbackGroup = {
-        id: newGroupId,
-        ...newGroupPayload,
-        status: 'Open',
-        maxMembers: 4,
-        members: newGroupPayload.initialMembers,
-        chatMessages: [
-          {
-            id: `m_init_${Date.now()}`,
-            senderId: candidateStudent.id,
-            senderName: candidateStudent.name,
-            avatar: candidateStudent.avatar,
-            text: `Hey ${user.name.split(' ')[0]}! Glad we matched for ${currentJourneyReq?.destinationName || 'our trip'}. Let's coordinate pickup time!`,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          }
-        ]
-      };
-      setGroups((prev) => [fallbackGroup, ...prev]);
-      setSelectedGroupId(newGroupId);
-    }
+      const journeyIdToUse = candidateStudent.journeyId || activeJourney?.id;
+      const res = await createGroup({
+        journeyId: journeyIdToUse,
+        pickupPoint: 'Main Gate (Near Executive Mess)'
+      });
 
-    setActivePage('group-details');
+      triggerToast({
+        id: `created_${Date.now()}`,
+        type: 'success',
+        title: 'New Ride Group Created!',
+        message: `Group #${res.group.id} formed for ${res.group.destinationName}.`
+      });
+
+      setSelectedGroupId(res.group.id);
+      setActivePage('group-details');
+    } catch (err) {
+      triggerToast({
+        id: `create_err_${Date.now()}`,
+        type: 'error',
+        title: 'Group Creation Failed',
+        message: err.message || 'Could not form group'
+      });
+    }
   };
 
-  // Calculate hours left until ride departure
-  const calculateHoursUntilDeparture = (dateStr, timeStr) => {
-    if (!timeStr) return 999;
-    const now = new Date();
-    let target = new Date();
-
-    if (dateStr) {
-      const s = dateStr.trim();
-      if (/tomorrow/i.test(s)) {
-        target.setDate(target.getDate() + 1);
-      } else if (!/today/i.test(s)) {
-        const cleanDate = s.replace(/^[A-Za-z]+,\s*/, '').replace(/^[A-Za-z]+\s*\([^)]*\)\s*/, '');
-        const parsed = Date.parse(`${cleanDate} ${target.getFullYear()}`);
-        if (!isNaN(parsed)) {
-          target = new Date(parsed);
-        }
-      }
+  const handleCreateGroupForJourney = async () => {
+    if (activeGroup) {
+      triggerToast({
+        id: `single_ride_open_${Date.now()}`,
+        type: 'warning',
+        title: 'Single-Ride Policy Active',
+        message: `You already have active Group #${activeGroup.id}. Leave that group before forming another.`
+      });
+      setSelectedGroupId(activeGroup.id);
+      setActivePage('group-details');
+      return;
     }
 
-    const [hStr, mStr] = (timeStr || '').split(':');
-    const h = parseInt(hStr, 10) || 0;
-    const m = parseInt(mStr, 10) || 0;
-    target.setHours(h, m, 0, 0);
+    try {
+      const res = await createGroup({
+        journeyId: activeJourney?.id,
+        pickupPoint: 'Main Gate (Near Executive Mess)'
+      });
 
-    const diffMs = target.getTime() - now.getTime();
-    return diffMs / (1000 * 60 * 60);
+      triggerToast({
+        id: `created_${Date.now()}`,
+        type: 'success',
+        title: 'Open Group Formed!',
+        message: `Group #${res.group.id} is now open for students to join.`
+      });
+
+      setSelectedGroupId(res.group.id);
+      setActivePage('group-details');
+    } catch (err) {
+      triggerToast({
+        id: `create_err_${Date.now()}`,
+        type: 'error',
+        title: 'Could Not Create Group',
+        message: err.message || 'Error creating group'
+      });
+    }
   };
 
   const handleLeaveGroup = async (groupId) => {
-    const targetGroup = (groups || []).find((g) => g.id === groupId);
-    const hoursLeft = calculateHoursUntilDeparture(targetGroup?.date, targetGroup?.departureTime);
-
-    let confirmPrompt = 'Are you sure you want to leave this travel group?';
-    if (hoursLeft <= 0.5) {
-      confirmPrompt = `⚠️ CRITICAL CANCELLATION WARNING:
-This ride departs in less than 30 minutes!
-Under Thapar Travel Reliability Policy:
-• Dropping out in the final 30 minutes leaves co-passengers stranded with high fare splits.
-• Your reliability rating will decrease by -0.8⭐.
-Are you sure you want to proceed?`;
-    } else if (hoursLeft <= 4) {
-      confirmPrompt = `⚠️ LATE CANCELLATION WARNING:
-This ride departs in less than 4 hours (${Math.max(1, Math.round(hoursLeft * 60))} mins remaining).
-Under Thapar Travel Reliability Policy:
-• Free cancellation is permitted up to 4 hours before departure.
-• Leaving now will decrease your reliability rating by -0.3⭐.
-Are you sure you want to proceed?`;
-    } else {
-      confirmPrompt = `Are you sure you want to leave Group #${groupId}?
-(Free cancellation: more than 4 hours remain before scheduled departure)`;
-    }
-
-    if (!window.confirm(confirmPrompt)) return;
-
     try {
-      const res = await api.leaveGroup(groupId, user);
+      const res = await leaveGroup(groupId);
       if (res && res.penaltyApplied) {
-        const updatedUser = { ...user, reliability: res.newReliability };
-        setUser(updatedUser);
-        localStorage.setItem('tiet_user', JSON.stringify(updatedUser));
+        await refreshUser();
         triggerToast({
           id: `penalty_${Date.now()}`,
           type: 'warning',
           title: 'Reliability Rating Decreased',
-          message: `Due to late cancellation (${hoursLeft <= 0.5 ? '< 30 mins' : '< 4 hrs'}), a -${res.penaltyAmount}⭐ penalty was applied. New Rating: ${res.newReliability}⭐.`
+          message: `Late cancellation penalty: -${res.penaltyAmount}⭐. New Rating: ${res.newReliability}⭐.`
         });
       } else {
         triggerToast({
           id: `leave_${Date.now()}`,
           type: 'info',
-          title: 'Left Travel Group',
-          message: `You have successfully left Group #${groupId}.`
+          title: 'Left Group',
+          message: `You left Group #${groupId}.`
         });
       }
-
-      const updated = await api.getGroups();
-      setGroups(updated || []);
+      setActivePage('dashboard');
     } catch (err) {
-      setGroups((prev) =>
-        prev.map((g) => {
-          if (g.id === groupId) {
-            return {
-              ...g,
-              members: g.members.filter((m) => m.id !== user.id && m.user_id !== user.id && m.name !== user.name)
-            };
-          }
-          return g;
-        }).filter(g => g.members.length > 0)
-      );
-    }
-    setActivePage('dashboard');
-  };
-
-  // Dynamic Group Joining Simulation
-  const handleSimulateJoin = (groupId, newStudent) => {
-    setGroups((prevGroups) =>
-      prevGroups.map((g) => {
-        if (g.id === groupId && g.members.length < g.maxMembers) {
-          const exists = g.members.some((m) => m.id === newStudent.id);
-          if (exists) return g;
-          return {
-            ...g,
-            members: [...g.members, newStudent],
-            chatMessages: [
-              ...g.chatMessages,
-              {
-                id: `m_sim_${Date.now()}`,
-                senderId: newStudent.id,
-                senderName: newStudent.name,
-                avatar: newStudent.avatar,
-                text: `Hi everyone! Just joined Group #${groupId}. Excited to travel together from ${newStudent.hostel}!`,
-                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-              }
-            ]
-          };
-        }
-        return g;
-      })
-    );
-  };
-
-  const handleResetGroup = async (groupId) => {
-    try {
-      await api.resetGroup(groupId);
-    } catch (e) {}
-
-    setGroups((prevGroups) =>
-      prevGroups.map((g) => {
-        if (g.id === groupId) {
-          return {
-            ...g,
-            members: g.members.filter((m) => m.id !== 's4_simulated')
-          };
-        }
-        return g;
-      })
-    );
-  };
-
-  const handleSendMessage = async (groupId, messageObj) => {
-    try {
-      const res = await api.sendMessage(groupId, {
-        senderId: user.id || 'user_main',
-        senderName: user.name,
-        avatar: user.avatar || 'ST',
-        text: messageObj.text
+      triggerToast({
+        id: `leave_err_${Date.now()}`,
+        type: 'error',
+        title: 'Could Not Leave Group',
+        message: err.message || 'Error leaving group'
       });
-
-      if (res && res.messages) {
-        setGroups((prevGroups) =>
-          prevGroups.map((g) => (g.id === groupId ? { ...g, chatMessages: res.messages } : g))
-        );
-        return;
-      }
-    } catch (err) {
-      console.warn('Fallback send message:', err.message);
     }
-
-    setGroups((prevGroups) =>
-      prevGroups.map((g) => {
-        if (g.id === groupId) {
-          return {
-            ...g,
-            chatMessages: [...g.chatMessages, messageObj]
-          };
-        }
-        return g;
-      })
-    );
   };
 
   const handleConfirmJourney = async (groupId) => {
     try {
-      await api.confirmGroup(groupId);
-    } catch (e) {}
+      await confirmGroup(groupId);
+      triggerToast({
+        id: `confirm_${Date.now()}`,
+        type: 'success',
+        title: 'Journey Confirmed! 🎉',
+        message: `Group #${groupId} is confirmed. Member phone numbers are now visible.`
+      });
+    } catch (err) {
+      triggerToast({
+        id: `confirm_err_${Date.now()}`,
+        type: 'error',
+        title: 'Confirmation Failed',
+        message: err.message || 'Only group admin can confirm'
+      });
+    }
+  };
 
-    setGroups((prevGroups) =>
-      prevGroups.map((g) => (g.id === groupId ? { ...g, status: 'Confirmed' } : g))
-    );
+  const handleChangePickupPoint = async (groupId, newPoint) => {
+    try {
+      await changePickupPoint(groupId, newPoint);
+      triggerToast({
+        id: `pickup_${Date.now()}`,
+        type: 'success',
+        title: 'Pickup Point Updated',
+        message: `Meeting location set to ${newPoint}.`
+      });
+    } catch (err) {
+      triggerToast({
+        id: `pickup_err_${Date.now()}`,
+        type: 'error',
+        title: 'Could Not Update Pickup Point',
+        message: err.message || 'Only admin can change pickup point'
+      });
+    }
   };
 
   const handleOpenChatModal = (groupId) => {
     setChatGroupId(groupId);
     setIsChatOpen(true);
-  };
-
-  // Communities Handlers
-  const handleJoinCommunity = async (communityId) => {
-    const target = communities.find((c) => c.id === communityId);
-    if (user?.joinedCommunity && user.joinedCommunity !== communityId) {
-      const current = communities.find((c) => c.id === user.joinedCommunity);
-      alert(`Notice: You are currently a member of ${current?.name || 'another'} Community. In this system, you can belong to only one official hometown community at a time. Please leave your current community first!`);
-      return;
-    }
-
-    // 1. Optimistic instant UI update
-    setCommunities(prev => prev.map(c => c.id === communityId ? { ...c, membersCount: (c.membersCount || 0) + 1 } : c));
-    const updatedUser = { ...user, joinedCommunity: communityId, hometown: target?.name || user?.hometown };
-    setUser(updatedUser);
-    localStorage.setItem('tiet_user', JSON.stringify(updatedUser));
-
-    try {
-      await api.joinCommunity(communityId, user?.id);
-      const [updatedComm, updatedPosts] = await Promise.all([
-        api.getCommunities(),
-        api.getCommunityPosts(communityId)
-      ]);
-      if (Array.isArray(updatedComm)) setCommunities(updatedComm);
-      if (Array.isArray(updatedPosts)) setCommunityPosts(updatedPosts);
-    } catch (err) {
-      console.warn('Fallback join community:', err.message);
-    }
-  };
-
-  const handleLeaveCommunity = async (communityId) => {
-    if (!window.confirm('Are you sure you want to leave this hometown community?')) return;
-
-    // 1. Optimistic instant UI update
-    setCommunities(prev => prev.map(c => c.id === communityId ? { ...c, membersCount: Math.max(0, (c.membersCount || 1) - 1) } : c));
-    const updatedUser = { ...user, joinedCommunity: null };
-    setUser(updatedUser);
-    localStorage.setItem('tiet_user', JSON.stringify(updatedUser));
-
-    try {
-      await api.leaveCommunity(communityId, user?.id);
-      const [updatedComm, updatedPosts] = await Promise.all([
-        api.getCommunities(),
-        api.getCommunityPosts(communityId)
-      ]);
-      if (Array.isArray(updatedComm)) setCommunities(updatedComm);
-      if (Array.isArray(updatedPosts)) setCommunityPosts(updatedPosts);
-    } catch (err) {
-      console.warn('Fallback leave community:', err.message);
-    }
-  };
-
-  const handleCreateCommunity = async (commData) => {
-    try {
-      const res = await api.createCommunity(commData);
-      if (res && res.community) {
-        setCommunities((prev) => [res.community, ...prev]);
-        return res.community;
-      }
-    } catch (err) {
-      alert(err.message || 'Failed to create new community');
-      throw err;
-    }
-  };
-
-  const handleAddCommunityPost = async (newPost) => {
-    try {
-      const res = await api.createCommunityPost(newPost.communityId, {
-        authorId: user.id || 'user_main',
-        authorName: user.name,
-        authorAvatar: user.avatar || 'ST',
-        authorHostel: user.hostel,
-        category: newPost.category,
-        title: newPost.title,
-        content: newPost.content
-      });
-
-      if (res && res.post) {
-        setCommunityPosts((prev) => [res.post, ...prev]);
-        return;
-      }
-    } catch (err) {
-      console.warn('Fallback add community post:', err.message);
-    }
-
-    setCommunityPosts((prev) => [newPost, ...prev]);
-  };
-
-  const handleLikePost = async (postId) => {
-    try {
-      const res = await api.likePost(postId);
-      setCommunityPosts((prev) =>
-        prev.map((p) => (p.id === postId ? { ...p, likes: res.likes } : p))
-      );
-    } catch (err) {
-      setCommunityPosts((prev) =>
-        prev.map((p) => (p.id === postId ? { ...p, likes: p.likes + 1 } : p))
-      );
-    }
-  };
-
-  const handleAddComment = async (postId, text) => {
-    try {
-      const res = await api.addComment(postId, {
-        authorId: user.id || 'user_main',
-        authorName: user.name,
-        authorAvatar: user.avatar || 'ST',
-        authorHostel: user.hostel,
-        text
-      });
-
-      if (res && res.comments) {
-        setCommunityPosts((prev) =>
-          prev.map((p) =>
-            p.id === postId
-              ? { ...p, comments: res.comments, repliesCount: res.count }
-              : p
-          )
-        );
-      }
-    } catch (err) {
-      console.warn('Fallback add comment:', err.message);
-    }
   };
 
   const handleSelectCommunityTravel = (community) => {
@@ -904,26 +393,24 @@ Are you sure you want to proceed?`;
     handleOpenJourneyForm(syntheticDest);
   };
 
-  const selectedGroupObj = groups.find((g) => g.id === selectedGroupId) || (groups.length > 0 ? groups[0] : null);
-  const activeChatGroupObj = groups.find((g) => g.id === chatGroupId);
+  const activeChatGroupObj =
+    groups.find((g) => g.id === chatGroupId) ||
+    (selectedGroup && selectedGroup.id === chatGroupId ? selectedGroup : null);
 
-  // If user is not logged in, render AuthPage
-  if (!isLoggedIn) {
-    return <AuthPage onLoginSuccess={handleLoginSuccess} />;
+  // If not logged in, render AuthPage
+  if (!token || !user) {
+    return <AuthPage onLoginSuccess={() => setActivePage('dashboard')} />;
   }
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans selection:bg-blue-500 selection:text-white">
-      
       {/* Top Navbar Header */}
       <Navbar
         activePage={activePage}
         setActivePage={(page) => {
           if (page === 'my-groups') {
-            const currentUid = user?.id;
-            const myGroup = groups.find((g) => g.members && g.members.some((m) => (m.id && m.id === currentUid) || (m.user_id && m.user_id === currentUid)));
-            if (myGroup) {
-              setSelectedGroupId(myGroup.id);
+            if (activeGroup) {
+              setSelectedGroupId(activeGroup.id);
               setActivePage('group-details');
               return;
             }
@@ -931,134 +418,205 @@ Are you sure you want to proceed?`;
           setActivePage(page);
         }}
         user={user}
-        onLogout={handleLogout}
-        myGroupsCount={groups.filter((g) => g.members && g.members.some((m) => (m.id && m.id === user?.id) || (m.user_id && m.user_id === user?.id))).length}
+        onLogout={logout}
+        myGroupsCount={groups.length}
       />
 
       {/* Main View Area */}
       <main className="flex-1 pb-16">
         <ErrorBoundary onReset={() => setActivePage('dashboard')}>
-        {activePage === 'dashboard' && (
-          <DashboardPage
-            user={user}
-            communities={communities}
-            onNavigateToCommunities={() => setActivePage('communities')}
-            onSelectDestination={handleOpenJourneyForm}
-            activeGroups={groups}
-            onJoinGroup={handleJoinGroup}
-            onViewGroupDetails={(gId) => {
-              setSelectedGroupId(gId);
-              setActivePage('group-details');
-            }}
-          />
-        )}
+          {activePage === 'dashboard' && (
+            <DashboardPage
+              user={user}
+              communities={communities}
+              onNavigateToCommunities={() => setActivePage('communities')}
+              onSelectDestination={handleOpenJourneyForm}
+              activeGroups={groups}
+              onJoinGroup={handleJoinGroup}
+              onViewGroupDetails={(gId) => {
+                setSelectedGroupId(gId);
+                setActivePage('group-details');
+              }}
+            />
+          )}
 
-        {activePage === 'matching' && (
-          <MatchingResultsPage
-            journeyReq={currentJourneyReq}
-            matchedStudents={matchedStudents}
-            activeGroups={groups}
-            currentUser={user}
-            onBack={() => setActivePage('dashboard')}
-            onJoinGroup={handleJoinGroup}
-            onViewGroupDetails={(gId) => {
-              setSelectedGroupId(gId);
-              setActivePage('group-details');
-            }}
-            onCreateGroupWithStudent={handleCreateGroupWithStudent}
-          />
-        )}
+          {activePage === 'matching' && (
+            <MatchingResultsPage
+              journeyReq={activeJourney}
+              matchedStudents={matchedStudents}
+              matchingGroups={matchingGroups}
+              currentUser={user}
+              onBack={() => setActivePage('dashboard')}
+              onJoinGroup={handleJoinGroup}
+              onViewGroupDetails={(gId) => {
+                setSelectedGroupId(gId);
+                setActivePage('group-details');
+              }}
+              onCreateGroupWithStudent={handleCreateGroupWithStudent}
+              onCreateGroupForJourney={handleCreateGroupForJourney}
+            />
+          )}
 
-        {activePage === 'group-details' && (
-          <GroupDetailsPage
-            group={selectedGroupObj}
-            currentUser={user}
-            onBack={() => setActivePage('dashboard')}
-            onOpenChat={handleOpenChatModal}
-            onSimulateJoin={handleSimulateJoin}
-            onResetGroup={() => handleResetGroup(selectedGroupObj?.id)}
-            onConfirmJourney={handleConfirmJourney}
-            onLeaveGroup={handleLeaveGroup}
-            onJoinGroup={handleJoinGroup}
-            onShareToChat={(groupId, fareText) => {
-              handleSendMessage(groupId, {
-                id: `msg_fare_${Date.now()}`,
-                senderId: user.id,
-                senderName: user.name,
-                avatar: user.avatar || 'ST',
-                text: fareText,
-                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-              });
-              handleOpenChatModal(groupId);
-            }}
-          />
-        )}
+          {activePage === 'group-details' && (
+            <GroupDetailsPage
+              group={selectedGroup}
+              currentUser={user}
+              onBack={() => setActivePage('dashboard')}
+              onOpenChat={handleOpenChatModal}
+              onConfirmJourney={handleConfirmJourney}
+              onLeaveGroup={handleLeaveGroup}
+              onJoinGroup={handleJoinGroup}
+              onChangePickupPoint={handleChangePickupPoint}
+            />
+          )}
 
-        {activePage === 'my-groups' && (
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center space-y-6 animate-in fade-in duration-300">
-            <div className="w-20 h-20 bg-blue-50 text-blue-600 rounded-3xl mx-auto flex items-center justify-center border border-blue-200/60 shadow-sm">
-              <Users className="w-10 h-10" />
+          {activePage === 'my-groups' && (
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center space-y-6 animate-in fade-in duration-300">
+              <div className="w-20 h-20 bg-blue-50 text-blue-600 rounded-3xl mx-auto flex items-center justify-center border border-blue-200/60 shadow-sm">
+                <Users className="w-10 h-10" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-2xl font-black text-slate-900">
+                  No Active Travel Groups
+                </h2>
+                <p className="text-sm text-slate-500 max-w-md mx-auto">
+                  You are not currently enrolled in any open ride groups. Pick your transit destination on the dashboard to match with fellow Thapar students!
+                </p>
+              </div>
+              <button
+                onClick={() => setActivePage('dashboard')}
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl shadow-md transition-all inline-flex items-center gap-2 cursor-pointer"
+              >
+                <Compass className="w-4 h-4" />
+                <span>Explore Destinations</span>
+              </button>
             </div>
-            <div className="space-y-2">
-              <h2 className="text-2xl font-black text-slate-900">No Active Travel Groups Yet</h2>
-              <p className="text-sm text-slate-500 max-w-md mx-auto">
-                You haven't formed or joined any travel groups yet. Pick your transit destination on the dashboard to match with fellow Thapar students and form your first ride group!
-              </p>
-            </div>
-            <button
-              onClick={() => setActivePage('dashboard')}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl shadow-md transition-all inline-flex items-center gap-2"
-            >
-              <Compass className="w-4 h-4" />
-              <span>Explore Destinations</span>
-            </button>
-          </div>
-        )}
+          )}
 
-        {activePage === 'my-journeys' && (
-          <MyJourneysPage
-            activeGroups={groups}
-            currentUser={user}
-            onViewGroupDetails={(gId) => {
-              setSelectedGroupId(gId);
-              setActivePage('group-details');
-            }}
-            onOpenChat={handleOpenChatModal}
-          />
-        )}
+          {activePage === 'my-journeys' && (
+            <MyJourneysPage
+              activeGroups={groups}
+              currentUser={user}
+              onViewGroupDetails={(gId) => {
+                setSelectedGroupId(gId);
+                setActivePage('group-details');
+              }}
+              onOpenChat={handleOpenChatModal}
+            />
+          )}
 
-        {activePage === 'communities' && (
-          <CommunitiesPage
-            communities={communities}
-            posts={communityPosts}
-            user={user}
-            onJoinCommunity={handleJoinCommunity}
-            onLeaveCommunity={handleLeaveCommunity}
-            onCreateCommunity={handleCreateCommunity}
-            onAddPost={handleAddCommunityPost}
-            onSelectCommunityTravel={handleSelectCommunityTravel}
-            onLikePost={handleLikePost}
-            onAddComment={handleAddComment}
-            onSelectCommunity={async (commId) => {
-              try {
-                const fresh = await api.getCommunityPosts(commId);
-                if (Array.isArray(fresh)) setCommunityPosts(fresh);
-              } catch (e) {}
-            }}
-          />
-        )}
+          {activePage === 'communities' && (
+            <CommunitiesPage
+              communities={communities}
+              posts={communityPosts}
+              user={user}
+              onJoinCommunity={async (commId) => {
+                try {
+                  await joinCommunity(commId);
+                  triggerToast({
+                    id: `comm_join_${Date.now()}`,
+                    type: 'success',
+                    title: 'Joined Community!',
+                    message: 'You are now an enrolled member of this hometown hub.'
+                  });
+                } catch (err) {
+                  triggerToast({
+                    id: `comm_err_${Date.now()}`,
+                    type: 'error',
+                    title: 'Could Not Join',
+                    message: err.message
+                  });
+                }
+              }}
+              onLeaveCommunity={async (commId) => {
+                try {
+                  await leaveCommunity(commId);
+                  triggerToast({
+                    id: `comm_leave_${Date.now()}`,
+                    type: 'info',
+                    title: 'Left Community',
+                    message: 'You left this hometown hub.'
+                  });
+                } catch (err) {
+                  triggerToast({
+                    id: `comm_err_${Date.now()}`,
+                    type: 'error',
+                    title: 'Error Leaving Community',
+                    message: err.message
+                  });
+                }
+              }}
+              onCreateCommunity={async (data) => {
+                try {
+                  const res = await createCommunity(data);
+                  triggerToast({
+                    id: `comm_created_${Date.now()}`,
+                    type: 'success',
+                    title: 'Community Created!',
+                    message: `${data.name} hub is now active on campus.`
+                  });
+                  return res;
+                } catch (err) {
+                  triggerToast({
+                    id: `comm_create_err_${Date.now()}`,
+                    type: 'error',
+                    title: 'Creation Failed',
+                    message: err.message
+                  });
+                  throw err;
+                }
+              }}
+              onAddPost={async (newPost) => {
+                try {
+                  await handleAddCommunityPost(newPost.communityId, newPost);
+                  triggerToast({
+                    id: `post_add_${Date.now()}`,
+                    type: 'success',
+                    title: 'Post Published',
+                    message: 'Your notice has been posted to the community board.'
+                  });
+                } catch (err) {
+                  triggerToast({
+                    id: `post_err_${Date.now()}`,
+                    type: 'error',
+                    title: 'Could Not Post',
+                    message: err.message
+                  });
+                }
+              }}
+              onSelectCommunityTravel={handleSelectCommunityTravel}
+              onLikePost={handleLikePost}
+              onAddComment={handleAddComment}
+              onSelectCommunity={(commId) => {
+                fetchPosts(commId);
+              }}
+            />
+          )}
 
-        {activePage === 'profile' && (
-          <ProfilePage
-            user={user}
-            communities={communities}
-            onUpdateProfile={(updated) => {
-              setUser(updated);
-              localStorage.setItem('tiet_user', JSON.stringify(updated));
-              api.updateProfile(updated).catch(() => {});
-            }}
-          />
-        )}
+          {activePage === 'profile' && (
+            <ProfilePage
+              user={user}
+              communities={communities}
+              onUpdateProfile={async (updated) => {
+                try {
+                  await updateProfile(updated);
+                  triggerToast({
+                    id: `prof_${Date.now()}`,
+                    type: 'success',
+                    title: 'Profile Updated',
+                    message: 'Preferences saved.'
+                  });
+                } catch (err) {
+                  triggerToast({
+                    id: `prof_err_${Date.now()}`,
+                    type: 'error',
+                    title: 'Update Failed',
+                    message: err.message
+                  });
+                }
+              }}
+            />
+          )}
         </ErrorBoundary>
       </main>
 
@@ -1077,7 +635,6 @@ Are you sure you want to proceed?`;
           group={activeChatGroupObj}
           currentUser={user}
           onClose={() => setIsChatOpen(false)}
-          onSendMessage={handleSendMessage}
         />
       )}
 
@@ -1090,16 +647,23 @@ Are you sure you want to proceed?`;
           <div className="flex items-center gap-2">
             <span className="font-bold text-slate-800">Thapar Journey Connect</span>
             <span>•</span>
-            <span className="text-blue-600 font-semibold">Full-Stack Cloud Edition</span>
+            <span className="text-blue-600 font-semibold">MongoDB Atlas Cloud Edition</span>
             <span>•</span>
-            <span>Node.js / Express + MongoDB Atlas</span>
+            <span>Node 22 + Express 5</span>
           </div>
           <p className="text-slate-400">
             Designed exclusively for Thapar Institute of Engineering & Technology (TIET) students.
           </p>
         </div>
       </footer>
-
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }

@@ -6,8 +6,6 @@ import {
   AlertTriangle, 
   Info, 
   X, 
-  Users, 
-  Car, 
   Sparkles,
   ArrowRight,
   Clock

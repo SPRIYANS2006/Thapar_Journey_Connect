@@ -8,7 +8,6 @@ import {
   LogOut, 
   Menu, 
   X, 
-  ShieldCheck,
   Compass
 } from 'lucide-react';
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { X, ShieldAlert, PhoneCall, AlertTriangle, ShieldCheck } from 'lucide-react';
 
-export default function EmergencySOSModal({ user, onClose }) {
+export default function EmergencySOSModal({ onClose }) {
   const emergencyContacts = [
     {
       title: 'TIET Campus Security Control Room',

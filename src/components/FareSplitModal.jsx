@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, DollarSign, Calculator, Users, Check, Copy, Sparkles, ShieldCheck } from 'lucide-react';
+import { X, Calculator, Check, Copy, Sparkles } from 'lucide-react';
 
 export default function FareSplitModal({ group, onClose, onShareToChat }) {
   const [totalFare, setTotalFare] = useState(

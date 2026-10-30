@@ -8,7 +8,6 @@ import {
   CheckCircle, 
   MessageSquare, 
   ArrowRight,
-  Sparkles,
   Star
 } from 'lucide-react';
 import { formatTime24to12 } from '../utils/matchingEngine';
@@ -78,7 +77,6 @@ export default function MyJourneysPage({ activeGroups, currentUser, onViewGroupD
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {upcomingJourneys.map((group) => {
-                const isFull = group.members.length >= group.maxMembers;
                 return (
                   <div
                     key={group.id}

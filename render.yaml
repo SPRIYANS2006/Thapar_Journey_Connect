@@ -14,10 +14,10 @@ services:
       - key: PORT
         value: 10000
       - key: MONGODB_URI
-        sync: false
+        value: mongodb+srv://psoni1be24_db_user:g1A5fLmc2frxKZtN@thaparclusters.mk83gfu.mongodb.net/thapar_journey?retryWrites=true&w=majority
       - key: SESSION_SECRET
-        sync: false
+        generateValue: true
       - key: GOOGLE_CLIENT_ID
-        sync: false
+        value: 629250761631-k5eo83notfq2e1vuu3qvimbf1jq3lueo.apps.googleusercontent.com
       - key: APP_ORIGIN
         sync: false

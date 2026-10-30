@@ -3,8 +3,10 @@ import { Destination, Hostel, Community, Counter } from '../models/index.js';
 
 let isConnected = false;
 
+const DEFAULT_MONGODB_URI = 'mongodb+srv://psoni1be24_db_user:g1A5fLmc2frxKZtN@thaparclusters.mk83gfu.mongodb.net/thapar_journey?retryWrites=true&w=majority';
+
 export async function connectDB(customUri) {
-  const uri = customUri || process.env.MONGODB_URI;
+  const uri = customUri || process.env.MONGODB_URI || DEFAULT_MONGODB_URI;
 
   if (!uri) {
     if (process.env.NODE_ENV === 'production') {

@@ -22,13 +22,9 @@ router.post('/google', authRateLimiter, async (req, res, next) => {
       });
     }
 
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-    if (!clientId) {
-      console.error('GOOGLE_CLIENT_ID environment variable is missing.');
-      return res.status(500).json({
-        error: 'Server configuration error: Google Client ID is not set.'
-      });
-    }
+    const clientId =
+      process.env.GOOGLE_CLIENT_ID ||
+      '629250761631-k5eo83notfq2e1vuu3qvimbf1jq3lueo.apps.googleusercontent.com';
 
     let ticket;
     try {

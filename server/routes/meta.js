@@ -17,7 +17,9 @@ router.get('/health', (req, res) => {
 // 2. Client configuration (exposing Google Client ID without hardcoding in frontend)
 router.get('/config', (req, res) => {
   res.json({
-    googleClientId: process.env.GOOGLE_CLIENT_ID || ''
+    googleClientId:
+      process.env.GOOGLE_CLIENT_ID ||
+      '629250761631-k5eo83notfq2e1vuu3qvimbf1jq3lueo.apps.googleusercontent.com'
   });
 });
 

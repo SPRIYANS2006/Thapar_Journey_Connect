@@ -3,14 +3,21 @@ services:
     name: thapar-journey-connect
     env: node
     plan: free
-    buildCommand: npm install --include=dev && npm run build
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
+    healthCheckPath: /api/health
     envVars:
+      - key: NODE_VERSION
+        value: 22
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 10000
-      - key: VITE_GOOGLE_CLIENT_ID
-        value: 629250761631-k5eo83notfq2e1vuu3qvimbf1jq3lueo.apps.googleusercontent.com
       - key: MONGODB_URI
-        value: mongodb+srv://psoni1be24_db_user:g1A5fLmc2frxKZtN@thaparclusters.mk83gfu.mongodb.net/thapar_journey?retryWrites=true&w=majority
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: APP_ORIGIN
+        sync: false

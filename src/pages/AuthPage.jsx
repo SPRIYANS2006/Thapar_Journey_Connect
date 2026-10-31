@@ -83,12 +83,13 @@ export default function AuthPage({ onLoginSuccess }) {
 
           if (googleBtnRef.current) {
             googleBtnRef.current.innerHTML = '';
+            const btnWidth = typeof window !== 'undefined' && window.innerWidth < 400 ? 270 : 300;
             window.google.accounts.id.renderButton(googleBtnRef.current, {
               theme: 'outline',
               size: 'large',
               text: 'continue_with',
               shape: 'pill',
-              width: 320,
+              width: btnWidth,
               logo_alignment: 'left'
             });
           }
@@ -215,7 +216,7 @@ export default function AuthPage({ onLoginSuccess }) {
 
         {/* Right Auth Card */}
         <div className="lg:col-span-5">
-          <div className="bg-slate-800/90 border border-slate-700/80 rounded-3xl p-8 shadow-2xl backdrop-blur-xl">
+          <div className="bg-slate-800/90 border border-slate-700/80 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
             {error && (
               <div className="mb-6 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2.5">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />

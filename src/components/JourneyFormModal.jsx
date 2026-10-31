@@ -117,7 +117,7 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-4 sm:space-y-5">
           
           {/* Destination Selector */}
           <div>

@@ -69,10 +69,10 @@ export default function GroupChatModal({ group, currentUser, onClose, onSendMess
   if (!group) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-2xl h-[650px] max-h-[90vh] rounded-3xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4">
+      <div className="bg-white w-full max-w-2xl h-[95vh] sm:h-[650px] max-h-[96vh] sm:max-h-[90vh] rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="bg-slate-900 text-white p-4 px-6 border-b border-slate-800 flex items-center justify-between shrink-0">
+        <div className="bg-slate-900 text-white p-3.5 px-4 sm:p-4 sm:px-6 border-b border-slate-800 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white font-bold flex items-center justify-center shadow-md">
               #{group.id}
@@ -125,7 +125,7 @@ export default function GroupChatModal({ group, currentUser, onClose, onSendMess
         </div>
 
         {/* Chat Messages Body */}
-        <div className="flex-1 p-6 overflow-y-auto space-y-4 bg-slate-50/50">
+        <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-4 bg-slate-50/50">
           {messages.map((msg, idx) => {
             const isMe =
               (msg.senderId && msg.senderId === currentUser?.id) ||

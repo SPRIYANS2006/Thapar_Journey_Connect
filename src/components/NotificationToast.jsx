@@ -15,7 +15,7 @@ export default function NotificationToast({ notifications = [], onDismiss }) {
   if (!notifications || notifications.length === 0) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none px-3 sm:px-0">
+    <div className="fixed top-4 left-3 right-3 sm:left-auto sm:right-4 z-50 flex flex-col gap-3 sm:max-w-sm pointer-events-none">
       {notifications.map((n) => (
         <ToastItem key={n.id} notification={n} onDismiss={onDismiss} />
       ))}

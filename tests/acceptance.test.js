@@ -480,4 +480,93 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     assert.equal(unlikeRes.body.likes, 0);
     assert.equal(unlikeRes.body.isLiked, false);
   });
+
+  // 13. Admin leaving a group reassigns admin_id without validation error
+  it('13. Admin leaving a group reassigns admin_id without validation error', async () => {
+    const { user: adminUser, token: adminToken } = await createTestStudent({ name: 'Admin Student' });
+    const { user: memberUser } = await createTestStudent({ name: 'Rider Student' });
+
+    // Group with 2 members, adminUser is admin
+    const group = await Group.create({
+      id: 501,
+      destination_id: 'railway',
+      destination_name: 'Patiala Railway Station',
+      departure_time: '18:00',
+      date: 'Tomorrow',
+      status: 'Open',
+      transport: 'Shared Cab',
+      max_members: 4,
+      pickup_point: 'Main Gate',
+      admin_id: adminUser.id,
+      members: [
+        { id: 'm_admin', user_id: adminUser.id, name: adminUser.name, role: 'Group Admin', departure_time: '18:00' },
+        { id: 'm_rider', user_id: memberUser.id, name: memberUser.name, role: 'Member', departure_time: '18:00' }
+      ]
+    });
+
+    const leaveRes = await request(app)
+      .post(`/api/groups/${group.id}/leave`)
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    assert.equal(leaveRes.status, 200);
+
+    // Verify group updated: admin_id reassigned to memberUser
+    const updated = await Group.findOne({ id: group.id });
+    assert.ok(updated);
+    assert.equal(updated.admin_id, memberUser.id);
+    assert.equal(updated.members.length, 1);
+    assert.equal(updated.members[0].role, 'Group Admin');
+  });
+
+  // 14. Expired groups: unconfirmed Open groups removed, Confirmed groups become Completed in history
+  it('14. Expired groups: unconfirmed Open groups removed, Confirmed groups become Completed in history', async () => {
+    const { user: student1 } = await createTestStudent({ name: 'History Student 1' });
+    const { user: student2, token: token2 } = await createTestStudent({ name: 'History Student 2' });
+
+    // 14a: Unconfirmed Open group with past departure time (yesterday)
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    await Group.create({
+      id: 601,
+      destination_id: 'railway',
+      destination_name: 'Patiala Railway Station',
+      departure_time: '08:00',
+      date: yesterday,
+      status: 'Open',
+      transport: 'Shared Cab',
+      admin_id: student1.id,
+      members: [
+        { id: 'm1', user_id: student1.id, name: student1.name, role: 'Group Admin', departure_time: '08:00' }
+      ]
+    });
+
+    // 14b: Confirmed group with past departure time (yesterday)
+    await Group.create({
+      id: 602,
+      destination_id: 'bus_stand',
+      destination_name: 'Patiala Bus Stand',
+      departure_time: '09:00',
+      date: yesterday,
+      status: 'Confirmed',
+      transport: 'Shared Cab',
+      admin_id: student2.id,
+      members: [
+        { id: 'm2', user_id: student2.id, name: student2.name, role: 'Group Admin', departure_time: '09:00' }
+      ]
+    });
+
+    // Requesting history/mine runs cleanupExpiredGroups
+    const historyRes = await request(app)
+      .get('/api/groups/history/mine')
+      .set('Authorization', `Bearer ${token2}`);
+
+    assert.equal(historyRes.status, 200);
+    // Confirmed past group 602 should be in history with status Completed
+    const pastCompleted = historyRes.body.find((g) => g.id === 602 || g.id === '602');
+    assert.ok(pastCompleted);
+    assert.equal(pastCompleted.status, 'Completed');
+
+    // Unconfirmed Open group 601 must be deleted/removed
+    const openGroupCheck = await Group.findOne({ id: 601 });
+    assert.equal(openGroupCheck, null);
+  });
 });

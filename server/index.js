@@ -6,6 +6,7 @@ import jwt from 'jsonwebtoken';
 import { createApp } from './app.js';
 import { connectDB } from './config/db.js';
 import { setSocketIO } from './services/notifications.js';
+import { cleanupExpiredGroups } from './services/groups.js';
 import { JWT_SECRET } from './middleware/auth.js';
 import { User, Group } from './models/index.js';
 
@@ -93,6 +94,10 @@ async function bootstrap() {
 
   // Provide io instance to notifications service
   setSocketIO(io);
+
+  // Initial expired groups cleanup & recurring 60s background task
+  cleanupExpiredGroups().catch(() => {});
+  setInterval(cleanupExpiredGroups, 60 * 1000);
 
   server.listen(PORT, () => {
     console.log(`🚀 Thapar Journey Connect Server running on http://localhost:${PORT}`);

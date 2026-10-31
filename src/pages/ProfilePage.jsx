@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Avatar from '../components/Avatar';
 import { 
   User, 
@@ -12,7 +12,10 @@ import {
   Check, 
   Edit3,
   Lock,
-  KeyRound
+  KeyRound,
+  Calendar,
+  Clock,
+  CheckCircle2
 } from 'lucide-react';
 import { HOSTELS, COLLEGE_DEGREES, ACADEMIC_YEARS } from '../data/mockData';
 import { api } from '../services/api';
@@ -26,6 +29,29 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
   const [prefTransport, setPrefTransport] = useState(user?.preferredTransport || 'Shared Cab');
   const [joinedCommunity, setJoinedCommunity] = useState(user?.joinedCommunity || '');
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  // Confirmed Ride History State
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    api.getGroupHistory()
+      .then((list) => {
+        if (!active) return;
+        setHistory(Array.isArray(list) ? list : []);
+      })
+      .catch((err) => {
+        console.warn('Failed to load ride history:', err.message);
+      })
+      .finally(() => {
+        if (active) setHistoryLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Campus Password Setup State
   const [newPassword, setNewPassword] = useState('');
@@ -150,6 +176,106 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
             @thapar.edu Verified
           </div>
         </div>
+      </div>
+
+      {/* Confirmed Travel History Section */}
+      <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-200 shadow-xs">
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <span>Confirmed Ride History</span>
+                <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
+                  {history.length} {history.length === 1 ? 'Trip' : 'Trips'}
+                </span>
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Official records of confirmed travel groups successfully completed with fellow Thapar students.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {historyLoading ? (
+          <div className="p-8 text-center text-slate-400 text-xs">
+            Loading confirmed travel history...
+          </div>
+        ) : history.length === 0 ? (
+          <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200 space-y-2">
+            <Car className="w-8 h-8 text-slate-300 mx-auto" />
+            <h4 className="text-sm font-bold text-slate-700">No Confirmed Rides Completed Yet</h4>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto">
+              When a ride you joined is confirmed and finishes its scheduled departure time, your verified travel record will appear here.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {history.map((g) => (
+              <div
+                key={g.id}
+                className="p-5 rounded-2xl border border-slate-200/90 bg-gradient-to-br from-white to-slate-50/60 shadow-xs space-y-3"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
+                      #{g.id}
+                    </span>
+                    <div>
+                      <h4 className="font-bold text-slate-900 text-sm">
+                        TIET → {g.destinationName}
+                      </h4>
+                      <p className="text-[11px] text-slate-500">
+                        {g.transport || 'Shared Cab'} • Pickup: {g.pickupPoint}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] uppercase font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-md shrink-0">
+                    ✓ Confirmed & Completed
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-4 text-xs text-slate-600 pt-2 border-t border-slate-100">
+                  <span className="flex items-center gap-1 font-medium">
+                    <Calendar className="w-3.5 h-3.5 text-blue-600" />
+                    <span>{g.date}</span>
+                  </span>
+                  <span>•</span>
+                  <span className="flex items-center gap-1 font-medium">
+                    <Clock className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>{g.departureTime}</span>
+                  </span>
+                </div>
+
+                {/* Co-riders summary */}
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    Travel Cohort ({g.members?.length || 0} Riders):
+                  </span>
+                  <div className="flex items-center -space-x-1.5">
+                    {(g.members || []).map((m) => (
+                      <span
+                        key={m.userId || m.id}
+                        title={`${m.name} (${m.hostel || 'Hostel'})`}
+                        className="inline-block"
+                      >
+                        <Avatar
+                          src={m.avatar}
+                          name={m.name}
+                          size="w-6 h-6"
+                          textSize="text-[9px]"
+                          rounded="rounded-full"
+                        />
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Profile & Preferences Form */}

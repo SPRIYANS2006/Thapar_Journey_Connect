@@ -190,7 +190,12 @@ export async function leaveGroup(user, groupId) {
     throw new HttpError(404, 'Group not found.');
   }
 
-  const memberIndex = group.members.findIndex((m) => m.user_id === user.id);
+  const memberIndex = group.members.findIndex(
+    (m) =>
+      (m.user_id && m.user_id === user.id) ||
+      (m.userId && m.userId === user.id) ||
+      (m.id && m.id === user.id)
+  );
   if (memberIndex === -1) {
     throw new HttpError(400, 'You are not a member of this travel group.');
   }
@@ -219,11 +224,22 @@ export async function leaveGroup(user, groupId) {
     await Group.deleteOne({ id: groupId });
     await Message.deleteMany({ group_id: groupId });
   } else {
-    // If leaving member was admin, reassign to next rider
-    if (group.admin_id === user.id) {
-      group.admin_id = group.members[0].user_id;
-      group.members[0].role = 'Group Admin';
+    // If leaving member was admin or admin_id is missing, reassign to next rider
+    const wasAdmin = group.admin_id === user.id || !group.admin_id;
+    if (wasAdmin) {
+      const nextMember = group.members[0];
+      const nextAdminId = nextMember.user_id || nextMember.userId || nextMember.id;
+      group.admin_id = nextAdminId;
+      nextMember.user_id = nextAdminId;
+      nextMember.role = 'Group Admin';
     }
+
+    // Ensure admin_id is strictly a valid string before saving
+    if (!group.admin_id && group.members.length > 0) {
+      const fallbackMember = group.members[0];
+      group.admin_id = fallbackMember.user_id || fallbackMember.userId || fallbackMember.id || 'admin';
+    }
+
     await group.save();
 
     // Post policy notice in group chat
@@ -255,6 +271,68 @@ export async function leaveGroup(user, groupId) {
     newReliability,
     hoursLeft
   };
+}
+
+// Automatically cleans up expired groups:
+// 1. Confirmed groups whose departure time has passed -> transition to 'Completed' (kept as ride history).
+// 2. Unconfirmed Open groups whose departure time has passed -> removed from campus.
+export async function cleanupExpiredGroups() {
+  try {
+    const activeGroups = await Group.find({
+      status: { $in: ['Open', 'Confirmed'] }
+    });
+
+    for (const group of activeGroups) {
+      const hoursLeft = getHoursUntilDeparture(group.date, group.departure_time);
+      if (hoursLeft < 0) {
+        if (group.status === 'Confirmed') {
+          // Atomically mark Confirmed group as Completed for history
+          const updated = await Group.findOneAndUpdate(
+            { id: group.id, status: 'Confirmed' },
+            { $set: { status: 'Completed' } },
+            { returnDocument: 'after' }
+          );
+
+          if (updated) {
+            const memberUserIds = (updated.members || [])
+              .map((m) => m.user_id || m.userId || m.id)
+              .filter(Boolean);
+
+            if (memberUserIds.length > 0) {
+              await User.updateMany(
+                { id: { $in: memberUserIds } },
+                { $inc: { trips_completed: 1 } }
+              );
+
+              await Journey.updateMany(
+                { user_id: { $in: memberUserIds }, destination_id: updated.destination_id, status: 'Grouped' },
+                { $set: { status: 'Completed' } }
+              );
+            }
+
+            notifyGroupMembersUpdated(updated);
+          }
+        } else if (group.status === 'Open') {
+          // Unconfirmed open group whose departure time has passed -> Remove it
+          const deleted = await Group.findOneAndDelete({ id: group.id, status: 'Open' });
+          if (deleted) {
+            const memberUserIds = (deleted.members || [])
+              .map((m) => m.user_id || m.userId || m.id)
+              .filter(Boolean);
+
+            await Journey.updateMany(
+              { user_id: { $in: memberUserIds }, destination_id: deleted.destination_id, status: 'Grouped' },
+              { $set: { status: 'Expired' } }
+            );
+
+            await Message.deleteMany({ group_id: deleted.id });
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('cleanupExpiredGroups error:', err.message);
+  }
 }
 
 export async function completeGroup(adminUser, groupId) {

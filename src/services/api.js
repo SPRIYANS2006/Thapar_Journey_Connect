@@ -146,6 +146,8 @@ export const api = {
   // Groups
   getMyGroups: () => request('/groups/mine'),
 
+  getGroupHistory: () => request('/groups/history/mine'),
+
   getGroupById: (id) => request(`/groups/${id}`),
 
   createGroup: ({ journeyId, pickupPoint }) =>

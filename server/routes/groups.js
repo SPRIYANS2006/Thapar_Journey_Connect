@@ -7,7 +7,8 @@ import {
   createGroupFromJourney,
   joinGroupWithJourney,
   leaveGroup,
-  completeGroup
+  completeGroup,
+  cleanupExpiredGroups
 } from '../services/groups.js';
 import {
   serializeGroup,
@@ -24,10 +25,18 @@ const router = express.Router();
 // All group routes require authentication
 router.use(requireAuth);
 
-// 1. Group list endpoints return ONLY caller's groups (GET /api/groups/mine & GET /api/groups)
+// 1. Group list endpoints return ONLY caller's active groups (GET /api/groups/mine & GET /api/groups)
 router.get('/', async (req, res, next) => {
   try {
-    const list = await Group.find({ 'members.user_id': req.user.id })
+    await cleanupExpiredGroups();
+    const list = await Group.find({
+      $or: [
+        { 'members.user_id': req.user.id },
+        { 'members.userId': req.user.id },
+        { 'members.id': req.user.id }
+      ],
+      status: { $in: ['Open', 'Confirmed'] }
+    })
       .sort({ created_at: -1 })
       .lean();
     res.json(list.map((g) => serializeGroup(g, req.user.id)));
@@ -38,7 +47,15 @@ router.get('/', async (req, res, next) => {
 
 router.get('/mine', async (req, res, next) => {
   try {
-    const list = await Group.find({ 'members.user_id': req.user.id })
+    await cleanupExpiredGroups();
+    const list = await Group.find({
+      $or: [
+        { 'members.user_id': req.user.id },
+        { 'members.userId': req.user.id },
+        { 'members.id': req.user.id }
+      ],
+      status: { $in: ['Open', 'Confirmed'] }
+    })
       .sort({ created_at: -1 })
       .lean();
     res.json(list.map((g) => serializeGroup(g, req.user.id)));
@@ -331,6 +348,27 @@ router.post('/:id/fare-split', async (req, res, next) => {
       splitPerPerson: perRider,
       summary: `Total ₹${total} split equally among ${memberCount} riders = ₹${perRider} each.`
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 13. Confirmed Ride History: returns past completed/confirmed groups for current user
+router.get('/history/mine', async (req, res, next) => {
+  try {
+    await cleanupExpiredGroups();
+    const list = await Group.find({
+      $or: [
+        { 'members.user_id': req.user.id },
+        { 'members.userId': req.user.id },
+        { 'members.id': req.user.id }
+      ],
+      status: 'Completed'
+    })
+      .sort({ created_at: -1 })
+      .lean();
+
+    res.json(list.map((g) => serializeGroup(g, req.user.id)));
   } catch (err) {
     next(err);
   }

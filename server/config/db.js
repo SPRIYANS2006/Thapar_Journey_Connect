@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { Destination, Hostel, Community, Counter, CommunityGroup } from '../models/index.js';
+import { Destination, Hostel, Community, Counter, CommunityGroup, CityRide } from '../models/index.js';
 
 const FALLBACK_MONGODB_URI = 'mongodb+srv://psoni1be24_db_user:g1A5fLmc2frxKZtN@thaparclusters.mk83gfu.mongodb.net/thapar_journey?retryWrites=true&w=majority';
 
@@ -292,7 +292,195 @@ export async function seedDefaultData() {
       await CommunityGroup.insertMany(sampleGroups);
     }
 
-    console.log('🌱 Seeded default data (Destinations, Hostels, Communities, Counters, Community Groups)');
+    // 6. Seed sample City Community Rides (Cab, Bus, Train) if none exist
+    const crCount = await CityRide.countDocuments();
+    if (crCount === 0) {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+      const dayAfter = new Date();
+      dayAfter.setDate(dayAfter.getDate() + 2);
+      const dayAfterStr = dayAfter.toISOString().split('T')[0];
+
+      const sampleRides = [
+        // Delhi Cab
+        {
+          id: 'cr_del_cab_1',
+          community_id: 'del',
+          community_name: 'Delhi NCR',
+          creator_id: 'sample_student_1',
+          creator_name: 'Aarav Sharma',
+          origin: 'Thapar Campus (Main Gate)',
+          destination: 'Delhi (Kashmiri Gate ISBT & South Extension)',
+          date: tomorrowStr,
+          time: '17:00',
+          mode: 'Cab',
+          pickup_point: 'Main Gate (Near Executive Mess)',
+          total_fare: 2800,
+          max_capacity: 4,
+          current_members_count: 3,
+          transit_details: 'Sedan AC Cab via NH44 GT Road',
+          notes: 'Fast drop at Kashmiri Gate Metro & South Delhi. 1 medium trolley bag allowed per rider.',
+          status: 'Open',
+          members: [
+            { user_id: 'sample_student_1', name: 'Aarav Sharma', role: 'Admin', hostel: 'Tejas Hall' },
+            { user_id: 'sample_student_2', name: 'Diya Verma', role: 'Member', hostel: 'Vasudha Hall' },
+            { user_id: 'sample_student_3', name: 'Kabir Bedi', role: 'Member', hostel: 'Agira Hall' }
+          ]
+        },
+        // Delhi Bus
+        {
+          id: 'cr_del_bus_1',
+          community_id: 'del',
+          community_name: 'Delhi NCR',
+          creator_id: 'sample_student_4',
+          creator_name: 'Sneha Sen',
+          origin: 'Thapar Campus (Main Gate)',
+          destination: 'Delhi ISBT Kashmiri Gate',
+          date: tomorrowStr,
+          time: '18:30',
+          mode: 'Bus',
+          pickup_point: 'Patiala ISBT (Sharing auto from Gate 2)',
+          total_fare: 420,
+          max_capacity: 6,
+          current_members_count: 2,
+          transit_details: 'PRTC AC Volvo Express 19:15 Departure',
+          notes: 'Traveling together in PRTC Volvo. Coordinating shared auto from Thapar campus to bus stand.',
+          status: 'Open',
+          members: [
+            { user_id: 'sample_student_4', name: 'Sneha Sen', role: 'Admin', hostel: 'Ira Hall' },
+            { user_id: 'sample_student_5', name: 'Rohan Mehra', role: 'Member', hostel: 'Amritam Hall' }
+          ]
+        },
+        // Delhi Train
+        {
+          id: 'cr_del_train_1',
+          community_id: 'del',
+          community_name: 'Delhi NCR',
+          creator_id: 'sample_student_6',
+          creator_name: 'Dev Patel',
+          origin: 'Thapar Campus (Gate 2)',
+          destination: 'New Delhi Railway Station (NDLS)',
+          date: dayAfterStr,
+          time: '06:15',
+          mode: 'Train',
+          pickup_point: 'Campus Gate 2 (Pre-booked cab to Ambala Cantt)',
+          total_fare: 380,
+          max_capacity: 6,
+          current_members_count: 3,
+          transit_details: 'Kalka Shatabdi Express #12006 (Ambala Cantt -> NDLS)',
+          notes: 'Splitting morning cab to Ambala Cantt, then boarding Executive/CC coach together.',
+          status: 'Open',
+          members: [
+            { user_id: 'sample_student_6', name: 'Dev Patel', role: 'Admin', hostel: 'Prithvi Hall' },
+            { user_id: 'sample_student_7', name: 'Ananya Rathore', role: 'Member', hostel: 'Ira Hall' },
+            { user_id: 'sample_student_8', name: 'Harpreet Singh', role: 'Member', hostel: 'Amritam Hall' }
+          ]
+        },
+        // Chandigarh Cab
+        {
+          id: 'cr_chd_cab_1',
+          community_id: 'chd',
+          community_name: 'Chandigarh & Tri-City',
+          creator_id: 'sample_student_2',
+          creator_name: 'Diya Verma',
+          origin: 'Thapar Campus (Main Gate)',
+          destination: 'Chandigarh Sector 17 & Mohali Phase 7',
+          date: tomorrowStr,
+          time: '16:00',
+          mode: 'Cab',
+          pickup_point: 'Main Gate (Near Executive Mess)',
+          total_fare: 1200,
+          max_capacity: 4,
+          current_members_count: 2,
+          transit_details: 'Sedan Cab directly to Mohali & Sec 17',
+          notes: 'Weekend trip home. Splitting ₹1200 total cab fare equally.',
+          status: 'Open',
+          members: [
+            { user_id: 'sample_student_2', name: 'Diya Verma', role: 'Admin', hostel: 'Vasudha Hall' },
+            { user_id: 'sample_student_5', name: 'Rohan Mehra', role: 'Member', hostel: 'Amritam Hall' }
+          ]
+        },
+        // Chandigarh Bus
+        {
+          id: 'cr_chd_bus_1',
+          community_id: 'chd',
+          community_name: 'Chandigarh & Tri-City',
+          creator_id: 'sample_student_3',
+          creator_name: 'Kabir Bedi',
+          origin: 'Thapar Campus (Main Gate)',
+          destination: 'Chandigarh Sector 43 ISBT',
+          date: tomorrowStr,
+          time: '08:30',
+          mode: 'Bus',
+          pickup_point: 'Main Campus Bus Stop',
+          total_fare: 95,
+          max_capacity: 8,
+          current_members_count: 3,
+          transit_details: 'CTU Non-Stop Express Bus',
+          notes: 'Morning direct CTU bus. Traveling as a student group for safety and company.',
+          status: 'Open',
+          members: [
+            { user_id: 'sample_student_3', name: 'Kabir Bedi', role: 'Admin', hostel: 'Agira Hall' },
+            { user_id: 'sample_student_1', name: 'Aarav Sharma', role: 'Member', hostel: 'Tejas Hall' },
+            { user_id: 'sample_student_7', name: 'Ananya Rathore', role: 'Member', hostel: 'Ira Hall' }
+          ]
+        },
+        // Jaipur Train
+        {
+          id: 'cr_jpr_train_1',
+          community_id: 'jpr',
+          community_name: 'Jaipur & Rajasthan',
+          creator_id: 'sample_student_7',
+          creator_name: 'Ananya Rathore',
+          origin: 'Thapar Campus (Gate 2)',
+          destination: 'Jaipur Junction (JP)',
+          date: dayAfterStr,
+          time: '14:20',
+          mode: 'Train',
+          pickup_point: 'Patiala Railway Station',
+          total_fare: 450,
+          max_capacity: 6,
+          current_members_count: 2,
+          transit_details: 'Bathinda-Jaipur Express #14732',
+          notes: 'Heading home for holiday break. Coordinate coach seating and Patiala station auto.',
+          status: 'Open',
+          members: [
+            { user_id: 'sample_student_7', name: 'Ananya Rathore', role: 'Admin', hostel: 'Ira Hall' },
+            { user_id: 'sample_student_6', name: 'Dev Patel', role: 'Member', hostel: 'Prithvi Hall' }
+          ]
+        },
+        // Amritsar Cab
+        {
+          id: 'cr_asr_cab_1',
+          community_id: 'asr',
+          community_name: 'Amritsar',
+          creator_id: 'sample_student_8',
+          creator_name: 'Harpreet Singh',
+          origin: 'Thapar Campus (Main Gate)',
+          destination: 'Amritsar Golden Temple & Hall Gate',
+          date: dayAfterStr,
+          time: '07:00',
+          mode: 'Cab',
+          pickup_point: 'Main Gate (Near Executive Mess)',
+          total_fare: 2600,
+          max_capacity: 4,
+          current_members_count: 2,
+          transit_details: 'Ertiga Cab via Jalandhar GT Road',
+          notes: 'Early morning highway drive. Spacious vehicle for luggage.',
+          status: 'Open',
+          members: [
+            { user_id: 'sample_student_8', name: 'Harpreet Singh', role: 'Admin', hostel: 'Amritam Hall' },
+            { user_id: 'sample_student_5', name: 'Rohan Mehra', role: 'Member', hostel: 'Amritam Hall' }
+          ]
+        }
+      ];
+
+      await CityRide.insertMany(sampleRides);
+    }
+
+    console.log('🌱 Seeded default data (Destinations, Hostels, Communities, Counters, Community Groups, City Rides)');
   } catch (err) {
     console.error('Error during default data seed:', err.message);
   }

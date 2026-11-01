@@ -196,3 +196,54 @@ export function serializeCommunityGroupMessage(msg) {
     createdAt: msg.created_at ? new Date(msg.created_at).toISOString() : new Date().toISOString()
   };
 }
+
+export function serializeCityRide(ride, viewingUserId = null) {
+  if (!ride) return null;
+  const isMember = Boolean(
+    viewingUserId &&
+    ride.members &&
+    ride.members.some((m) => m.user_id === viewingUserId)
+  );
+
+  const membersCount = ride.current_members_count || (ride.members ? ride.members.length : 1);
+  const farePerPerson =
+    ride.mode === 'Cab' && ride.total_fare > 0 && membersCount > 0
+      ? Math.round(ride.total_fare / membersCount)
+      : (ride.total_fare || 0);
+
+  const seatsLeft = Math.max(0, (ride.max_capacity || 4) - membersCount);
+
+  return {
+    id: ride.id,
+    communityId: ride.community_id,
+    communityName: ride.community_name,
+    creatorId: ride.creator_id,
+    creatorName: ride.creator_name,
+    origin: ride.origin || 'Thapar Campus (Main Gate)',
+    destination: ride.destination,
+    date: ride.date,
+    time: ride.time,
+    mode: ride.mode,
+    pickupPoint: ride.pickup_point,
+    totalFare: ride.total_fare || 0,
+    farePerPerson,
+    maxCapacity: ride.max_capacity || 4,
+    currentMembersCount: membersCount,
+    seatsLeft,
+    isFull: seatsLeft === 0 || ride.status === 'Full',
+    transitDetails: ride.transit_details || '',
+    notes: ride.notes || '',
+    status: seatsLeft === 0 ? 'Full' : (ride.status || 'Open'),
+    isMember,
+    members: (ride.members || []).map((m) => ({
+      userId: m.user_id,
+      name: m.name,
+      avatar: m.avatar || 'ST',
+      hostel: m.hostel || '',
+      phone: isMember ? (m.phone || '') : '',
+      role: m.role || 'Member',
+      joinedAt: m.joined_at ? new Date(m.joined_at).toISOString() : new Date().toISOString()
+    })),
+    createdAt: ride.created_at ? new Date(ride.created_at).toISOString() : new Date().toISOString()
+  };
+}

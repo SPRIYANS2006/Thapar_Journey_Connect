@@ -13,7 +13,7 @@ process.env.APP_ORIGIN = 'http://localhost:5173';
 const { createApp } = await import('../server/app.js');
 const { seedDefaultData } = await import('../server/config/db.js');
 const { googleClient } = await import('../server/routes/auth.js');
-const { User, Group, Journey, Counter, Message, RateLimit, RideRecord, CommunityGroup, CommunityGroupMessage } = await import('../server/models/index.js');
+const { User, Group, Journey, Counter, Message, RateLimit, RideRecord, CommunityGroup, CommunityGroupMessage, CityRide } = await import('../server/models/index.js');
 const { generateSessionToken } = await import('../server/middleware/auth.js');
 const { getNowIST } = await import('../server/utils/time.js');
 
@@ -49,6 +49,7 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     await RideRecord.deleteMany({});
     await CommunityGroup.deleteMany({});
     await CommunityGroupMessage.deleteMany({});
+    await CityRide.deleteMany({});
     await Counter.create({ id: 'group_id', seq: 0 });
   });
 
@@ -1170,5 +1171,211 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     assert.equal(resGet.status, 200);
     assert.equal(resGet.body.length, 1);
     assert.equal(resGet.body[0].text, 'Cab leaving gate 2 at 5 PM sharp on Friday!');
+  });
+
+  // 30. City Community Rides: List & filter rides (Cab, Bus, Train) for any community city
+  it('30. City Community Rides: List & filter rides (Cab, Bus, Train) for any community city', async () => {
+    const { token } = await createTestStudent({ name: 'City Ride Student' });
+
+    await CityRide.create([
+      {
+        id: 'cr_test_del_cab',
+        community_id: 'del',
+        community_name: 'Delhi NCR',
+        creator_id: 'u1',
+        creator_name: 'Aarav',
+        destination: 'Delhi Kashmiri Gate',
+        date: '2026-11-10',
+        time: '17:00',
+        mode: 'Cab',
+        total_fare: 2800,
+        max_capacity: 4,
+        current_members_count: 2,
+        members: [
+          { user_id: 'u1', name: 'Aarav', role: 'Admin' },
+          { user_id: 'u2', name: 'Diya', role: 'Member' }
+        ]
+      },
+      {
+        id: 'cr_test_del_bus',
+        community_id: 'del',
+        community_name: 'Delhi NCR',
+        creator_id: 'u3',
+        creator_name: 'Sneha',
+        destination: 'Delhi ISBT',
+        date: '2026-11-10',
+        time: '18:30',
+        mode: 'Bus',
+        total_fare: 420,
+        max_capacity: 6,
+        current_members_count: 1,
+        transit_details: 'PRTC AC Volvo',
+        members: [{ user_id: 'u3', name: 'Sneha', role: 'Admin' }]
+      },
+      {
+        id: 'cr_test_del_train',
+        community_id: 'del',
+        community_name: 'Delhi NCR',
+        creator_id: 'u4',
+        creator_name: 'Dev',
+        destination: 'New Delhi Railway Station (NDLS)',
+        date: '2026-11-11',
+        time: '06:15',
+        mode: 'Train',
+        total_fare: 380,
+        max_capacity: 6,
+        current_members_count: 1,
+        transit_details: 'Kalka Shatabdi Express #12006',
+        members: [{ user_id: 'u4', name: 'Dev', role: 'Admin' }]
+      }
+    ]);
+
+    // 1. Fetch all rides for Delhi
+    const resAll = await request(app)
+      .get('/api/communities/del/rides')
+      .set('Authorization', `Bearer ${token}`);
+    assert.equal(resAll.status, 200);
+    assert.equal(resAll.body.length, 3);
+
+    // 2. Filter by mode: Cab only
+    const resCab = await request(app)
+      .get('/api/communities/del/rides?mode=Cab')
+      .set('Authorization', `Bearer ${token}`);
+    assert.equal(resCab.status, 200);
+    assert.equal(resCab.body.length, 1);
+    assert.equal(resCab.body[0].mode, 'Cab');
+    assert.equal(resCab.body[0].totalFare, 2800);
+    assert.equal(resCab.body[0].farePerPerson, 1400); // 2800 / 2 members = 1400
+
+    // 3. Filter by mode: Bus only
+    const resBus = await request(app)
+      .get('/api/communities/del/rides?mode=Bus')
+      .set('Authorization', `Bearer ${token}`);
+    assert.equal(resBus.status, 200);
+    assert.equal(resBus.body.length, 1);
+    assert.equal(resBus.body[0].mode, 'Bus');
+    assert.equal(resBus.body[0].transitDetails, 'PRTC AC Volvo');
+  });
+
+  // 31. City Community Rides: Cab fare division and capacity enforcement
+  it('31. City Community Rides: Cab fare division and capacity enforcement', async () => {
+    const { token: token1 } = await createTestStudent({ name: 'Rider One' });
+    const { token: token2 } = await createTestStudent({ name: 'Rider Two' });
+    const { token: token3 } = await createTestStudent({ name: 'Rider Three' });
+    const { token: token4 } = await createTestStudent({ name: 'Rider Four' });
+    const { token: token5 } = await createTestStudent({ name: 'Rider Five' });
+
+    // 1. Create a Cab ride with total fare ₹2,400 and max 4 seats
+    const resCreate = await request(app)
+      .post('/api/communities/del/rides')
+      .set('Authorization', `Bearer ${token1}`)
+      .send({
+        date: '2026-11-12',
+        time: '16:00',
+        mode: 'Cab',
+        destination: 'Delhi South Extension',
+        pickupPoint: 'Main Gate',
+        totalFare: 2400,
+        maxCapacity: 4,
+        transitDetails: 'Sedan AC Cab'
+      });
+    assert.equal(resCreate.status, 201);
+    const rideId = resCreate.body.ride.id;
+    assert.equal(resCreate.body.ride.totalFare, 2400);
+    assert.equal(resCreate.body.ride.currentMembersCount, 1);
+    assert.equal(resCreate.body.ride.farePerPerson, 2400); // 2400 / 1 = 2400
+    assert.equal(resCreate.body.ride.seatsLeft, 3);
+
+    // 2. Rider 2 joins -> Fare drops to ₹1,200 per student
+    const resJoin2 = await request(app)
+      .post(`/api/communities/del/rides/${rideId}/join`)
+      .set('Authorization', `Bearer ${token2}`);
+    assert.equal(resJoin2.status, 200);
+    assert.equal(resJoin2.body.ride.currentMembersCount, 2);
+    assert.equal(resJoin2.body.ride.farePerPerson, 1200); // 2400 / 2 = 1200
+    assert.equal(resJoin2.body.ride.seatsLeft, 2);
+
+    // 3. Rider 3 joins -> Fare drops to ₹800 per student
+    const resJoin3 = await request(app)
+      .post(`/api/communities/del/rides/${rideId}/join`)
+      .set('Authorization', `Bearer ${token3}`);
+    assert.equal(resJoin3.status, 200);
+    assert.equal(resJoin3.body.ride.currentMembersCount, 3);
+    assert.equal(resJoin3.body.ride.farePerPerson, 800); // 2400 / 3 = 800
+    assert.equal(resJoin3.body.ride.seatsLeft, 1);
+
+    // 4. Rider 4 joins -> Fare drops to ₹600 per student, ride becomes Full
+    const resJoin4 = await request(app)
+      .post(`/api/communities/del/rides/${rideId}/join`)
+      .set('Authorization', `Bearer ${token4}`);
+    assert.equal(resJoin4.status, 200);
+    assert.equal(resJoin4.body.ride.currentMembersCount, 4);
+    assert.equal(resJoin4.body.ride.farePerPerson, 600); // 2400 / 4 = 600
+    assert.equal(resJoin4.body.ride.seatsLeft, 0);
+    assert.equal(resJoin4.body.ride.isFull, true);
+    assert.equal(resJoin4.body.ride.status, 'Full');
+
+    // 5. Rider 5 tries to join full cab -> HTTP 400
+    const resJoin5 = await request(app)
+      .post(`/api/communities/del/rides/${rideId}/join`)
+      .set('Authorization', `Bearer ${token5}`);
+    assert.equal(resJoin5.status, 400);
+    assert.match(resJoin5.body.error, /already full/i);
+
+    // 6. Duplicate join attempt by Rider 2 -> HTTP 400
+    const resDupJoin = await request(app)
+      .post(`/api/communities/del/rides/${rideId}/join`)
+      .set('Authorization', `Bearer ${token2}`);
+    assert.equal(resDupJoin.status, 400);
+    assert.match(resDupJoin.body.error, /already a member/i);
+  });
+
+  // 32. City Community Rides: Bus and Train cohort travel & member departure
+  it('32. City Community Rides: Bus and Train cohort travel & member departure', async () => {
+    const { token: creatorToken } = await createTestStudent({ name: 'Train Leader' });
+    const { user: joiner, token: joinerToken } = await createTestStudent({ name: 'Train Fellow' });
+
+    // 1. Create a Train cohort ride
+    const resCreate = await request(app)
+      .post('/api/communities/del/rides')
+      .set('Authorization', `Bearer ${creatorToken}`)
+      .send({
+        date: '2026-11-13',
+        time: '06:00',
+        mode: 'Train',
+        destination: 'New Delhi Railway Station (NDLS)',
+        pickupPoint: 'Campus Gate 2',
+        totalFare: 350,
+        maxCapacity: 6,
+        transitDetails: 'Shatabdi Express #12006'
+      });
+    assert.equal(resCreate.status, 201);
+    const rideId = resCreate.body.ride.id;
+
+    // 2. Joiner joins train cohort
+    const resJoin = await request(app)
+      .post(`/api/communities/del/rides/${rideId}/join`)
+      .set('Authorization', `Bearer ${joinerToken}`);
+    assert.equal(resJoin.status, 200);
+    assert.equal(resJoin.body.ride.currentMembersCount, 2);
+
+    // 3. Creator leaves -> Admin role transferred to joiner
+    const resLeave1 = await request(app)
+      .post(`/api/communities/del/rides/${rideId}/leave`)
+      .set('Authorization', `Bearer ${creatorToken}`);
+    assert.equal(resLeave1.status, 200);
+    assert.equal(resLeave1.body.ride.currentMembersCount, 1);
+    assert.equal(resLeave1.body.ride.members[0].userId, joiner.id);
+    assert.equal(resLeave1.body.ride.members[0].role, 'Admin');
+
+    // 4. Last member leaves -> Ride is removed
+    const resLeave2 = await request(app)
+      .post(`/api/communities/del/rides/${rideId}/leave`)
+      .set('Authorization', `Bearer ${joinerToken}`);
+    assert.equal(resLeave2.status, 200);
+    assert.equal(resLeave2.body.ride, null);
+
+    const checkRide = await CityRide.findOne({ id: rideId });
+    assert.equal(checkRide, null);
   });
 });

@@ -1,5 +1,6 @@
 import express from 'express';
-import { Community, CommunityPost, User } from '../models/index.js';
+import crypto from 'node:crypto';
+import { Community, CommunityPost, User, CityRide } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { HttpError } from '../middleware/errors.js';
 import {
@@ -8,7 +9,8 @@ import {
 } from '../middleware/validate.js';
 import {
   serializeCommunity,
-  serializePost
+  serializePost,
+  serializeCityRide
 } from '../services/serializers.js';
 
 const router = express.Router();
@@ -284,6 +286,214 @@ router.post('/posts/:postId/comments', validatePostComment, async (req, res, nex
         createdAt: newComment.created_at.toISOString()
       },
       commentsCount: post.comments.length
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ==========================================
+// City Community Rides (Cab, Bus, Train)
+// ==========================================
+
+// 7. List active rides for a city community
+router.get('/:id/rides', async (req, res, next) => {
+  try {
+    const community = await Community.findOne({ id: req.params.id }).lean();
+    if (!community) {
+      throw new HttpError(404, 'Community not found.');
+    }
+
+    const { mode, date } = req.query;
+    const filter = { community_id: community.id };
+
+    if (mode && mode !== 'All') {
+      filter.mode = mode;
+    }
+    if (date) {
+      filter.date = date;
+    }
+
+    const rides = await CityRide.find(filter)
+      .sort({ date: 1, time: 1 })
+      .lean();
+
+    res.json(rides.map((r) => serializeCityRide(r, req.user.id)));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 8. Create a new ride from Thapar to this city community
+router.post('/:id/rides', async (req, res, next) => {
+  try {
+    const community = await Community.findOne({ id: req.params.id }).lean();
+    if (!community) {
+      throw new HttpError(404, 'Community not found.');
+    }
+
+    const {
+      date,
+      time,
+      mode,
+      destination,
+      pickupPoint,
+      totalFare,
+      maxCapacity,
+      transitDetails,
+      notes
+    } = req.body;
+
+    if (!date || typeof date !== 'string') {
+      throw new HttpError(400, 'Departure date is required (YYYY-MM-DD).');
+    }
+    if (!time || typeof time !== 'string') {
+      throw new HttpError(400, 'Departure time is required (HH:mm).');
+    }
+
+    const validModes = ['Cab', 'Bus', 'Train'];
+    const selectedMode = validModes.includes(mode) ? mode : 'Cab';
+
+    const defaultCapacity = selectedMode === 'Cab' ? 4 : 6;
+    const capacityNum = Number(maxCapacity) > 0 ? Number(maxCapacity) : defaultCapacity;
+    const fareNum = Number(totalFare) >= 0 ? Number(totalFare) : 0;
+
+    const newRide = await CityRide.create({
+      id: `cr_${crypto.randomUUID().slice(0, 8)}`,
+      community_id: community.id,
+      community_name: community.name,
+      creator_id: req.user.id,
+      creator_name: req.user.name,
+      origin: 'Thapar Campus (Main Gate)',
+      destination: (destination && destination.trim()) || `${community.name} (City Center)`,
+      date: date.trim(),
+      time: time.trim(),
+      mode: selectedMode,
+      pickup_point: (pickupPoint && pickupPoint.trim()) || 'Main Gate (Near Executive Mess)',
+      total_fare: fareNum,
+      max_capacity: capacityNum,
+      current_members_count: 1,
+      transit_details: (transitDetails || '').trim(),
+      notes: (notes || '').trim(),
+      status: 'Open',
+      members: [
+        {
+          id: crypto.randomUUID(),
+          user_id: req.user.id,
+          name: req.user.name,
+          avatar: req.user.avatar || 'ST',
+          hostel: req.user.hostel || '',
+          phone: req.user.phone || '',
+          role: 'Admin',
+          joined_at: new Date()
+        }
+      ]
+    });
+
+    res.status(201).json({
+      success: true,
+      message: `Created ${selectedMode} ride to ${community.name}!`,
+      ride: serializeCityRide(newRide, req.user.id)
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 9. Join an existing ride for this city community
+router.post('/:id/rides/:rideId/join', async (req, res, next) => {
+  try {
+    const ride = await CityRide.findOne({
+      id: req.params.rideId,
+      community_id: req.params.id
+    });
+
+    if (!ride) {
+      throw new HttpError(404, 'Ride not found in this community.');
+    }
+
+    const isMember = (ride.members || []).some((m) => m.user_id === req.user.id);
+    if (isMember) {
+      throw new HttpError(400, 'You are already a member of this ride.');
+    }
+
+    if ((ride.members || []).length >= ride.max_capacity) {
+      throw new HttpError(400, 'This ride is already full.');
+    }
+
+    const newMember = {
+      id: crypto.randomUUID(),
+      user_id: req.user.id,
+      name: req.user.name,
+      avatar: req.user.avatar || 'ST',
+      hostel: req.user.hostel || '',
+      phone: req.user.phone || '',
+      role: 'Member',
+      joined_at: new Date()
+    };
+
+    ride.members.push(newMember);
+    ride.current_members_count = ride.members.length;
+    if (ride.current_members_count >= ride.max_capacity) {
+      ride.status = 'Full';
+    }
+
+    await ride.save();
+
+    res.json({
+      success: true,
+      message: `Successfully joined ${ride.mode} ride to ${ride.destination}!`,
+      ride: serializeCityRide(ride, req.user.id)
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 10. Leave an existing ride for this city community
+router.post('/:id/rides/:rideId/leave', async (req, res, next) => {
+  try {
+    const ride = await CityRide.findOne({
+      id: req.params.rideId,
+      community_id: req.params.id
+    });
+
+    if (!ride) {
+      throw new HttpError(404, 'Ride not found in this community.');
+    }
+
+    const memberIndex = (ride.members || []).findIndex((m) => m.user_id === req.user.id);
+    if (memberIndex === -1) {
+      throw new HttpError(400, 'You are not a member of this ride.');
+    }
+
+    const leavingWasAdmin = ride.members[memberIndex].role === 'Admin';
+    ride.members.splice(memberIndex, 1);
+    ride.current_members_count = ride.members.length;
+
+    if (leavingWasAdmin && ride.members.length > 0) {
+      ride.members[0].role = 'Admin';
+    }
+
+    if (ride.members.length === 0) {
+      await CityRide.deleteOne({ id: req.params.rideId });
+      return res.json({
+        success: true,
+        message: 'You left the ride. Since no riders remained, the ride was cancelled.',
+        ride: null
+      });
+    }
+
+    if (ride.current_members_count < ride.max_capacity && ride.status === 'Full') {
+      ride.status = 'Open';
+    }
+
+    await ride.save();
+
+    res.json({
+      success: true,
+      message: `Left ${ride.mode} ride to ${ride.destination}.`,
+      ride: serializeCityRide(ride, req.user.id)
     });
   } catch (err) {
     next(err);

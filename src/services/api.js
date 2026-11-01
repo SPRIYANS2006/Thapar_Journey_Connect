@@ -283,5 +283,30 @@ export const api = {
     request(`/community-groups/${id}/messages`, {
       method: 'POST',
       body: JSON.stringify({ text })
+    }),
+
+  // City Community Rides (Cab, Bus, Train from Thapar to City)
+  getCityRides: (communityId, params = {}) => {
+    const query = new URLSearchParams();
+    if (params.mode && params.mode !== 'All') query.append('mode', params.mode);
+    if (params.date) query.append('date', params.date);
+    const qs = query.toString();
+    return request(`/communities/${communityId}/rides${qs ? `?${qs}` : ''}`);
+  },
+
+  createCityRide: (communityId, data) =>
+    request(`/communities/${communityId}/rides`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+  joinCityRide: (communityId, rideId) =>
+    request(`/communities/${communityId}/rides/${rideId}/join`, {
+      method: 'POST'
+    }),
+
+  leaveCityRide: (communityId, rideId) =>
+    request(`/communities/${communityId}/rides/${rideId}/leave`, {
+      method: 'POST'
     })
 };

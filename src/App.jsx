@@ -8,6 +8,7 @@ import GroupDetailsPage from './pages/GroupDetailsPage';
 import MyJourneysPage from './pages/MyJourneysPage';
 import ProfilePage from './pages/ProfilePage';
 import CommunitiesPage from './pages/CommunitiesPage';
+import CityCommunityHubPage from './pages/CityCommunityHubPage';
 import CommunityGroupsPage from './pages/CommunityGroupsPage';
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -76,6 +77,7 @@ function AppContent() {
   } = useCommunityGroups();
 
   const [activePage, setActivePage] = useState('dashboard');
+  const [selectedCityHub, setSelectedCityHub] = useState(null);
 
   // Notifications State for Real-Time Toast Popups
   const [notifications, setNotifications] = useState([]);
@@ -401,19 +403,6 @@ function AppContent() {
     setIsChatOpen(true);
   };
 
-  const handleSelectCommunityTravel = (community) => {
-    const syntheticDest = {
-      id: `comm_${community.id}`,
-      name: `${community.name} (Hometown Trip)`,
-      icon: community.icon,
-      description: `Travel with fellow Thapar students to ${community.name}, ${community.state}.`,
-      popularTime: 'Peak: Friday evening & Weekends',
-      distance: community.distanceFromThapar,
-      avgCabFare: `Carpool / ${community.popularTransport}`
-    };
-    handleOpenJourneyForm(syntheticDest);
-  };
-
   const activeChatGroupObj =
     groups.find((g) => g.id === chatGroupId) ||
     (selectedGroup && selectedGroup.id === chatGroupId ? selectedGroup : null);
@@ -429,6 +418,9 @@ function AppContent() {
       <Navbar
         activePage={activePage}
         setActivePage={(page) => {
+          if (page !== 'communities') {
+            setSelectedCityHub(null);
+          }
           if (page === 'my-groups') {
             if (activeGroup) {
               setSelectedGroupId(activeGroup.id);
@@ -526,11 +518,84 @@ function AppContent() {
             />
           )}
 
-          {activePage === 'communities' && (
+          {activePage === 'communities' && selectedCityHub ? (
+            <CityCommunityHubPage
+              community={selectedCityHub}
+              allCommunities={communities}
+              user={user}
+              posts={communityPosts}
+              onBack={() => setSelectedCityHub(null)}
+              onSelectOtherCommunity={(comm) => {
+                setSelectedCityHub(comm);
+                fetchPosts(comm.id);
+              }}
+              onJoinCommunity={async (commId) => {
+                try {
+                  await joinCommunity(commId);
+                  triggerToast({
+                    id: `comm_join_${Date.now()}`,
+                    type: 'success',
+                    title: 'Joined Community!',
+                    message: 'You are now an enrolled member of this hometown hub.'
+                  });
+                } catch (err) {
+                  triggerToast({
+                    id: `comm_err_${Date.now()}`,
+                    type: 'error',
+                    title: 'Could Not Join',
+                    message: err.message
+                  });
+                }
+              }}
+              onLeaveCommunity={async (commId) => {
+                try {
+                  await leaveCommunity(commId);
+                  triggerToast({
+                    id: `comm_leave_${Date.now()}`,
+                    type: 'info',
+                    title: 'Left Community',
+                    message: 'You left this hometown hub.'
+                  });
+                } catch (err) {
+                  triggerToast({
+                    id: `comm_err_${Date.now()}`,
+                    type: 'error',
+                    title: 'Error Leaving Community',
+                    message: err.message
+                  });
+                }
+              }}
+              onAddPost={async (newPost) => {
+                try {
+                  await handleAddCommunityPost(newPost.communityId, newPost);
+                  triggerToast({
+                    id: `post_add_${Date.now()}`,
+                    type: 'success',
+                    title: 'Post Published',
+                    message: 'Your notice has been posted to the community board.'
+                  });
+                } catch (err) {
+                  triggerToast({
+                    id: `post_err_${Date.now()}`,
+                    type: 'error',
+                    title: 'Could Not Post',
+                    message: err.message
+                  });
+                }
+              }}
+              onLikePost={handleLikePost}
+              onAddComment={handleAddComment}
+              triggerToast={triggerToast}
+            />
+          ) : activePage === 'communities' ? (
             <CommunitiesPage
               communities={communities}
               posts={communityPosts}
               user={user}
+              onOpenCityHub={(comm) => {
+                setSelectedCityHub(comm);
+                fetchPosts(comm.id);
+              }}
               onJoinCommunity={async (commId) => {
                 try {
                   await joinCommunity(commId);
@@ -605,14 +670,17 @@ function AppContent() {
                   });
                 }
               }}
-              onSelectCommunityTravel={handleSelectCommunityTravel}
+              onSelectCommunityTravel={(comm) => {
+                setSelectedCityHub(comm);
+                fetchPosts(comm.id);
+              }}
               onLikePost={handleLikePost}
               onAddComment={handleAddComment}
               onSelectCommunity={(commId) => {
                 fetchPosts(commId);
               }}
             />
-          )}
+          ) : null}
 
           {activePage === 'community-groups' && (
             <CommunityGroupsPage

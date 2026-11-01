@@ -8,7 +8,7 @@ import { connectDB } from './config/db.js';
 import { setSocketIO } from './services/notifications.js';
 import { cleanupExpiredGroups } from './services/groups.js';
 import { JWT_SECRET } from './middleware/auth.js';
-import { User, Group } from './models/index.js';
+import { User, Group, CityRide } from './models/index.js';
 
 const PORT = process.env.PORT || 5000;
 
@@ -78,17 +78,34 @@ async function bootstrap() {
     // Join private per-user notification room
     socket.join(`user_${socket.user.id}`);
 
-    // Join group room only if verified as a member of that group
+    // Join group room only if verified as a member of that group or community ride
     socket.on('join_group', async (groupId) => {
       try {
         if (!groupId) return;
-        const group = await Group.findOne({
-          id: String(groupId),
-          'members.user_id': socket.user.id
-        }).lean();
+        const sGroupId = String(groupId);
+        let isMember = false;
 
-        if (group) {
-          socket.join(`group_${groupId}`);
+        if (sGroupId.startsWith('cr_')) {
+          const ride = await CityRide.findOne({
+            id: sGroupId,
+            $or: [
+              { 'members.user_id': socket.user.id },
+              { 'members.userId': socket.user.id },
+              { 'members.id': socket.user.id },
+              { creator_id: socket.user.id }
+            ]
+          }).lean();
+          isMember = Boolean(ride);
+        } else {
+          const group = await Group.findOne({
+            id: sGroupId,
+            'members.user_id': socket.user.id
+          }).lean();
+          isMember = Boolean(group);
+        }
+
+        if (isMember) {
+          socket.join(`group_${sGroupId}`);
         } else {
           socket.emit('error', {
             message: 'Access denied: You are not a member of this ride group.'
@@ -101,7 +118,7 @@ async function bootstrap() {
 
     socket.on('leave_group', (groupId) => {
       if (groupId) {
-        socket.leave(`group_${groupId}`);
+        socket.leave(`group_${String(groupId)}`);
       }
     });
 

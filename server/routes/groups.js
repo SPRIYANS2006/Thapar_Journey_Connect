@@ -19,7 +19,7 @@ import {
   validateChatMessage,
   ALLOWED_PICKUP_POINTS
 } from '../middleware/validate.js';
-import { notifyGroup, notifyGroupMembersUpdated } from '../services/notifications.js';
+import { notifyGroup, notifyUser, notifyGroupMembersUpdated } from '../services/notifications.js';
 
 function serializeCityRideAsGroup(ride, _viewingUserId) {
   const membersCount = ride.current_members_count || (ride.members ? ride.members.length : 1);
@@ -549,8 +549,9 @@ router.post('/:id/messages', validateChatMessage, async (req, res, next) => {
 
     // Notify each member for in-app toast
     for (const m of members) {
-      if (m.user_id !== req.user.id) {
-        notifyGroup(req.params.id, 'new_chat_message', {
+      const memberId = m.user_id || m.userId || m.id;
+      if (memberId && memberId !== req.user.id) {
+        notifyUser(memberId, 'new_chat_message', {
           groupId: req.params.id,
           destinationName,
           senderId: req.user.id,

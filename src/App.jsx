@@ -91,7 +91,7 @@ function AppContent() {
       if (!msgData) return;
       if (msgData.senderId === user.id) return;
 
-      if (!(isChatOpen && chatGroupId === msgData.groupId)) {
+      if (!(isChatOpen && String(chatGroupId) === String(msgData.groupId))) {
         triggerToast({
           id: `chat_${Date.now()}_${Math.random().toString(36).substring(7)}`,
           type: 'chat',
@@ -390,8 +390,9 @@ function AppContent() {
   };
 
   const activeChatGroupObj =
-    groups.find((g) => g.id === chatGroupId) ||
-    (selectedGroup && selectedGroup.id === chatGroupId ? selectedGroup : null);
+    groups.find((g) => String(g.id) === String(chatGroupId)) ||
+    (selectedGroup && String(selectedGroup.id) === String(chatGroupId) ? selectedGroup : null) ||
+    (chatGroupId ? { id: chatGroupId, destinationName: 'Ride Group', members: [] } : null);
 
   // If not logged in, render AuthPage
   if (!token || !user) {

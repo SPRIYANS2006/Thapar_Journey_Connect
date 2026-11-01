@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Car,
-  Bus,
   Train,
   MapPin,
   Calendar,
@@ -15,7 +14,8 @@ import {
   MessageSquare,
   Heart,
   TrendingDown,
-  Navigation
+  Navigation,
+  Lock
 } from 'lucide-react';
 import Avatar from '../components/Avatar';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -36,14 +36,6 @@ const MODE_CONFIG = {
     accentBg: 'bg-blue-600',
     description: 'Split the total cab fare equally among student co-riders.'
   },
-  Bus: {
-    label: 'Volvo / Bus Cohort',
-    icon: Bus,
-    badgeBg: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    color: 'text-emerald-600',
-    accentBg: 'bg-emerald-600',
-    description: 'Travel together for safety, company, and shared campus-to-station transit.'
-  },
   Train: {
     label: 'Train Cohort',
     icon: Train,
@@ -56,11 +48,11 @@ const MODE_CONFIG = {
 
 export default function CityCommunityHubPage({
   community,
-  allCommunities = [],
+  allCommunities: _allCommunities = [],
   user,
   posts = [],
   onBack,
-  onSelectOtherCommunity,
+  onSelectOtherCommunity: _onSelectOtherCommunity,
   onJoinCommunity,
   onLeaveCommunity,
   onAddPost,
@@ -69,9 +61,9 @@ export default function CityCommunityHubPage({
   triggerToast
 }) {
   const [activeTab, setActiveTab] = useState('rides'); // 'rides' | 'board'
-  const [selectedModeFilter, setSelectedModeFilter] = useState('All'); // 'All' | 'Cab' | 'Bus' | 'Train'
+  const [selectedModeFilter, setSelectedModeFilter] = useState('All'); // 'All' | 'Cab' | 'Train'
   const [rides, setRides] = useState([]);
-  const [loadingRides, setLoadingRides] = useState(true);
+  const [loadingRides, setLoadingRides] = useState(false);
   const [ridesError, setRidesError] = useState(null);
 
   // Create Ride Modal State
@@ -104,7 +96,7 @@ export default function CityCommunityHubPage({
   const isUserEnrolledInCity = user?.joinedCommunity === community?.id;
 
   const refreshRides = useCallback(() => {
-    if (!community?.id) return;
+    if (!community?.id || !isUserEnrolledInCity) return;
     api.getCityRides(community.id, {
       mode: selectedModeFilter !== 'All' ? selectedModeFilter : undefined
     })
@@ -115,12 +107,17 @@ export default function CityCommunityHubPage({
       .catch((err) => {
         setRidesError(err.message || 'Failed to load rides');
       });
-  }, [community, selectedModeFilter]);
+  }, [community, selectedModeFilter, isUserEnrolledInCity]);
 
-  // Fetch Rides for this City
+  // Fetch Rides for this City (Restricted to enrolled hometown members)
   useEffect(() => {
-    if (!community?.id) return;
+    if (!community?.id || !isUserEnrolledInCity) {
+      return;
+    }
     let active = true;
+    queueMicrotask(() => {
+      if (active) setLoadingRides(true);
+    });
 
     api.getCityRides(community.id, {
       mode: selectedModeFilter !== 'All' ? selectedModeFilter : undefined
@@ -141,7 +138,7 @@ export default function CityCommunityHubPage({
     return () => {
       active = false;
     };
-  }, [community?.id, selectedModeFilter]);
+  }, [community?.id, selectedModeFilter, isUserEnrolledInCity]);
 
   // Adjust default fare based on mode & distance
   const handleModeChange = (mode) => {
@@ -151,10 +148,6 @@ export default function CityCommunityHubPage({
       setRideFormTotalFare(Math.round(distNum * 12));
       setRideFormMaxCapacity(4);
       setRideFormTransitDetails('Sedan AC Cab via Highway');
-    } else if (mode === 'Bus') {
-      setRideFormTotalFare(350);
-      setRideFormMaxCapacity(6);
-      setRideFormTransitDetails('PRTC / CTU Volvo Express');
     } else if (mode === 'Train') {
       setRideFormTotalFare(300);
       setRideFormMaxCapacity(6);
@@ -302,27 +295,6 @@ export default function CityCommunityHubPage({
           <ArrowLeft className="w-4 h-4" />
           <span>Back to All City Communities</span>
         </button>
-
-        {/* Community Switcher Dropdown */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-slate-500 hidden sm:inline">Switch City Hub:</span>
-          <select
-            value={community?.id}
-            onChange={(e) => {
-              const selected = allCommunities.find((c) => c.id === e.target.value);
-              if (selected && onSelectOtherCommunity) {
-                onSelectOtherCommunity(selected);
-              }
-            }}
-            className="bg-white border border-slate-200 rounded-2xl px-3.5 py-2 text-xs font-bold text-slate-800 focus:outline-hidden focus:border-blue-500 shadow-2xs cursor-pointer"
-          >
-            {allCommunities.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.icon} {c.name} ({c.state})
-              </option>
-            ))}
-          </select>
-        </div>
       </div>
 
       {/* Hero Banner for City Community */}
@@ -392,7 +364,7 @@ export default function CityCommunityHubPage({
             <span className="text-slate-100 font-bold text-sm mt-0.5 block">Split 4-ways (Save 75%)</span>
           </div>
           <div className="bg-white/5 rounded-2xl p-3 border border-white/10">
-            <span className="text-slate-400 font-semibold block text-[10px] uppercase tracking-wider">Bus & Train</span>
+            <span className="text-slate-400 font-semibold block text-[10px] uppercase tracking-wider">Train Cohort</span>
             <span className="text-slate-100 font-bold text-sm mt-0.5 block">Group Transit Safety</span>
           </div>
           <div className="bg-white/5 rounded-2xl p-3 border border-white/10">
@@ -417,10 +389,12 @@ export default function CityCommunityHubPage({
           }`}
         >
           <Car className="w-4 h-4" />
-          <span>Thapar ➔ {community?.name} Rides (Cab, Bus, Train)</span>
-          <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full font-semibold">
-            {rides.length}
-          </span>
+          <span>Thapar ➔ {community?.name} Rides (Cab, Train)</span>
+          {isUserEnrolledInCity && (
+            <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full font-semibold">
+              {rides.length}
+            </span>
+          )}
         </button>
 
         <button
@@ -439,8 +413,36 @@ export default function CityCommunityHubPage({
         </button>
       </div>
 
-      {/* TAB 1: RIDES & COHORTS (Cab, Bus, Train) */}
-      {activeTab === 'rides' && (
+      {/* TAB 1: RIDES & COHORTS (Cab, Train) */}
+      {activeTab === 'rides' && !isUserEnrolledInCity && (
+        <div className="bg-white rounded-3xl border border-slate-200 p-8 sm:p-12 text-center space-y-6 shadow-xs max-w-2xl mx-auto">
+          <div className="w-16 h-16 rounded-3xl bg-blue-50 text-blue-600 border border-blue-200 mx-auto flex items-center justify-center">
+            <Lock className="w-8 h-8" />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-xl font-black text-slate-900">
+              {community?.name} Travel Hub Rides Restricted
+            </h3>
+            <p className="text-sm text-slate-600 leading-relaxed">
+              To view scheduled rides, divide cab fares, or coordinate train travel cohorts for {community?.name}, you must be an enrolled member of this hometown hub.
+            </p>
+            {user?.joinedCommunity && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mt-2">
+                You are currently enrolled in another community hub. The Single-Community policy allows membership in one hometown hub at a time.
+              </p>
+            )}
+          </div>
+          <button
+            onClick={() => onJoinCommunity && onJoinCommunity(community.id)}
+            className="px-6 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-lg shadow-blue-500/25 transition-all cursor-pointer inline-flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Join {community?.name} Hometown Hub</span>
+          </button>
+        </div>
+      )}
+
+      {activeTab === 'rides' && isUserEnrolledInCity && (
         <div className="space-y-6">
           {/* Controls: Mode Filter & Offer Ride Button */}
           <div className="bg-white rounded-3xl border border-slate-200 p-4 sm:p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -468,18 +470,6 @@ export default function CityCommunityHubPage({
               >
                 <Car className="w-3.5 h-3.5" />
                 <span>Shared Cabs (Fare Split)</span>
-              </button>
-
-              <button
-                onClick={() => setSelectedModeFilter('Bus')}
-                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all cursor-pointer ${
-                  selectedModeFilter === 'Bus'
-                    ? 'bg-emerald-600 text-white shadow-2xs'
-                    : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                }`}
-              >
-                <Bus className="w-3.5 h-3.5" />
-                <span>Buses (Travel Together)</span>
               </button>
 
               <button
@@ -652,7 +642,7 @@ export default function CityCommunityHubPage({
                           </div>
                         </div>
                       ) : (
-                        /* BUS / TRAIN COHORT BOX */
+                        /* TRAIN COHORT BOX */
                         <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-1">
                           <div className="flex items-center justify-between text-xs">
                             <span className="font-bold text-slate-800">
@@ -930,7 +920,7 @@ export default function CityCommunityHubPage({
                   Schedule Ride to {community?.name}
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Divide cab fares or travel safely together in bus/train cohorts.
+                  Divide cab fares or coordinate train travel cohorts.
                 </p>
               </div>
               <button
@@ -952,10 +942,9 @@ export default function CityCommunityHubPage({
               {/* Transport Mode Selection */}
               <div className="space-y-1.5">
                 <label className="block font-bold text-slate-700">Transport Mode *</label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   {[
                     { id: 'Cab', label: 'Shared Cab', icon: Car },
-                    { id: 'Bus', label: 'Bus Cohort', icon: Bus },
                     { id: 'Train', label: 'Train Cohort', icon: Train }
                   ].map((m) => {
                     const Icon = m.icon;
@@ -1029,11 +1018,11 @@ export default function CityCommunityHubPage({
                   <option value="Hostel-J / Tejas Hall Gate">Hostel-J / Tejas Hall Gate</option>
                   <option value="Hostel-B / Amritam Hall Entrance">Hostel-B / Amritam Hall Entrance</option>
                   <option value="Patiala Railway Station (Sharing cab to station)">Patiala Railway Station</option>
-                  <option value="Patiala Bus Stand (Sharing cab to bus stand)">Patiala Bus Stand</option>
+                  <option value="Patiala Bus Stand (Sharing cab to bus terminal)">Patiala Bus Stand</option>
                 </select>
               </div>
 
-              {/* Mode-Specific Settings: Cab Fare or Train/Bus Info */}
+              {/* Mode-Specific Settings: Cab Fare or Train Info */}
               {rideFormMode === 'Cab' ? (
                 <div className="grid grid-cols-2 gap-3 bg-blue-50/50 p-3.5 rounded-2xl border border-blue-100">
                   <div className="space-y-1.5">
@@ -1069,21 +1058,17 @@ export default function CityCommunityHubPage({
               ) : (
                 <div className="space-y-2 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
                   <label className="block font-bold text-slate-800 text-xs">
-                    {rideFormMode === 'Train' ? 'Train Name / Number' : 'Bus Operator / Service'}
+                    Train Name / Number
                   </label>
                   <input
                     type="text"
                     value={rideFormTransitDetails}
                     onChange={(e) => setRideFormTransitDetails(e.target.value)}
-                    placeholder={
-                      rideFormMode === 'Train'
-                        ? 'e.g. Kalka Shatabdi #12006 (Ambala Cantt -> NDLS)'
-                        : 'e.g. PRTC AC Volvo (Departs 18:30 from Patiala ISBT)'
-                    }
+                    placeholder="e.g. Kalka Shatabdi #12006 (Ambala Cantt -> NDLS)"
                     className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs sm:text-sm focus:border-blue-500 focus:outline-hidden"
                   />
                   <span className="text-[10px] text-slate-500 block">
-                    Helps students book the same train coach or bus schedule to travel together.
+                    Helps students book the same train coach or coordinate shared station cabs.
                   </span>
                 </div>
               )}

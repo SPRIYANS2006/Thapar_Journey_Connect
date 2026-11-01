@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Avatar from '../components/Avatar';
 import { 
   MapPin, 
@@ -11,15 +11,35 @@ import {
   Star
 } from 'lucide-react';
 import { formatTime24to12 } from '../utils/matchingEngine';
+import { api } from '../services/api';
 
 export default function MyJourneysPage({ activeGroups, currentUser, onViewGroupDetails, onOpenChat }) {
   const [activeTab, setActiveTab] = useState('upcoming');
+  const [completedJourneys, setCompletedJourneys] = useState([]);
+  const [loadingCompleted, setLoadingCompleted] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    api.getGroupHistory()
+      .then((history) => {
+        if (!active) return;
+        setCompletedJourneys(Array.isArray(history) ? history : []);
+      })
+      .catch((err) => {
+        console.warn('Failed to load completed journeys:', err);
+      })
+      .finally(() => {
+        if (active) setLoadingCompleted(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const upcomingJourneys = (activeGroups || []).filter(g =>
-    g.members && g.members.some(m => (m.id && m.id === currentUser?.id) || (m.user_id && m.user_id === currentUser?.id))
+    g.members && g.members.some(m => (m.id && m.id === currentUser?.id) || (m.user_id && m.user_id === currentUser?.id) || (m.userId && m.userId === currentUser?.id))
   );
-
-  const completedJourneys = [];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-in fade-in duration-300">
@@ -89,11 +109,18 @@ export default function MyJourneysPage({ activeGroups, currentUser, onViewGroupD
                             #{group.id}
                           </div>
                           <div>
-                            <span className="text-[10px] uppercase font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
-                              TIET → {group.destinationName}
-                            </span>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-[10px] uppercase font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
+                                {group.isCommunityRide ? '📍 City Community' : 'TIET →'} {group.destinationName}
+                              </span>
+                              {group.isCommunityRide && (
+                                <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
+                                  {group.communityName} Hub
+                                </span>
+                              )}
+                            </div>
                             <h3 className="font-bold text-slate-900 text-base mt-0.5">
-                              Group #{group.id}
+                              {group.isCommunityRide ? `${group.communityName} Travel Cohort` : `Group #${group.id}`}
                             </h3>
                           </div>
                         </div>
@@ -119,8 +146,13 @@ export default function MyJourneysPage({ activeGroups, currentUser, onViewGroupD
                         </div>
                         <div className="flex items-center gap-2">
                           <Users className="w-4 h-4 text-emerald-600" />
-                          <span>Members: <strong className="text-slate-900 font-semibold">{group.members.length} / {group.maxMembers} Students</strong></span>
+                          <span>Members: <strong className="text-slate-900 font-semibold">{group.members?.length || 0} / {group.maxMembers} Students</strong></span>
                         </div>
+                        {group.isCommunityRide && group.farePerPerson > 0 && (
+                          <div className="flex items-center gap-2 pt-1 border-t border-slate-200/60 text-blue-700 font-semibold text-[11px]">
+                            <span>💰 Cab Fare Split: <strong>₹{group.farePerPerson}</strong> / student</span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Members Avatar Row */}
@@ -173,7 +205,11 @@ export default function MyJourneysPage({ activeGroups, currentUser, onViewGroupD
       {/* COMPLETED JOURNEYS TAB */}
       {activeTab === 'completed' && (
         <div className="space-y-4">
-          {completedJourneys.length === 0 ? (
+          {loadingCompleted ? (
+            <div className="bg-white rounded-3xl border border-slate-200/80 p-12 text-center text-slate-400 text-sm">
+              Loading completed journeys...
+            </div>
+          ) : completedJourneys.length === 0 ? (
             <div className="bg-white rounded-3xl border border-slate-200/80 p-12 text-center space-y-4 shadow-sm">
               <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-400">
                 <Calendar className="w-8 h-8 text-blue-600" />
@@ -195,7 +231,7 @@ export default function MyJourneysPage({ activeGroups, currentUser, onViewGroupD
                   <div>
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-[10px] uppercase font-bold bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-md border border-slate-200">
-                        Group #{trip.groupId}
+                        {trip.isCommunityRide ? '📍 Community Ride' : `Group #${trip.id || trip.groupId}`}
                       </span>
                       <span className="text-xs font-bold text-emerald-600 flex items-center gap-1">
                         <CheckCircle className="w-3.5 h-3.5" />
@@ -204,14 +240,14 @@ export default function MyJourneysPage({ activeGroups, currentUser, onViewGroupD
                     </div>
 
                     <h3 className="font-bold text-slate-900 text-base">
-                      TIET → {trip.destinationName}
+                      {trip.isCommunityRide ? trip.destinationName : `TIET → ${trip.destinationName}`}
                     </h3>
 
                     <div className="mt-3 space-y-1.5 text-xs text-slate-500">
                       <div>Date: <strong className="text-slate-800 font-semibold">{trip.date}</strong></div>
                       <div>Departure: <strong className="text-slate-800 font-semibold">{formatTime24to12(trip.departureTime)}</strong></div>
                       <div>Pickup: <strong className="text-slate-800 font-semibold">{trip.pickupPoint}</strong></div>
-                      <div>Travel Partners: <strong className="text-slate-800 font-semibold">{trip.partners.join(', ')}</strong></div>
+                      <div>Travel Partners: <strong className="text-slate-800 font-semibold">{(trip.partners || (trip.members || []).map((m) => m.name)).join(', ') || 'Solo Travel'}</strong></div>
                     </div>
                   </div>
 
@@ -219,7 +255,7 @@ export default function MyJourneysPage({ activeGroups, currentUser, onViewGroupD
                     <span className="text-slate-500">Ride Reliability</span>
                     <div className="flex items-center gap-1 text-amber-600 font-bold">
                       <Star className="w-4 h-4 fill-amber-500" />
-                      <span>{trip.rating} / 5.0</span>
+                      <span>{trip.rating || 5.0} / 5.0</span>
                     </div>
                   </div>
                 </div>

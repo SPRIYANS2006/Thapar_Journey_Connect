@@ -329,30 +329,6 @@ export async function seedDefaultData() {
             { user_id: 'sample_student_3', name: 'Kabir Bedi', role: 'Member', hostel: 'Agira Hall' }
           ]
         },
-        // Delhi Bus
-        {
-          id: 'cr_del_bus_1',
-          community_id: 'del',
-          community_name: 'Delhi NCR',
-          creator_id: 'sample_student_4',
-          creator_name: 'Sneha Sen',
-          origin: 'Thapar Campus (Main Gate)',
-          destination: 'Delhi ISBT Kashmiri Gate',
-          date: tomorrowStr,
-          time: '18:30',
-          mode: 'Bus',
-          pickup_point: 'Patiala ISBT (Sharing auto from Gate 2)',
-          total_fare: 420,
-          max_capacity: 6,
-          current_members_count: 2,
-          transit_details: 'PRTC AC Volvo Express 19:15 Departure',
-          notes: 'Traveling together in PRTC Volvo. Coordinating shared auto from Thapar campus to bus stand.',
-          status: 'Open',
-          members: [
-            { user_id: 'sample_student_4', name: 'Sneha Sen', role: 'Admin', hostel: 'Ira Hall' },
-            { user_id: 'sample_student_5', name: 'Rohan Mehra', role: 'Member', hostel: 'Amritam Hall' }
-          ]
-        },
         // Delhi Train
         {
           id: 'cr_del_train_1',
@@ -400,31 +376,6 @@ export async function seedDefaultData() {
           members: [
             { user_id: 'sample_student_2', name: 'Diya Verma', role: 'Admin', hostel: 'Vasudha Hall' },
             { user_id: 'sample_student_5', name: 'Rohan Mehra', role: 'Member', hostel: 'Amritam Hall' }
-          ]
-        },
-        // Chandigarh Bus
-        {
-          id: 'cr_chd_bus_1',
-          community_id: 'chd',
-          community_name: 'Chandigarh & Tri-City',
-          creator_id: 'sample_student_3',
-          creator_name: 'Kabir Bedi',
-          origin: 'Thapar Campus (Main Gate)',
-          destination: 'Chandigarh Sector 43 ISBT',
-          date: tomorrowStr,
-          time: '08:30',
-          mode: 'Bus',
-          pickup_point: 'Main Campus Bus Stop',
-          total_fare: 95,
-          max_capacity: 8,
-          current_members_count: 3,
-          transit_details: 'CTU Non-Stop Express Bus',
-          notes: 'Morning direct CTU bus. Traveling as a student group for safety and company.',
-          status: 'Open',
-          members: [
-            { user_id: 'sample_student_3', name: 'Kabir Bedi', role: 'Admin', hostel: 'Agira Hall' },
-            { user_id: 'sample_student_1', name: 'Aarav Sharma', role: 'Member', hostel: 'Tejas Hall' },
-            { user_id: 'sample_student_7', name: 'Ananya Rathore', role: 'Member', hostel: 'Ira Hall' }
           ]
         },
         // Jaipur Train

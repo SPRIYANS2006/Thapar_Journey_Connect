@@ -225,10 +225,10 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
                     </span>
                     <div>
                       <h4 className="font-bold text-slate-900 text-sm">
-                        TIET → {g.destinationName}
+                        {g.isCommunityRide ? g.destinationName : `TIET → ${g.destinationName}`}
                       </h4>
                       <p className="text-[11px] text-slate-500">
-                        {g.transport || 'Shared Cab'} • Pickup: {g.pickupPoint}
+                        {g.isCommunityRide && g.communityName ? `📍 ${g.communityName} Hub • ` : ''}{g.transport || 'Shared Cab'} • Pickup: {g.pickupPoint}
                       </p>
                     </div>
                   </div>

@@ -1,6 +1,6 @@
 import express from 'express';
 import crypto from 'node:crypto';
-import { Group, Message, User } from '../models/index.js';
+import { Group, Message, User, CityRide } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { HttpError } from '../middleware/errors.js';
 import {
@@ -21,12 +21,51 @@ import {
 } from '../middleware/validate.js';
 import { notifyGroup, notifyGroupMembersUpdated } from '../services/notifications.js';
 
+function serializeCityRideAsGroup(ride, _viewingUserId) {
+  const membersCount = ride.current_members_count || (ride.members ? ride.members.length : 1);
+  const farePerPerson =
+    ride.mode === 'Cab' && ride.total_fare > 0 && membersCount > 0
+      ? Math.round(ride.total_fare / membersCount)
+      : (ride.total_fare || 0);
+
+  return {
+    id: ride.id,
+    destinationId: `comm_${ride.community_id}`,
+    destinationName: `${ride.destination} (${ride.community_name})`,
+    departureTime: ride.time,
+    date: ride.date,
+    status: ride.status === 'Full' ? 'Confirmed' : (ride.status || 'Active'),
+    transport: ride.mode === 'Cab' ? 'Shared Cab' : 'Train',
+    maxMembers: ride.max_capacity || 4,
+    pickupPoint: ride.pickup_point,
+    adminId: ride.creator_id,
+    isCommunityRide: true,
+    communityId: ride.community_id,
+    communityName: ride.community_name,
+    farePerPerson,
+    totalFare: ride.total_fare,
+    transitDetails: ride.transit_details,
+    notes: ride.notes,
+    members: (ride.members || []).map((m) => ({
+      id: m.id || m.user_id,
+      user_id: m.user_id,
+      userId: m.user_id,
+      name: m.name,
+      avatar: m.avatar || 'ST',
+      hostel: m.hostel || '',
+      phone: m.phone || '',
+      role: m.role === 'Admin' ? 'Group Admin' : 'Member'
+    })),
+    createdAt: ride.created_at ? new Date(ride.created_at).toISOString() : new Date().toISOString()
+  };
+}
+
 const router = express.Router();
 
 // All group routes require authentication
 router.use(requireAuth);
 
-// 1. Group list endpoints return ONLY caller's active groups (GET /api/groups/mine & GET /api/groups)
+// 1. Group list endpoints return caller's active groups & joined community rides (GET /api/groups/mine & GET /api/groups)
 router.get('/', async (req, res, next) => {
   try {
     scheduleBackgroundCleanup();
@@ -40,7 +79,20 @@ router.get('/', async (req, res, next) => {
     })
       .sort({ created_at: -1 })
       .lean();
-    res.json(list.map((g) => serializeGroup(g, req.user.id)));
+
+    const cityRides = await CityRide.find({
+      'members.user_id': req.user.id,
+      status: { $in: ['Open', 'Full'] }
+    })
+      .sort({ created_at: -1 })
+      .lean();
+
+    const merged = [
+      ...list.map((g) => serializeGroup(g, req.user.id)),
+      ...cityRides.map((r) => serializeCityRideAsGroup(r, req.user.id))
+    ];
+
+    res.json(merged);
   } catch (err) {
     next(err);
   }
@@ -59,7 +111,20 @@ router.get('/mine', async (req, res, next) => {
     })
       .sort({ created_at: -1 })
       .lean();
-    res.json(list.map((g) => serializeGroup(g, req.user.id)));
+
+    const cityRides = await CityRide.find({
+      'members.user_id': req.user.id,
+      status: { $in: ['Open', 'Full'] }
+    })
+      .sort({ created_at: -1 })
+      .lean();
+
+    const merged = [
+      ...list.map((g) => serializeGroup(g, req.user.id)),
+      ...cityRides.map((r) => serializeCityRideAsGroup(r, req.user.id))
+    ];
+
+    res.json(merged);
   } catch (err) {
     next(err);
   }
@@ -68,6 +133,21 @@ router.get('/mine', async (req, res, next) => {
 // 2. Group detail: MEMBERS ONLY (403 otherwise)
 router.get('/:id', async (req, res, next) => {
   try {
+    if (String(req.params.id).startsWith('cr_')) {
+      const cityRide = await CityRide.findOne({ id: req.params.id }).lean();
+      if (!cityRide) {
+        throw new HttpError(404, 'Group not found.');
+      }
+      const isMember = (cityRide.members || []).some((m) => m.user_id === req.user.id);
+      if (!isMember) {
+        throw new HttpError(
+          403,
+          'Forbidden: Group details and rider contacts are restricted to enrolled group members.'
+        );
+      }
+      return res.json(serializeCityRideAsGroup(cityRide, req.user.id));
+    }
+
     const group = await Group.findOne({ id: req.params.id }).lean();
     if (!group) {
       throw new HttpError(404, 'Group not found.');
@@ -126,6 +206,31 @@ router.post('/:id/join', async (req, res, next) => {
 // 5. Leave Group (with late cancellation reliability penalty)
 router.post('/:id/leave', async (req, res, next) => {
   try {
+    if (String(req.params.id).startsWith('cr_')) {
+      const ride = await CityRide.findOne({ id: req.params.id });
+      if (!ride) throw new HttpError(404, 'Group not found.');
+      const memberIdx = (ride.members || []).findIndex((m) => m.user_id === req.user.id);
+      if (memberIdx === -1) {
+        throw new HttpError(400, 'You are not a member of this travel group.');
+      }
+      ride.members.splice(memberIdx, 1);
+      ride.current_members_count = ride.members.length;
+      if (ride.members.length === 0) {
+        await CityRide.deleteOne({ id: ride.id });
+        return res.json({ message: 'Ride vacated and removed.', removed: true });
+      }
+      if (ride.creator_id === req.user.id && ride.members.length > 0) {
+        ride.creator_id = ride.members[0].user_id;
+        ride.creator_name = ride.members[0].name;
+        ride.members[0].role = 'Admin';
+      }
+      if (ride.status === 'Full' && ride.members.length < ride.max_capacity) {
+        ride.status = 'Open';
+      }
+      await ride.save();
+      return res.json({ message: 'Successfully left the ride.' });
+    }
+
     const result = await leaveGroup(req.user, req.params.id);
     res.json(result);
   } catch (err) {
@@ -292,10 +397,17 @@ router.post('/:id/rate', async (req, res, next) => {
 // 10. Group Messages: MEMBERS ONLY (403 otherwise), paginated last 100
 router.get('/:id/messages', async (req, res, next) => {
   try {
-    const group = await Group.findOne({ id: req.params.id }).lean();
-    if (!group) throw new HttpError(404, 'Group not found.');
+    let isMember = false;
+    if (String(req.params.id).startsWith('cr_')) {
+      const ride = await CityRide.findOne({ id: req.params.id }).lean();
+      if (!ride) throw new HttpError(404, 'Group not found.');
+      isMember = (ride.members || []).some((m) => m.user_id === req.user.id);
+    } else {
+      const group = await Group.findOne({ id: req.params.id }).lean();
+      if (!group) throw new HttpError(404, 'Group not found.');
+      isMember = (group.members || []).some((m) => m.user_id === req.user.id);
+    }
 
-    const isMember = (group.members || []).some((m) => m.user_id === req.user.id);
     if (!isMember) {
       throw new HttpError(403, 'Forbidden: Group chat is restricted to enrolled members.');
     }
@@ -316,12 +428,26 @@ router.get('/:id/messages', async (req, res, next) => {
 // 11. Send Message: MEMBERS ONLY, 1-500 chars
 router.post('/:id/messages', validateChatMessage, async (req, res, next) => {
   try {
-    const group = await Group.findOne({ id: req.params.id }).lean();
-    if (!group) throw new HttpError(404, 'Group not found.');
-
-    const isMember = (group.members || []).some((m) => m.user_id === req.user.id);
-    if (!isMember) {
-      throw new HttpError(403, 'Forbidden: Only group members can send messages.');
+    let destinationName = '';
+    let members = [];
+    if (String(req.params.id).startsWith('cr_')) {
+      const ride = await CityRide.findOne({ id: req.params.id }).lean();
+      if (!ride) throw new HttpError(404, 'Group not found.');
+      const isMember = (ride.members || []).some((m) => m.user_id === req.user.id);
+      if (!isMember) {
+        throw new HttpError(403, 'Forbidden: Only group members can send messages.');
+      }
+      destinationName = `${ride.destination} (${ride.community_name})`;
+      members = ride.members || [];
+    } else {
+      const group = await Group.findOne({ id: req.params.id }).lean();
+      if (!group) throw new HttpError(404, 'Group not found.');
+      const isMember = (group.members || []).some((m) => m.user_id === req.user.id);
+      if (!isMember) {
+        throw new HttpError(403, 'Forbidden: Only group members can send messages.');
+      }
+      destinationName = group.destination_name;
+      members = group.members || [];
     }
 
     const newMsg = await Message.create({
@@ -342,11 +468,11 @@ router.post('/:id/messages', validateChatMessage, async (req, res, next) => {
     });
 
     // Notify each member for in-app toast
-    for (const m of group.members) {
+    for (const m of members) {
       if (m.user_id !== req.user.id) {
         notifyGroup(req.params.id, 'new_chat_message', {
           groupId: req.params.id,
-          destinationName: group.destination_name,
+          destinationName,
           senderId: req.user.id,
           senderName: req.user.name,
           avatar: req.user.avatar,
@@ -400,7 +526,7 @@ router.post('/:id/fare-split', async (req, res, next) => {
   }
 });
 
-// 13. Confirmed Ride History: returns past completed/confirmed groups for current user
+// 13. Confirmed Ride History: returns past completed groups and completed community rides for current user
 router.get('/history/mine', async (req, res, next) => {
   try {
     await cleanupExpiredGroups();
@@ -415,7 +541,19 @@ router.get('/history/mine', async (req, res, next) => {
       .sort({ created_at: -1 })
       .lean();
 
-    res.json(list.map((g) => serializeGroup(g, req.user.id)));
+    const completedCityRides = await CityRide.find({
+      'members.user_id': req.user.id,
+      status: 'Completed'
+    })
+      .sort({ created_at: -1 })
+      .lean();
+
+    const merged = [
+      ...list.map((g) => serializeGroup(g, req.user.id)),
+      ...completedCityRides.map((r) => serializeCityRideAsGroup(r, req.user.id))
+    ];
+
+    res.json(merged);
   } catch (err) {
     next(err);
   }

@@ -296,12 +296,19 @@ router.post('/posts/:postId/comments', validatePostComment, async (req, res, nex
 // City Community Rides (Cab, Bus, Train)
 // ==========================================
 
-// 7. List active rides for a city community
+// 7. List active rides for a city community (enforces community membership privacy)
 router.get('/:id/rides', async (req, res, next) => {
   try {
     const community = await Community.findOne({ id: req.params.id }).lean();
     if (!community) {
       throw new HttpError(404, 'Community not found.');
+    }
+
+    if (req.user.joined_community !== req.params.id) {
+      throw new HttpError(
+        403,
+        'Forbidden: You can only access ride groups of your enrolled hometown community.'
+      );
     }
 
     const { mode, date } = req.query;
@@ -332,6 +339,13 @@ router.post('/:id/rides', async (req, res, next) => {
       throw new HttpError(404, 'Community not found.');
     }
 
+    if (req.user.joined_community !== req.params.id) {
+      throw new HttpError(
+        403,
+        'Forbidden: You can only create rides within your enrolled hometown community.'
+      );
+    }
+
     const {
       date,
       time,
@@ -351,7 +365,11 @@ router.post('/:id/rides', async (req, res, next) => {
       throw new HttpError(400, 'Departure time is required (HH:mm).');
     }
 
-    const validModes = ['Cab', 'Bus', 'Train'];
+    if (mode === 'Bus') {
+      throw new HttpError(400, 'Bus feature has been removed. Only Cab and Train modes are supported.');
+    }
+
+    const validModes = ['Cab', 'Train'];
     const selectedMode = validModes.includes(mode) ? mode : 'Cab';
 
     const defaultCapacity = selectedMode === 'Cab' ? 4 : 6;
@@ -410,6 +428,13 @@ router.post('/:id/rides/:rideId/join', async (req, res, next) => {
 
     if (!ride) {
       throw new HttpError(404, 'Ride not found in this community.');
+    }
+
+    if (req.user.joined_community !== req.params.id) {
+      throw new HttpError(
+        403,
+        'Forbidden: You can only join rides within your enrolled hometown community.'
+      );
     }
 
     const isMember = (ride.members || []).some((m) => m.user_id === req.user.id);
@@ -493,6 +518,47 @@ router.post('/:id/rides/:rideId/leave', async (req, res, next) => {
     res.json({
       success: true,
       message: `Left ${ride.mode} ride to ${ride.destination}.`,
+      ride: serializeCityRide(ride, req.user.id)
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 11. Complete a city community ride (Admin only; records completed trip history for members)
+router.post('/:id/rides/:rideId/complete', async (req, res, next) => {
+  try {
+    const ride = await CityRide.findOne({
+      id: req.params.rideId,
+      community_id: req.params.id
+    });
+
+    if (!ride) {
+      throw new HttpError(404, 'Ride not found in this community.');
+    }
+
+    if (ride.creator_id !== req.user.id) {
+      throw new HttpError(403, 'Forbidden: Only the ride creator can complete this ride.');
+    }
+
+    if (ride.status === 'Completed') {
+      throw new HttpError(400, 'This ride has already been marked as completed.');
+    }
+
+    ride.status = 'Completed';
+    await ride.save();
+
+    const memberUserIds = (ride.members || []).map((m) => m.user_id).filter(Boolean);
+    if (memberUserIds.length > 0) {
+      await User.updateMany(
+        { id: { $in: memberUserIds } },
+        { $inc: { trips_completed: 1 } }
+      );
+    }
+
+    res.json({
+      success: true,
+      message: `Completed ${ride.mode} ride to ${ride.destination}!`,
       ride: serializeCityRide(ride, req.user.id)
     });
   } catch (err) {

@@ -1173,10 +1173,33 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     assert.equal(resGet.body[0].text, 'Cab leaving gate 2 at 5 PM sharp on Friday!');
   });
 
-  // 30. City Community Rides: List & filter rides (Cab, Bus, Train) for any community city
-  it('30. City Community Rides: List & filter rides (Cab, Bus, Train) for any community city', async () => {
-    const { token } = await createTestStudent({ name: 'City Ride Student' });
+  // 30. City Community Rides: List & filter rides (Cab, Train) with strict hometown access control
+  it('30. City Community Rides: List & filter rides (Cab, Train) with strict hometown access control', async () => {
+    const { token: delhiStudentToken } = await createTestStudent({ name: 'Delhi Student', joined_community: 'del' });
+    const { token: chandigarhStudentToken } = await createTestStudent({ name: 'Chandigarh Student', joined_community: 'chd' });
 
+    // 1. Non-member access guard: Chandigarh student cannot view or create Delhi rides -> 403 Forbidden
+    const resForbiddenView = await request(app)
+      .get('/api/communities/del/rides')
+      .set('Authorization', `Bearer ${chandigarhStudentToken}`);
+    assert.equal(resForbiddenView.status, 403);
+    assert.match(resForbiddenView.body.error, /enrolled hometown community/i);
+
+    // 2. Reject Bus mode: Bus feature has been completely removed -> 400 Bad Request
+    const resBusRejected = await request(app)
+      .post('/api/communities/del/rides')
+      .set('Authorization', `Bearer ${delhiStudentToken}`)
+      .send({
+        date: '2026-11-10',
+        time: '18:30',
+        mode: 'Bus',
+        destination: 'Delhi ISBT',
+        pickupPoint: 'Main Gate',
+        totalFare: 420
+      });
+    assert.equal(resBusRejected.status, 400);
+
+    // 3. Create sample Cab and Train rides
     await CityRide.create([
       {
         id: 'cr_test_del_cab',
@@ -1197,22 +1220,6 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
         ]
       },
       {
-        id: 'cr_test_del_bus',
-        community_id: 'del',
-        community_name: 'Delhi NCR',
-        creator_id: 'u3',
-        creator_name: 'Sneha',
-        destination: 'Delhi ISBT',
-        date: '2026-11-10',
-        time: '18:30',
-        mode: 'Bus',
-        total_fare: 420,
-        max_capacity: 6,
-        current_members_count: 1,
-        transit_details: 'PRTC AC Volvo',
-        members: [{ user_id: 'u3', name: 'Sneha', role: 'Admin' }]
-      },
-      {
         id: 'cr_test_del_train',
         community_id: 'del',
         community_name: 'Delhi NCR',
@@ -1230,40 +1237,40 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
       }
     ]);
 
-    // 1. Fetch all rides for Delhi
+    // 4. Enrolled Delhi member lists all active Delhi rides
     const resAll = await request(app)
       .get('/api/communities/del/rides')
-      .set('Authorization', `Bearer ${token}`);
+      .set('Authorization', `Bearer ${delhiStudentToken}`);
     assert.equal(resAll.status, 200);
-    assert.equal(resAll.body.length, 3);
+    assert.equal(resAll.body.length, 2);
 
-    // 2. Filter by mode: Cab only
+    // 5. Filter by mode: Cab only
     const resCab = await request(app)
       .get('/api/communities/del/rides?mode=Cab')
-      .set('Authorization', `Bearer ${token}`);
+      .set('Authorization', `Bearer ${delhiStudentToken}`);
     assert.equal(resCab.status, 200);
     assert.equal(resCab.body.length, 1);
     assert.equal(resCab.body[0].mode, 'Cab');
     assert.equal(resCab.body[0].totalFare, 2800);
     assert.equal(resCab.body[0].farePerPerson, 1400); // 2800 / 2 members = 1400
 
-    // 3. Filter by mode: Bus only
-    const resBus = await request(app)
-      .get('/api/communities/del/rides?mode=Bus')
-      .set('Authorization', `Bearer ${token}`);
-    assert.equal(resBus.status, 200);
-    assert.equal(resBus.body.length, 1);
-    assert.equal(resBus.body[0].mode, 'Bus');
-    assert.equal(resBus.body[0].transitDetails, 'PRTC AC Volvo');
+    // 6. Filter by mode: Train only
+    const resTrain = await request(app)
+      .get('/api/communities/del/rides?mode=Train')
+      .set('Authorization', `Bearer ${delhiStudentToken}`);
+    assert.equal(resTrain.status, 200);
+    assert.equal(resTrain.body.length, 1);
+    assert.equal(resTrain.body[0].mode, 'Train');
+    assert.equal(resTrain.body[0].transitDetails, 'Kalka Shatabdi Express #12006');
   });
 
   // 31. City Community Rides: Cab fare division and capacity enforcement
   it('31. City Community Rides: Cab fare division and capacity enforcement', async () => {
-    const { token: token1 } = await createTestStudent({ name: 'Rider One' });
-    const { token: token2 } = await createTestStudent({ name: 'Rider Two' });
-    const { token: token3 } = await createTestStudent({ name: 'Rider Three' });
-    const { token: token4 } = await createTestStudent({ name: 'Rider Four' });
-    const { token: token5 } = await createTestStudent({ name: 'Rider Five' });
+    const { token: token1 } = await createTestStudent({ name: 'Rider One', joined_community: 'del' });
+    const { token: token2 } = await createTestStudent({ name: 'Rider Two', joined_community: 'del' });
+    const { token: token3 } = await createTestStudent({ name: 'Rider Three', joined_community: 'del' });
+    const { token: token4 } = await createTestStudent({ name: 'Rider Four', joined_community: 'del' });
+    const { token: token5 } = await createTestStudent({ name: 'Rider Five', joined_community: 'del' });
 
     // 1. Create a Cab ride with total fare ₹2,400 and max 4 seats
     const resCreate = await request(app)
@@ -1330,10 +1337,10 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     assert.match(resDupJoin.body.error, /already a member/i);
   });
 
-  // 32. City Community Rides: Bus and Train cohort travel & member departure
-  it('32. City Community Rides: Bus and Train cohort travel & member departure', async () => {
-    const { token: creatorToken } = await createTestStudent({ name: 'Train Leader' });
-    const { user: joiner, token: joinerToken } = await createTestStudent({ name: 'Train Fellow' });
+  // 32. City Community Rides: Train cohort travel & member departure
+  it('32. City Community Rides: Train cohort travel & member departure', async () => {
+    const { token: creatorToken } = await createTestStudent({ name: 'Train Leader', joined_community: 'del' });
+    const { user: joiner, token: joinerToken } = await createTestStudent({ name: 'Train Fellow', joined_community: 'del' });
 
     // 1. Create a Train cohort ride
     const resCreate = await request(app)
@@ -1377,5 +1384,112 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
 
     const checkRide = await CityRide.findOne({ id: rideId });
     assert.equal(checkRide, null);
+  });
+
+  // 33. My Journeys integration: Joined community ride appears in /api/groups/mine and /api/groups
+  it('33. My Journeys integration: Joined community ride appears in /api/groups/mine', async () => {
+    const { token: token1 } = await createTestStudent({ name: 'Journey Student', joined_community: 'del' });
+    const { token: outsiderToken } = await createTestStudent({ name: 'Outsider Student', joined_community: 'chd' });
+
+    // Create a community ride with student1 as creator
+    const resCreate = await request(app)
+      .post('/api/communities/del/rides')
+      .set('Authorization', `Bearer ${token1}`)
+      .send({
+        date: '2026-11-15',
+        time: '14:00',
+        mode: 'Cab',
+        destination: 'Delhi Airport T3',
+        pickupPoint: 'Main Gate',
+        totalFare: 2000,
+        maxCapacity: 4,
+        transitDetails: 'Highway Sedan Cab'
+      });
+    assert.equal(resCreate.status, 201);
+    const rideId = resCreate.body.ride.id;
+
+    // Fetch /api/groups/mine -> Must include this community ride
+    const resMine = await request(app)
+      .get('/api/groups/mine')
+      .set('Authorization', `Bearer ${token1}`);
+    assert.equal(resMine.status, 200);
+    const found = resMine.body.find((g) => g.id === rideId);
+    assert.ok(found, 'Community ride should be present in /api/groups/mine');
+    assert.equal(found.isCommunityRide, true);
+    assert.equal(found.communityName, 'Delhi NCR');
+    assert.equal(found.destinationName, 'Delhi Airport T3 (Delhi NCR)');
+
+    // Fetch /api/groups/:id as member -> 200 OK
+    const resDetail = await request(app)
+      .get(`/api/groups/${rideId}`)
+      .set('Authorization', `Bearer ${token1}`);
+    assert.equal(resDetail.status, 200);
+    assert.equal(resDetail.body.id, rideId);
+    assert.equal(resDetail.body.isCommunityRide, true);
+
+    // Fetch /api/groups/:id as outsider -> 403 Forbidden
+    const resOutsider = await request(app)
+      .get(`/api/groups/${rideId}`)
+      .set('Authorization', `Bearer ${outsiderToken}`);
+    assert.equal(resOutsider.status, 403);
+  });
+
+  // 34. Profile ride history integration: Completed community ride appears in /api/groups/history/mine
+  it('34. Profile ride history integration: Completed community ride appears in /api/groups/history/mine', async () => {
+    const { user: student1, token: token1 } = await createTestStudent({ name: 'History Rider 1', joined_community: 'del' });
+    const { user: student2, token: token2 } = await createTestStudent({ name: 'History Rider 2', joined_community: 'del' });
+
+    // Create a community ride
+    const resCreate = await request(app)
+      .post('/api/communities/del/rides')
+      .set('Authorization', `Bearer ${token1}`)
+      .send({
+        date: '2026-11-16',
+        time: '15:00',
+        mode: 'Train',
+        destination: 'New Delhi Railway Station (NDLS)',
+        pickupPoint: 'Campus Gate 2',
+        totalFare: 300,
+        maxCapacity: 6,
+        transitDetails: 'Shatabdi Express'
+      });
+    assert.equal(resCreate.status, 201);
+    const rideId = resCreate.body.ride.id;
+
+    // Student 2 joins
+    await request(app)
+      .post(`/api/communities/del/rides/${rideId}/join`)
+      .set('Authorization', `Bearer ${token2}`);
+
+    // Creator completes the community ride
+    const resComplete = await request(app)
+      .post(`/api/communities/del/rides/${rideId}/complete`)
+      .set('Authorization', `Bearer ${token1}`);
+    assert.equal(resComplete.status, 200);
+    assert.equal(resComplete.body.ride.status, 'Completed');
+
+    // Both riders' trips_completed should be incremented
+    const updatedUser1 = await User.findOne({ id: student1.id });
+    const updatedUser2 = await User.findOne({ id: student2.id });
+    assert.equal(updatedUser1.trips_completed, 1);
+    assert.equal(updatedUser2.trips_completed, 1);
+
+    // Call /api/groups/history/mine for student 2 -> Contains completed community ride
+    const resHist = await request(app)
+      .get('/api/groups/history/mine')
+      .set('Authorization', `Bearer ${token2}`);
+    assert.equal(resHist.status, 200);
+    const foundHist = resHist.body.find((g) => g.id === rideId);
+    assert.ok(foundHist, 'Completed community ride should be present in /api/groups/history/mine');
+    assert.equal(foundHist.isCommunityRide, true);
+    assert.equal(foundHist.status, 'Completed');
+
+    // Active groups /mine should NOT contain the completed ride
+    const resActive = await request(app)
+      .get('/api/groups/mine')
+      .set('Authorization', `Bearer ${token2}`);
+    assert.equal(resActive.status, 200);
+    const foundActive = resActive.body.find((g) => g.id === rideId);
+    assert.equal(foundActive, undefined);
   });
 });

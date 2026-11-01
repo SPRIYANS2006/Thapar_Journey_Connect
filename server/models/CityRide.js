@@ -33,17 +33,17 @@ const cityRideSchema = new mongoose.Schema({
   mode: {
     type: String,
     required: true,
-    enum: ['Cab', 'Bus', 'Train'],
+    enum: ['Cab', 'Train'],
     default: 'Cab'
   },
   pickup_point: {
     type: String,
     default: 'Main Gate (Near Executive Mess)'
   },
-  total_fare: { type: Number, default: 0 }, // For Cab: total cab fare to split; for Bus/Train: individual ticket fare
-  max_capacity: { type: Number, default: 4 }, // For Cab: 4; for Bus/Train: 6-10
+  total_fare: { type: Number, default: 0 }, // For Cab: total cab fare to split; for Train: individual ticket fare
+  max_capacity: { type: Number, default: 4 }, // For Cab: 4; for Train: 6-10
   current_members_count: { type: Number, default: 1 },
-  transit_details: { type: String, default: '', trim: true }, // e.g. "Shatabdi Express #12005", "PRTC AC Volvo"
+  transit_details: { type: String, default: '', trim: true }, // e.g. "Shatabdi Express #12005"
   notes: { type: String, default: '', trim: true, maxlength: 500 },
   status: {
     type: String,

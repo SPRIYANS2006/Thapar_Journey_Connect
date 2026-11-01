@@ -382,6 +382,17 @@ export async function leaveGroup(user, groupId) {
   };
 }
 
+let lastCleanupTime = 0;
+
+// Non-blocking throttled scheduler for API routes (runs at most once every 30s in background)
+export function scheduleBackgroundCleanup() {
+  const now = Date.now();
+  if (now - lastCleanupTime > 30 * 1000) {
+    lastCleanupTime = now;
+    cleanupExpiredGroups().catch(() => {});
+  }
+}
+
 // Automatically cleans up expired groups:
 // 1. Confirmed groups whose departure time has passed -> transition to 'Completed' (kept as ride history).
 // 2. Unconfirmed Open groups whose departure time has passed -> removed from campus.

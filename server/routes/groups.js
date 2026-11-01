@@ -8,7 +8,8 @@ import {
   joinGroupWithJourney,
   leaveGroup,
   completeGroup,
-  cleanupExpiredGroups
+  cleanupExpiredGroups,
+  scheduleBackgroundCleanup
 } from '../services/groups.js';
 import {
   serializeGroup,
@@ -28,7 +29,7 @@ router.use(requireAuth);
 // 1. Group list endpoints return ONLY caller's active groups (GET /api/groups/mine & GET /api/groups)
 router.get('/', async (req, res, next) => {
   try {
-    await cleanupExpiredGroups();
+    scheduleBackgroundCleanup();
     const list = await Group.find({
       $or: [
         { 'members.user_id': req.user.id },
@@ -47,7 +48,7 @@ router.get('/', async (req, res, next) => {
 
 router.get('/mine', async (req, res, next) => {
   try {
-    await cleanupExpiredGroups();
+    scheduleBackgroundCleanup();
     const list = await Group.find({
       $or: [
         { 'members.user_id': req.user.id },

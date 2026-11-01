@@ -6,7 +6,7 @@ import { HttpError } from '../middleware/errors.js';
 import { validateTravelDateTime } from '../utils/time.js';
 import { calculateMatchScore, scoreOpenGroupForJourney } from '../services/matching.js';
 import { serializeJourney, serializeGroup } from '../services/serializers.js';
-import { cleanupExpiredGroups } from '../services/groups.js';
+import { scheduleBackgroundCleanup } from '../services/groups.js';
 
 const router = express.Router();
 
@@ -16,7 +16,7 @@ router.use(requireAuth);
 // 1. Create or update Journey request & compute algorithmic matches
 router.post('/', async (req, res, next) => {
   try {
-    await cleanupExpiredGroups();
+    scheduleBackgroundCleanup();
     const {
       destinationId,
       destinationName,

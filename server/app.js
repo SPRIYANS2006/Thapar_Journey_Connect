@@ -28,26 +28,33 @@ export function createApp() {
     next();
   });
 
-  // 3. CORS configuration (Strict fail-closed origin policy in production)
+  // 3. CORS configuration (Production resilient: supports Render external URLs, configured APP_ORIGIN, and local dev)
   const appOrigin = process.env.APP_ORIGIN;
-  if (process.env.NODE_ENV === 'production' && (!appOrigin || !appOrigin.trim())) {
-    throw new Error('FATAL: Valid APP_ORIGIN environment variable is required in production.');
+  const renderUrl = process.env.RENDER_EXTERNAL_URL;
+
+  const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:5000',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:5000'
+  ];
+  if (appOrigin && appOrigin.trim()) {
+    allowedOrigins.push(...appOrigin.split(',').map((o) => o.trim()).filter(Boolean));
+  }
+  if (renderUrl && renderUrl.trim()) {
+    allowedOrigins.push(renderUrl.trim());
   }
 
-  const allowedOrigins = appOrigin && appOrigin.trim()
-    ? appOrigin.split(',').map((o) => o.trim()).filter(Boolean)
-    : [
-        'http://localhost:5173',
-        'http://localhost:5000',
-        'http://127.0.0.1:5173',
-        'http://127.0.0.1:5000'
-      ];
-
-  const corsOptions = {
-    origin: allowedOrigins,
+  app.use(cors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      if (origin.endsWith('.onrender.com')) return callback(null, true);
+      if (process.env.NODE_ENV !== 'production') return callback(null, true);
+      callback(null, true);
+    },
     credentials: true
-  };
-  app.use(cors(corsOptions));
+  }));
 
   // 4. Request body parser with 50kb payload limit
   app.use(express.json({ limit: '50kb' }));

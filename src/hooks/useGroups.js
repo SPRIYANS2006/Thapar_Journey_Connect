@@ -126,58 +126,76 @@ export function useGroups() {
 
   const createGroup = async ({ journeyId, pickupPoint }) => {
     const res = await api.createGroup({ journeyId, pickupPoint });
-    await fetchGroups();
     if (res?.group) {
+      setGroups((prev) => [res.group, ...prev.filter((g) => g.id !== res.group.id)]);
       setSelectedGroupId(res.group.id);
       setSelectedGroupDetails(res.group);
     }
+    fetchGroups().catch(() => {});
     return res;
   };
 
   const joinGroup = async (groupId, { journeyId } = {}) => {
     const res = await api.joinGroup(groupId, { journeyId });
-    await fetchGroups();
-    setSelectedGroupId(groupId);
+    if (res?.group) {
+      setGroups((prev) => prev.map((g) => (g.id === groupId ? res.group : g)));
+      setSelectedGroupId(groupId);
+      setSelectedGroupDetails(res.group);
+    }
+    fetchGroups().catch(() => {});
     return res;
   };
 
   const leaveGroup = async (groupId) => {
     const res = await api.leaveGroup(groupId);
-    await fetchGroups();
+    setGroups((prev) => prev.filter((g) => g.id !== groupId));
     if (selectedGroupId === groupId) {
       setSelectedGroupId(null);
       setSelectedGroupDetails(null);
     }
+    fetchGroups().catch(() => {});
     return res;
   };
 
   const confirmGroup = async (groupId) => {
     const res = await api.confirmGroup(groupId);
-    await fetchGroups();
-    if (selectedGroupId === groupId) {
-      await fetchGroupById(groupId);
+    if (res?.group) {
+      setGroups((prev) => prev.map((g) => (g.id === groupId ? res.group : g)));
+      if (selectedGroupId === groupId) {
+        setSelectedGroupDetails(res.group);
+      }
     }
+    fetchGroups().catch(() => {});
     return res;
   };
 
   const completeGroup = async (groupId) => {
     const res = await api.completeGroup(groupId);
-    await fetchGroups();
+    if (res?.group) {
+      setGroups((prev) => prev.map((g) => (g.id === groupId ? res.group : g)));
+      if (selectedGroupId === groupId) {
+        setSelectedGroupDetails(res.group);
+      }
+    }
+    fetchGroups().catch(() => {});
     return res;
   };
 
   const changePickupPoint = async (groupId, pickupPoint) => {
     const res = await api.changePickupPoint(groupId, pickupPoint);
-    await fetchGroups();
-    if (selectedGroupId === groupId) {
-      await fetchGroupById(groupId);
+    if (res?.group) {
+      setGroups((prev) => prev.map((g) => (g.id === groupId ? res.group : g)));
+      if (selectedGroupId === groupId) {
+        setSelectedGroupDetails(res.group);
+      }
     }
+    fetchGroups().catch(() => {});
     return res;
   };
 
   const rateGroup = async (groupId, targetUserId, rating) => {
     const res = await api.rateGroup(groupId, targetUserId, rating);
-    await fetchGroups();
+    fetchGroups().catch(() => {});
     return res;
   };
 

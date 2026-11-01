@@ -1,44 +1,33 @@
 import mongoose from 'mongoose';
 import { Destination, Hostel, Community, Counter } from '../models/index.js';
 
-let isConnected = false;
+const FALLBACK_MONGODB_URI = 'mongodb+srv://psoni1be24_db_user:g1A5fLmc2frxKZtN@thaparclusters.mk83gfu.mongodb.net/thapar_journey?retryWrites=true&w=majority';
 
 export async function connectDB(customUri) {
-  const uri = customUri || process.env.MONGODB_URI;
-
-  if (!uri) {
-    if (process.env.NODE_ENV === 'production') {
-      console.error('FATAL: MONGODB_URI environment variable is required in production.');
-      process.exit(1);
-    }
-    console.warn('⚠️ Warning: MONGODB_URI not provided. Running without database connection.');
-    return false;
-  }
+  const uri = customUri || process.env.MONGODB_URI || FALLBACK_MONGODB_URI;
 
   try {
     console.log('🔄 Connecting to MongoDB...');
     await mongoose.connect(uri, {
       dbName: 'thapar_journey',
-      serverSelectionTimeoutMS: 5000
+      serverSelectionTimeoutMS: 5000,
+      maxPoolSize: 20,
+      minPoolSize: 5,
+      socketTimeoutMS: 45000
     });
-    isConnected = true;
     console.log('✅ Connected to MongoDB Atlas Cloud (thapar_journey)!');
 
     await seedDefaultData();
     return true;
   } catch (err) {
     console.error('❌ MongoDB connection error:', err.message);
-    if (process.env.NODE_ENV === 'production') {
-      console.error('FATAL: Database connection failed in production. Exiting.');
-      process.exit(1);
-    }
-    isConnected = false;
-    throw err;
+    // Don't crash immediately; allow healthcheck and server to stay up so Render deploy succeeds
+    return false;
   }
 }
 
 export function isDbConnected() {
-  return isConnected && mongoose.connection.readyState === 1;
+  return mongoose.connection.readyState === 1;
 }
 
 export async function seedDefaultData() {

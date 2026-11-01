@@ -798,28 +798,11 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     assert.equal(Boolean(g1Check) !== Boolean(g2Check), true);
   });
 
-  // 20. Production boot guard: invalid/missing SESSION_SECRET throws fatal error in production
-  it('20. Production boot guard: SESSION_SECRET is strictly validated in production', async () => {
-    const originalEnv = process.env.NODE_ENV;
-    const originalSecret = process.env.SESSION_SECRET;
-
-    try {
-      process.env.NODE_ENV = 'production';
-      process.env.SESSION_SECRET = 'short-secret';
-
-      // Re-importing or evaluating with invalid secret must throw in production
-      assert.throws(() => {
-        const rawSecret = process.env.SESSION_SECRET;
-        if (!rawSecret || rawSecret.trim().length < 32) {
-          if (process.env.NODE_ENV === 'production') {
-            throw new Error('FATAL: Valid SESSION_SECRET environment variable (at least 32 characters) is required in production.');
-          }
-        }
-      }, /FATAL: Valid SESSION_SECRET environment variable/);
-    } finally {
-      process.env.NODE_ENV = originalEnv;
-      process.env.SESSION_SECRET = originalSecret;
-    }
+  // 20. Production boot guard: SESSION_SECRET is guaranteed >= 32 characters in all environments
+  it('20. Production boot guard: SESSION_SECRET is strictly guaranteed to have >= 32 chars', async () => {
+    const { JWT_SECRET } = await import('../server/middleware/auth.js');
+    assert.ok(JWT_SECRET);
+    assert.ok(JWT_SECRET.length >= 32);
   });
 
   // 21. Journey matching: Server validates vehicle compatibility and time flexibility on join
@@ -968,24 +951,13 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     assert.equal(auditRecord.members[0].name, admin.name);
   });
 
-  // 25. Production CORS guard: APP_ORIGIN is mandatory in production
-  it('25. Production CORS guard: Missing APP_ORIGIN throws in production', async () => {
-    const originalEnv = process.env.NODE_ENV;
-    const originalOrigin = process.env.APP_ORIGIN;
+  // 25. Production CORS guard: Render URLs and configured origins are supported
+  it('25. Production CORS guard: Render URLs and configured origins are supported', async () => {
+    const res = await request(app)
+      .get('/api/health')
+      .set('Origin', 'https://thapar-journey-connect.onrender.com');
 
-    try {
-      process.env.NODE_ENV = 'production';
-      process.env.APP_ORIGIN = '';
-
-      assert.throws(() => {
-        const appOrigin = process.env.APP_ORIGIN;
-        if (process.env.NODE_ENV === 'production' && (!appOrigin || !appOrigin.trim())) {
-          throw new Error('FATAL: Valid APP_ORIGIN environment variable is required in production.');
-        }
-      }, /FATAL: Valid APP_ORIGIN environment variable is required in production/);
-    } finally {
-      process.env.NODE_ENV = originalEnv;
-      process.env.APP_ORIGIN = originalOrigin;
-    }
+    assert.equal(res.status, 200);
+    assert.equal(res.headers['access-control-allow-origin'], 'https://thapar-journey-connect.onrender.com');
   });
 });

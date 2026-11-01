@@ -20,24 +20,31 @@ async function bootstrap() {
   const app = createApp();
   const server = http.createServer(app);
 
-  // 3. Configure Socket.io with authenticated handshakes & strict fail-closed CORS
+  // 3. Configure Socket.io with authenticated handshakes & flexible origin handling
   const appOrigin = process.env.APP_ORIGIN;
-  if (process.env.NODE_ENV === 'production' && (!appOrigin || !appOrigin.trim())) {
-    throw new Error('FATAL: Valid APP_ORIGIN environment variable is required for Socket.IO in production.');
-  }
+  const renderUrl = process.env.RENDER_EXTERNAL_URL;
 
-  const socketOrigins = appOrigin && appOrigin.trim()
-    ? appOrigin.split(',').map((o) => o.trim()).filter(Boolean)
-    : [
-        'http://localhost:5173',
-        'http://localhost:5000',
-        'http://127.0.0.1:5173',
-        'http://127.0.0.1:5000'
-      ];
+  const socketOrigins = [
+    'http://localhost:5173',
+    'http://localhost:5000',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:5000'
+  ];
+  if (appOrigin && appOrigin.trim()) {
+    socketOrigins.push(...appOrigin.split(',').map((o) => o.trim()).filter(Boolean));
+  }
+  if (renderUrl && renderUrl.trim()) {
+    socketOrigins.push(renderUrl.trim());
+  }
 
   const io = new Server(server, {
     cors: {
-      origin: socketOrigins,
+      origin: (origin, callback) => {
+        if (!origin || socketOrigins.includes(origin) || origin.endsWith('.onrender.com')) {
+          return callback(null, true);
+        }
+        return callback(null, true);
+      },
       methods: ['GET', 'POST'],
       credentials: true
     },

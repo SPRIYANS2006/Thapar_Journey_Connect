@@ -143,6 +143,8 @@ router.post('/:id/confirm', async (req, res, next) => {
     }
 
     group.status = 'Confirmed';
+    group.confirmed_at = new Date();
+    group.confirmed_by = req.user.id;
     await group.save();
 
     notifyGroupMembersUpdated(group);

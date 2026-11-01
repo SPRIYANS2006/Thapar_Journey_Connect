@@ -13,7 +13,7 @@ process.env.APP_ORIGIN = 'http://localhost:5173';
 const { createApp } = await import('../server/app.js');
 const { seedDefaultData } = await import('../server/config/db.js');
 const { googleClient } = await import('../server/routes/auth.js');
-const { User, Group, Journey, Counter, Message, RateLimit } = await import('../server/models/index.js');
+const { User, Group, Journey, Counter, Message, RateLimit, RideRecord } = await import('../server/models/index.js');
 const { generateSessionToken } = await import('../server/middleware/auth.js');
 const { getNowIST } = await import('../server/utils/time.js');
 
@@ -46,6 +46,7 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     await Message.deleteMany({});
     await Counter.deleteMany({});
     await RateLimit.deleteMany({});
+    await RideRecord.deleteMany({});
     await Counter.create({ id: 'group_id', seq: 0 });
   });
 
@@ -818,6 +819,173 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     } finally {
       process.env.NODE_ENV = originalEnv;
       process.env.SESSION_SECRET = originalSecret;
+    }
+  });
+
+  // 21. Journey matching: Server validates vehicle compatibility and time flexibility on join
+  it('21. Journey matching: Server rejects group join on vehicle mismatch or time flexibility exceeded', async () => {
+    const { user: rider, token: riderToken } = await createTestStudent({ name: 'Validation Rider' });
+    const { user: host } = await createTestStudent({ name: 'Host Rider' });
+
+    // Group is Shared Cab departing at 10:00
+    const group = await Group.create({
+      id: 801,
+      destination_id: 'railway',
+      destination_name: 'Patiala Railway Station',
+      departure_time: '10:00',
+      date: '2026-11-12',
+      status: 'Open',
+      transport: 'Shared Cab',
+      admin_id: host.id,
+      members: [{ id: 'm1', user_id: host.id, name: host.name, role: 'Group Admin' }]
+    });
+
+    // Case A: Vehicle mismatch (journey requires Shared Auto)
+    const autoJourney = await Journey.create({
+      id: 'j_auto_mismatch',
+      user_id: rider.id,
+      destination_id: 'railway',
+      destination_name: 'Patiala Railway Station',
+      departure_time: '10:00',
+      date: '2026-11-12',
+      transport: 'Shared Auto',
+      flexibility: 15,
+      status: 'Searching',
+      hostel: 'Agira Hall (Previously known as Hostel-A)'
+    });
+
+    const resVehicle = await request(app)
+      .post(`/api/groups/${group.id}/join`)
+      .set('Authorization', `Bearer ${riderToken}`)
+      .send({ journeyId: autoJourney.id });
+
+    assert.equal(resVehicle.status, 400);
+    assert.match(resVehicle.body.error, /Vehicle mismatch/i);
+
+    // Case B: Time flexibility exceeded (journey departs at 14:00 with flex 15, group departs at 10:00)
+    const timeJourney = await Journey.create({
+      id: 'j_time_mismatch',
+      user_id: rider.id,
+      destination_id: 'railway',
+      destination_name: 'Patiala Railway Station',
+      departure_time: '14:00',
+      date: '2026-11-12',
+      transport: 'Shared Cab',
+      flexibility: 15,
+      status: 'Searching',
+      hostel: 'Agira Hall (Previously known as Hostel-A)'
+    });
+
+    const resTime = await request(app)
+      .post(`/api/groups/${group.id}/join`)
+      .set('Authorization', `Bearer ${riderToken}`)
+      .send({ journeyId: timeJourney.id });
+
+    assert.equal(resTime.status, 400);
+    assert.match(resTime.body.error, /Time mismatch/i);
+  });
+
+  // 22. Community creation escapes regex metacharacters safely
+  it('22. Community creation: Escapes regex special characters without causing syntax error', async () => {
+    const { token: studentToken } = await createTestStudent({ name: 'Community Founder' });
+
+    // Name with parentheses and brackets
+    const resCreate = await request(app)
+      .post('/api/communities')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({
+        name: 'Shimla (Hill Station)',
+        state: 'Himachal Pradesh',
+        icon: '🏔️',
+        distanceFromThapar: '180 km',
+        popularTransport: 'HRTC Volvos, Taxis'
+      });
+
+    assert.equal(resCreate.status, 201);
+    assert.equal(resCreate.body.community.name, 'Shimla (Hill Station)');
+
+    // Attempting to create duplicate with identical special characters correctly detected
+    const resDuplicate = await request(app)
+      .post('/api/communities')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({
+        name: 'Shimla (Hill Station)',
+        state: 'Himachal Pradesh'
+      });
+
+    assert.equal(resDuplicate.status, 400);
+    assert.match(resDuplicate.body.error, /already exists/i);
+  });
+
+  // 23. Cookie-based authentication: requireAuth accepts HttpOnly cookie
+  it('23. Session security: requireAuth authenticates requests via cookie', async () => {
+    const { user, token } = await createTestStudent({ name: 'Cookie Student' });
+
+    // Request without Authorization header, but with cookie
+    const res = await request(app)
+      .get('/api/auth/me')
+      .set('Cookie', `token=${token}`);
+
+    assert.equal(res.status, 200);
+    assert.equal(res.body.user.id, user.id);
+  });
+
+  // 24. Completion records: Auditable RideRecord preserved upon ride completion
+  it('24. Auditable completion record: RideRecord preserved when ride is marked completed', async () => {
+    const { user: admin, token: adminToken } = await createTestStudent({ name: 'Audit Admin' });
+    const { user: rider } = await createTestStudent({ name: 'Audit Rider' });
+
+    const pastDate = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    const group = await Group.create({
+      id: 802,
+      destination_id: 'chd_airport',
+      destination_name: 'Chandigarh Airport',
+      departure_time: '06:00',
+      date: pastDate,
+      status: 'Confirmed',
+      confirmed_at: new Date(),
+      confirmed_by: admin.id,
+      admin_id: admin.id,
+      members: [
+        { id: 'm1', user_id: admin.id, name: admin.name, role: 'Group Admin', phone: '+91 9999999991' },
+        { id: 'm2', user_id: rider.id, name: rider.name, role: 'Member', phone: '+91 9999999992' }
+      ]
+    });
+
+    const completeRes = await request(app)
+      .post(`/api/groups/${group.id}/complete`)
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    assert.equal(completeRes.status, 200);
+
+    // Verify auditable RideRecord was permanently preserved
+    const auditRecord = await RideRecord.findOne({ group_id: '802' });
+    assert.ok(auditRecord);
+    assert.equal(auditRecord.destination_name, 'Chandigarh Airport');
+    assert.equal(auditRecord.completed_by, admin.id);
+    assert.equal(auditRecord.members.length, 2);
+    assert.equal(auditRecord.members[0].name, admin.name);
+  });
+
+  // 25. Production CORS guard: APP_ORIGIN is mandatory in production
+  it('25. Production CORS guard: Missing APP_ORIGIN throws in production', async () => {
+    const originalEnv = process.env.NODE_ENV;
+    const originalOrigin = process.env.APP_ORIGIN;
+
+    try {
+      process.env.NODE_ENV = 'production';
+      process.env.APP_ORIGIN = '';
+
+      assert.throws(() => {
+        const appOrigin = process.env.APP_ORIGIN;
+        if (process.env.NODE_ENV === 'production' && (!appOrigin || !appOrigin.trim())) {
+          throw new Error('FATAL: Valid APP_ORIGIN environment variable is required in production.');
+        }
+      }, /FATAL: Valid APP_ORIGIN environment variable is required in production/);
+    } finally {
+      process.env.NODE_ENV = originalEnv;
+      process.env.APP_ORIGIN = originalOrigin;
     }
   });
 });

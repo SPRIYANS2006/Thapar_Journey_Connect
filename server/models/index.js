@@ -7,3 +7,4 @@ export { Destination } from './Destination.js';
 export { Hostel } from './Hostel.js';
 export { Counter, getNextGroupId } from './Counter.js';
 export { RateLimit } from './RateLimit.js';
+export { RideRecord } from './RideRecord.js';

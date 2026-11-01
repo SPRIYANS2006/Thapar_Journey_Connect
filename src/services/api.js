@@ -73,6 +73,7 @@ async function request(endpoint, options = {}) {
   };
 
   const res = await fetch(`${API_BASE}${endpoint}`, {
+    credentials: 'include',
     ...options,
     headers
   });
@@ -127,6 +128,11 @@ export const api = {
     }),
 
   getMe: () => request('/auth/me'),
+
+  logout: () =>
+    request('/auth/logout', {
+      method: 'POST'
+    }),
 
   updateProfile: (profileData) =>
     request('/auth/profile', {

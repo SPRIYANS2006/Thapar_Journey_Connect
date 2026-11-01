@@ -115,7 +115,12 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await api.logout();
+    } catch {
+      // ignore
+    }
     clearToken();
     setTokenState(null);
     setUser(null);

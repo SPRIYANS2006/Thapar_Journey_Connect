@@ -57,8 +57,9 @@ router.post('/', async (req, res, next) => {
       .replace(/^-|-$/g, '')
       .slice(0, 30) || `comm_${Date.now() % 10000}`;
 
+    const escapedName = cleanName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const existing = await Community.findOne({
-      $or: [{ id: idSlug }, { name: new RegExp(`^${cleanName}$`, 'i') }]
+      $or: [{ id: idSlug }, { name: new RegExp(`^${escapedName}$`, 'i') }]
     });
 
     if (existing) {

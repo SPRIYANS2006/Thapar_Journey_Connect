@@ -61,6 +61,8 @@ export function serializeGroup(group, viewingUserId = null) {
     matchScore: group.match_score ?? 95,
     adminId: group.admin_id,
     members,
+    confirmedAt: group.confirmed_at ? new Date(group.confirmed_at).toISOString() : null,
+    completedAt: group.completed_at ? new Date(group.completed_at).toISOString() : null,
     createdAt: group.created_at ? new Date(group.created_at).toISOString() : new Date().toISOString()
   };
 }

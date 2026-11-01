@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
-import { Group, Journey, User, Message, getNextGroupId } from '../models/index.js';
+import { Group, Journey, User, Message, getNextGroupId, RideRecord } from '../models/index.js';
 import { HttpError } from '../middleware/errors.js';
-import { getHoursUntilDeparture, normalizeDateStr, validateTravelDateTime } from '../utils/time.js';
+import { getHoursUntilDeparture, normalizeDateStr, validateTravelDateTime, getCircularMinuteDiff } from '../utils/time.js';
 import { notifyGroup, notifyGroupMembersUpdated } from './notifications.js';
 
 export async function createGroupFromJourney(creatorUser, journeyId, pickupPoint) {
@@ -153,12 +153,37 @@ export async function joinGroupWithJourney(user, groupId, journeyId) {
     throw new HttpError(409, 'Group is already at full capacity.');
   }
 
-  // 6. Destination and date compatibility
+  // 6. Destination, date, vehicle compatibility, and time flexibility checks
   if (group.destination_id !== journey.destination_id) {
     throw new HttpError(400, 'Journey destination does not match group destination.');
   }
   if (normalizeDateStr(group.date) !== normalizeDateStr(journey.date)) {
     throw new HttpError(400, 'Journey date does not match group departure date.');
+  }
+
+  // Vehicle compatibility
+  const reqTransport = journey.transport || 'Either';
+  const grpTransport = group.transport || 'Shared Cab';
+  const isVehicleCompatible =
+    reqTransport === 'Either' ||
+    grpTransport === 'Either' ||
+    reqTransport === grpTransport;
+
+  if (!isVehicleCompatible) {
+    throw new HttpError(
+      400,
+      `Vehicle mismatch: Your journey requires ${reqTransport}, but Group #${group.id} uses ${grpTransport}.`
+    );
+  }
+
+  // Departure time flexibility check
+  const circularDiff = getCircularMinuteDiff(journey.departure_time, group.departure_time);
+  const allowedFlex = Number(journey.flexibility) || 15;
+  if (circularDiff > allowedFlex) {
+    throw new HttpError(
+      400,
+      `Time mismatch: Group departs at ${group.departure_time}, outside your allowed ±${allowedFlex}m window (${journey.departure_time}).`
+    );
   }
 
   // 7. Atomic reservation on the User document to eliminate concurrent join race conditions
@@ -373,11 +398,40 @@ export async function cleanupExpiredGroups() {
           // Atomically mark Confirmed group as Completed for history
           const updated = await Group.findOneAndUpdate(
             { id: group.id, status: 'Confirmed' },
-            { $set: { status: 'Completed' } },
+            {
+              $set: {
+                status: 'Completed',
+                completed_at: new Date(),
+                completed_by: 'system_scheduler'
+              }
+            },
             { returnDocument: 'after' }
           );
 
           if (updated) {
+            // Immutable auditable ride completion record
+            await RideRecord.create({
+              group_id: updated.id,
+              destination_id: updated.destination_id,
+              destination_name: updated.destination_name,
+              departure_time: updated.departure_time,
+              date: updated.date,
+              transport: updated.transport,
+              pickup_point: updated.pickup_point,
+              admin_id: updated.admin_id,
+              confirmed_at: updated.confirmed_at || new Date(),
+              completed_at: updated.completed_at || new Date(),
+              completed_by: 'system_scheduler',
+              members: (updated.members || []).map((m) => ({
+                user_id: m.user_id || m.userId || m.id,
+                name: m.name,
+                hostel: m.hostel || '',
+                phone: m.phone || '',
+                role: m.role || 'Member',
+                joined_at: m.joined_at
+              }))
+            }).catch((err) => console.warn('RideRecord create error:', err.message));
+
             const memberUserIds = (updated.members || [])
               .map((m) => m.user_id || m.userId || m.id)
               .filter(Boolean);
@@ -450,13 +504,42 @@ export async function completeGroup(adminUser, groupId) {
   // Atomic transition from 'Confirmed' to 'Completed' to prevent race condition or duplicate increments
   const updatedGroup = await Group.findOneAndUpdate(
     { id: groupId, admin_id: adminUser.id, status: 'Confirmed' },
-    { $set: { status: 'Completed' } },
+    {
+      $set: {
+        status: 'Completed',
+        completed_at: new Date(),
+        completed_by: adminUser.id
+      }
+    },
     { returnDocument: 'after' }
   );
 
   if (!updatedGroup) {
     throw new HttpError(409, 'Group was already completed or modified by another request.');
   }
+
+  // Immutable auditable ride completion record
+  await RideRecord.create({
+    group_id: updatedGroup.id,
+    destination_id: updatedGroup.destination_id,
+    destination_name: updatedGroup.destination_name,
+    departure_time: updatedGroup.departure_time,
+    date: updatedGroup.date,
+    transport: updatedGroup.transport,
+    pickup_point: updatedGroup.pickup_point,
+    admin_id: updatedGroup.admin_id,
+    confirmed_at: updatedGroup.confirmed_at || new Date(),
+    completed_at: updatedGroup.completed_at || new Date(),
+    completed_by: adminUser.id,
+    members: (updatedGroup.members || []).map((m) => ({
+      user_id: m.user_id || m.userId || m.id,
+      name: m.name,
+      hostel: m.hostel || '',
+      phone: m.phone || '',
+      role: m.role || 'Member',
+      joined_at: m.joined_at
+    }))
+  }).catch((err) => console.warn('RideRecord create error:', err.message));
 
   // Increment trips_completed for all members ONLY once on successful atomic transition
   const memberUserIds = (updatedGroup.members || [])

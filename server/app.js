@@ -28,14 +28,25 @@ export function createApp() {
     next();
   });
 
-  // 3. CORS configuration
+  // 3. CORS configuration (Strict fail-closed origin policy in production)
   const appOrigin = process.env.APP_ORIGIN;
-  const corsOptions = appOrigin
-    ? {
-        origin: appOrigin.split(',').map((o) => o.trim()),
-        credentials: true
-      }
-    : { origin: true, credentials: true };
+  if (process.env.NODE_ENV === 'production' && (!appOrigin || !appOrigin.trim())) {
+    throw new Error('FATAL: Valid APP_ORIGIN environment variable is required in production.');
+  }
+
+  const allowedOrigins = appOrigin && appOrigin.trim()
+    ? appOrigin.split(',').map((o) => o.trim()).filter(Boolean)
+    : [
+        'http://localhost:5173',
+        'http://localhost:5000',
+        'http://127.0.0.1:5173',
+        'http://127.0.0.1:5000'
+      ];
+
+  const corsOptions = {
+    origin: allowedOrigins,
+    credentials: true
+  };
   app.use(cors(corsOptions));
 
   // 4. Request body parser with 50kb payload limit

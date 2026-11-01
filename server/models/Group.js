@@ -49,6 +49,10 @@ const groupSchema = new mongoose.Schema({
       rated_at: { type: Date, default: Date.now }
     }
   ],
+  confirmed_at: { type: Date },
+  confirmed_by: { type: String },
+  completed_at: { type: Date },
+  completed_by: { type: String },
   created_at: { type: Date, default: Date.now }
 });
 

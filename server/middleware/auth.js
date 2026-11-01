@@ -25,16 +25,31 @@ export function generateSessionToken(user) {
   );
 }
 
+export function parseCookieToken(req) {
+  const cookieHeader = req?.headers?.cookie;
+  if (!cookieHeader) return null;
+  for (const item of cookieHeader.split(';')) {
+    const [name, ...rest] = item.trim().split('=');
+    if (name === 'token') {
+      return decodeURIComponent(rest.join('=')).trim();
+    }
+  }
+  return null;
+}
+
 export async function requireAuth(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new HttpError(401, 'Unauthorized: Access token required.');
+    let token = null;
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1]?.trim();
+    } else {
+      token = parseCookieToken(req);
     }
 
-    const token = authHeader.split(' ')[1]?.trim();
     if (!token) {
-      throw new HttpError(401, 'Unauthorized: Access token missing.');
+      throw new HttpError(401, 'Unauthorized: Access token required.');
     }
 
     let decoded;

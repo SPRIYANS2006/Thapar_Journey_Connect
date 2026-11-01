@@ -10,6 +10,36 @@ import { serializeUser } from '../services/serializers.js';
 const router = express.Router();
 export const googleClient = new OAuth2Client();
 
+function setSessionCookie(res, token) {
+  const isProd = process.env.NODE_ENV === 'production';
+  const cookieFlags = [
+    `token=${token}`,
+    'Path=/',
+    'HttpOnly',
+    'SameSite=Lax',
+    `Max-Age=${30 * 24 * 60 * 60}`
+  ];
+  if (isProd) {
+    cookieFlags.push('Secure');
+  }
+  res.setHeader('Set-Cookie', cookieFlags.join('; '));
+}
+
+function clearSessionCookie(res) {
+  const isProd = process.env.NODE_ENV === 'production';
+  const cookieFlags = [
+    'token=',
+    'Path=/',
+    'HttpOnly',
+    'SameSite=Lax',
+    'Max-Age=0'
+  ];
+  if (isProd) {
+    cookieFlags.push('Secure');
+  }
+  res.setHeader('Set-Cookie', cookieFlags.join('; '));
+}
+
 // 1. Official Google Sign-In verification with real ID token verification
 router.post('/google', authRateLimiter, async (req, res, next) => {
   try {
@@ -82,6 +112,7 @@ router.post('/google', authRateLimiter, async (req, res, next) => {
     }
 
     const token = generateSessionToken(user);
+    setSessionCookie(res, token);
     res.json({
       success: true,
       token,
@@ -119,6 +150,7 @@ router.post('/login', authRateLimiter, async (req, res, next) => {
     }
 
     const token = generateSessionToken(user);
+    setSessionCookie(res, token);
     res.json({
       success: true,
       token,
@@ -196,6 +228,12 @@ router.put('/profile', requireAuth, async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+// 6. Logout - Clear HttpOnly Session Cookie
+router.post('/logout', (req, res) => {
+  clearSessionCookie(res);
+  res.json({ success: true, message: 'Logged out successfully.' });
 });
 
 export default router;

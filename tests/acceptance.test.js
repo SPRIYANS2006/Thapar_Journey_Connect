@@ -1569,4 +1569,37 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     assert.equal(resJoinBAfterLeave.status, 200);
     assert.equal(resJoinBAfterLeave.body.ride.currentMembersCount, 2);
   });
+
+  // 36. Campus password authentication: Allows signing in anytime with test accounts without Google OAuth
+  it('36. Campus password authentication: Allows signing in anytime with test accounts without Google OAuth', async () => {
+    // Re-seed static test users since beforeEach cleans dynamic collections
+    const { seedDefaultData } = await import('../server/config/db.js');
+    await seedDefaultData();
+
+    // 1. Sign in with student1@thapar.edu and password 'Thapar@123'
+    const resLogin1 = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'student1@thapar.edu', password: 'Thapar@123' });
+    assert.equal(resLogin1.status, 200);
+    assert.equal(resLogin1.body.success, true);
+    assert.equal(resLogin1.body.user.email, 'student1@thapar.edu');
+    assert.equal(resLogin1.body.user.name, 'Aarav Sharma');
+    assert.ok(resLogin1.body.token, 'Should return a valid JWT token');
+
+    // 2. Sign in with student2@thapar.edu and password 'Thapar@123'
+    const resLogin2 = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'student2@thapar.edu', password: 'Thapar@123' });
+    assert.equal(resLogin2.status, 200);
+    assert.equal(resLogin2.body.success, true);
+    assert.equal(resLogin2.body.user.email, 'student2@thapar.edu');
+    assert.equal(resLogin2.body.user.name, 'Diya Verma');
+
+    // 3. Attempt login with wrong password -> HTTP 401
+    const resWrongPass = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'student1@thapar.edu', password: 'WrongPassword999' });
+    assert.equal(resWrongPass.status, 401);
+    assert.match(resWrongPass.body.error, /invalid email or password/i);
+  });
 });

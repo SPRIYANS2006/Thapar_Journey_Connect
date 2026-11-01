@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
-import { Destination, Hostel, Community, Counter, CommunityGroup, CityRide } from '../models/index.js';
+import bcrypt from 'bcryptjs';
+import { Destination, Hostel, Community, Counter, CommunityGroup, CityRide, User } from '../models/index.js';
 
 const FALLBACK_MONGODB_URI = 'mongodb+srv://psoni1be24_db_user:g1A5fLmc2frxKZtN@thaparclusters.mk83gfu.mongodb.net/thapar_journey?retryWrites=true&w=majority';
 
@@ -236,7 +237,80 @@ export async function seedDefaultData() {
       ]
     });
 
-    console.log('🌱 Seeded default data (Destinations, Hostels, Communities, Counters)');
+    // 6. Seed test student accounts for instant password sign-in (testing without Google)
+    const testPasswordHash = await bcrypt.hash('Thapar@123', 10);
+    const testAccounts = [
+      {
+        id: 'student_aarav',
+        name: 'Aarav Sharma',
+        email: 'student1@thapar.edu',
+        password_hash: testPasswordHash,
+        hostel: 'Tejas Hall (Hostel-J)',
+        avatar: 'AS',
+        phone: '9876543210',
+        degree: 'B.E. Computer Engineering',
+        year: '3rd Year',
+        hometown: 'Delhi NCR',
+        reliability: 5.0,
+        trips_completed: 4,
+        joined_community: 'del'
+      },
+      {
+        id: 'student_diya',
+        name: 'Diya Verma',
+        email: 'student2@thapar.edu',
+        password_hash: testPasswordHash,
+        hostel: 'Vasudha Hall (Hostel-E)',
+        avatar: 'DV',
+        phone: '9876543211',
+        degree: 'B.E. Electronics & Communication',
+        year: '2nd Year',
+        hometown: 'Delhi NCR',
+        reliability: 4.9,
+        trips_completed: 2,
+        joined_community: 'del'
+      },
+      {
+        id: 'student_aarav_alias',
+        name: 'Aarav Sharma',
+        email: 'test.student1@thapar.edu',
+        password_hash: testPasswordHash,
+        hostel: 'Tejas Hall (Hostel-J)',
+        avatar: 'AS',
+        phone: '9876543210',
+        degree: 'B.E. Computer Engineering',
+        year: '3rd Year',
+        hometown: 'Delhi NCR',
+        reliability: 5.0,
+        trips_completed: 4,
+        joined_community: 'del'
+      },
+      {
+        id: 'student_diya_alias',
+        name: 'Diya Verma',
+        email: 'test.student2@thapar.edu',
+        password_hash: testPasswordHash,
+        hostel: 'Vasudha Hall (Hostel-E)',
+        avatar: 'DV',
+        phone: '9876543211',
+        degree: 'B.E. Electronics & Communication',
+        year: '2nd Year',
+        hometown: 'Delhi NCR',
+        reliability: 4.9,
+        trips_completed: 2,
+        joined_community: 'del'
+      }
+    ];
+
+    for (const acc of testAccounts) {
+      await User.updateOne(
+        { email: acc.email },
+        { $set: acc },
+        { upsert: true }
+      );
+    }
+
+    console.log('🌱 Seeded default data (Destinations, Hostels, Communities, Counters, Test Accounts)');
   } catch (err) {
     console.error('Error during default data seed:', err.message);
   }

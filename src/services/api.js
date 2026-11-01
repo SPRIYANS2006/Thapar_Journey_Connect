@@ -179,14 +179,14 @@ export const api = {
 
   changePickupPoint: (id, pickupPoint) =>
     request(`/groups/${id}/pickup-point`, {
-      method: 'PATCH',
+      method: 'POST',
       body: JSON.stringify({ pickupPoint })
     }),
 
-  rateGroup: (id, rating) =>
+  rateGroup: (id, targetUserId, rating) =>
     request(`/groups/${id}/rate`, {
       method: 'POST',
-      body: JSON.stringify({ rating })
+      body: JSON.stringify({ targetUserId, rating })
     }),
 
   calculateFareSplit: (id, totalAmount, tip = 0) =>

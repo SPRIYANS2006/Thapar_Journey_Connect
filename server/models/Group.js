@@ -41,6 +41,14 @@ const groupSchema = new mongoose.Schema({
     }
   },
   members: [memberSchema],
+  ratings: [
+    {
+      rater_id: { type: String, required: true },
+      target_user_id: { type: String, required: true },
+      rating: { type: Number, required: true },
+      rated_at: { type: Date, default: Date.now }
+    }
+  ],
   created_at: { type: Date, default: Date.now }
 });
 

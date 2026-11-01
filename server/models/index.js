@@ -6,3 +6,4 @@ export { Community, CommunityPost } from './Community.js';
 export { Destination } from './Destination.js';
 export { Hostel } from './Hostel.js';
 export { Counter, getNextGroupId } from './Counter.js';
+export { RateLimit } from './RateLimit.js';

@@ -17,7 +17,7 @@ export async function createGroupFromJourney(creatorUser, journeyId, pickupPoint
     throw new HttpError(400, timeValidation.error);
   }
 
-  // 2. Enforce Single-Ride Policy
+  // 2. Enforce Single-Ride Policy with atomic user reservation
   const activeExisting = await Group.findOne({
     status: { $in: ['Open', 'Confirmed'] },
     'members.user_id': creatorUser.id
@@ -33,32 +33,70 @@ export async function createGroupFromJourney(creatorUser, journeyId, pickupPoint
   const maxMembers = journey.transport === 'Shared Auto' ? 3 : 4;
   const groupId = await getNextGroupId();
 
-  const newGroup = await Group.create({
-    id: groupId,
-    destination_id: journey.destination_id,
-    destination_name: journey.destination_name,
-    departure_time: journey.departure_time,
-    date: normalizeDateStr(journey.date),
-    status: 'Open',
-    transport: journey.transport || 'Shared Cab',
-    max_members: maxMembers,
-    pickup_point: pickupPoint || 'Main Gate (Near Executive Mess)',
-    match_score: 100,
-    admin_id: creatorUser.id,
-    members: [
-      {
-        id: crypto.randomUUID(),
-        user_id: creatorUser.id,
-        name: creatorUser.name,
-        avatar: creatorUser.avatar || 'ST',
-        hostel: creatorUser.hostel || '',
-        departure_time: journey.departure_time,
-        role: 'Group Admin',
-        phone: creatorUser.phone || '',
-        joined_at: new Date()
+  // Atomically reserve active ride on the User document to prevent concurrent creation/join race conditions
+  let reservedUser = await User.findOneAndUpdate(
+    {
+      id: creatorUser.id,
+      $or: [{ active_group_id: null }, { active_group_id: { $exists: false } }]
+    },
+    { $set: { active_group_id: groupId } },
+    { returnDocument: 'after' }
+  );
+
+  if (!reservedUser) {
+    const freshUser = await User.findOne({ id: creatorUser.id });
+    if (freshUser && freshUser.active_group_id) {
+      const activeRide = await Group.findOne({
+        id: freshUser.active_group_id,
+        status: { $in: ['Open', 'Confirmed'] }
+      });
+      if (activeRide) {
+        throw new HttpError(
+          409,
+          `Single-Ride Policy: You are already a member of active Group #${activeRide.id} (${activeRide.destination_name}). Please leave it before creating a new ride.`
+        );
       }
-    ]
-  });
+      // Truly stale group (no longer in DB/active) -> heal reservation
+      reservedUser = await User.findOneAndUpdate(
+        { id: creatorUser.id, active_group_id: freshUser.active_group_id },
+        { $set: { active_group_id: groupId } },
+        { returnDocument: 'after' }
+      );
+    }
+  }
+
+  let newGroup;
+  try {
+    newGroup = await Group.create({
+      id: groupId,
+      destination_id: journey.destination_id,
+      destination_name: journey.destination_name,
+      departure_time: journey.departure_time,
+      date: normalizeDateStr(journey.date),
+      status: 'Open',
+      transport: journey.transport || 'Shared Cab',
+      max_members: maxMembers,
+      pickup_point: pickupPoint || 'Main Gate (Near Executive Mess)',
+      match_score: 100,
+      admin_id: creatorUser.id,
+      members: [
+        {
+          id: crypto.randomUUID(),
+          user_id: creatorUser.id,
+          name: creatorUser.name,
+          avatar: creatorUser.avatar || 'ST',
+          hostel: creatorUser.hostel || '',
+          departure_time: journey.departure_time,
+          role: 'Group Admin',
+          phone: creatorUser.phone || '',
+          joined_at: new Date()
+        }
+      ]
+    });
+  } catch (err) {
+    await User.updateOne({ id: creatorUser.id, active_group_id: groupId }, { $set: { active_group_id: null } });
+    throw err;
+  }
 
   // 4. Update journey status
   journey.status = 'Grouped';
@@ -115,7 +153,7 @@ export async function joinGroupWithJourney(user, groupId, journeyId) {
     throw new HttpError(409, 'Group is already at full capacity.');
   }
 
-  // 5. Destination and date compatibility
+  // 6. Destination and date compatibility
   if (group.destination_id !== journey.destination_id) {
     throw new HttpError(400, 'Journey destination does not match group destination.');
   }
@@ -123,7 +161,43 @@ export async function joinGroupWithJourney(user, groupId, journeyId) {
     throw new HttpError(400, 'Journey date does not match group departure date.');
   }
 
-  // 6. Atomic capacity and status check
+  // 7. Atomic reservation on the User document to eliminate concurrent join race conditions
+  let reservedUser = await User.findOneAndUpdate(
+    {
+      id: user.id,
+      $or: [
+        { active_group_id: null },
+        { active_group_id: { $exists: false } },
+        { active_group_id: groupId }
+      ]
+    },
+    { $set: { active_group_id: groupId } },
+    { returnDocument: 'after' }
+  );
+
+  if (!reservedUser) {
+    const freshUser = await User.findOne({ id: user.id });
+    if (freshUser && freshUser.active_group_id && freshUser.active_group_id !== groupId) {
+      const activeRide = await Group.findOne({
+        id: freshUser.active_group_id,
+        status: { $in: ['Open', 'Confirmed'] }
+      });
+      if (activeRide) {
+        throw new HttpError(
+          409,
+          `Single-Ride Policy: You already belong to active Group #${activeRide.id} (${activeRide.destination_name}). Please leave it first before joining another.`
+        );
+      }
+      // Truly stale group (no longer in DB/active) -> heal reservation
+      reservedUser = await User.findOneAndUpdate(
+        { id: user.id, active_group_id: freshUser.active_group_id },
+        { $set: { active_group_id: groupId } },
+        { returnDocument: 'after' }
+      );
+    }
+  }
+
+  // 8. Atomic capacity and member push
   const newMember = {
     id: crypto.randomUUID(),
     user_id: user.id,
@@ -136,21 +210,28 @@ export async function joinGroupWithJourney(user, groupId, journeyId) {
     joined_at: new Date()
   };
 
-  const updatedGroup = await Group.findOneAndUpdate(
-    {
-      id: groupId,
-      status: 'Open',
-      $expr: { $lt: [{ $size: '$members' }, '$max_members'] },
-      'members.user_id': { $ne: user.id }
-    },
-    {
-      $push: { members: newMember }
-    },
-    { new: true }
-  );
+  let updatedGroup;
+  try {
+    updatedGroup = await Group.findOneAndUpdate(
+      {
+        id: groupId,
+        status: 'Open',
+        $expr: { $lt: [{ $size: '$members' }, '$max_members'] },
+        'members.user_id': { $ne: user.id }
+      },
+      {
+        $push: { members: newMember }
+      },
+      { returnDocument: 'after' }
+    );
+  } catch (err) {
+    await User.updateOne({ id: user.id, active_group_id: groupId }, { $set: { active_group_id: null } });
+    throw err;
+  }
 
   if (!updatedGroup) {
-    throw new HttpError(400, 'Unable to join group: group is full, closed, or already joined.');
+    await User.updateOne({ id: user.id, active_group_id: groupId }, { $set: { active_group_id: null } });
+    throw new HttpError(409, 'Unable to join group: group is full, closed, or already joined.');
   }
 
   // 7. Update journey status
@@ -264,6 +345,9 @@ export async function leaveGroup(user, groupId) {
     { $set: { status: 'Searching' } }
   );
 
+  // Release user's active ride reservation
+  await User.updateOne({ id: user.id }, { $set: { active_group_id: null } });
+
   return {
     success: true,
     penaltyApplied: penalty > 0,
@@ -301,7 +385,7 @@ export async function cleanupExpiredGroups() {
             if (memberUserIds.length > 0) {
               await User.updateMany(
                 { id: { $in: memberUserIds } },
-                { $inc: { trips_completed: 1 } }
+                { $inc: { trips_completed: 1 }, $set: { active_group_id: null } }
               );
 
               await Journey.updateMany(
@@ -319,6 +403,13 @@ export async function cleanupExpiredGroups() {
             const memberUserIds = (deleted.members || [])
               .map((m) => m.user_id || m.userId || m.id)
               .filter(Boolean);
+
+            if (memberUserIds.length > 0) {
+              await User.updateMany(
+                { id: { $in: memberUserIds } },
+                { $set: { active_group_id: null } }
+              );
+            }
 
             await Journey.updateMany(
               { user_id: { $in: memberUserIds }, destination_id: deleted.destination_id, status: 'Grouped' },
@@ -343,18 +434,47 @@ export async function completeGroup(adminUser, groupId) {
     throw new HttpError(403, 'Forbidden: Only the group admin can mark this ride as completed.');
   }
 
+  if (group.status === 'Completed') {
+    throw new HttpError(400, 'This group has already been marked as completed.');
+  }
+
+  if (group.status !== 'Confirmed') {
+    throw new HttpError(400, 'Only Confirmed groups can be marked as completed.');
+  }
+
   const hoursLeft = getHoursUntilDeparture(group.date, group.departure_time);
   if (hoursLeft > 0) {
     throw new HttpError(400, 'Cannot complete a ride before its scheduled departure time.');
   }
 
-  group.status = 'Completed';
-  await group.save();
+  // Atomic transition from 'Confirmed' to 'Completed' to prevent race condition or duplicate increments
+  const updatedGroup = await Group.findOneAndUpdate(
+    { id: groupId, admin_id: adminUser.id, status: 'Confirmed' },
+    { $set: { status: 'Completed' } },
+    { returnDocument: 'after' }
+  );
 
-  // Increment trips_completed for all members
-  const memberUserIds = group.members.map((m) => m.user_id);
-  await User.updateMany({ id: { $in: memberUserIds } }, { $inc: { trips_completed: 1 } });
+  if (!updatedGroup) {
+    throw new HttpError(409, 'Group was already completed or modified by another request.');
+  }
 
-  notifyGroupMembersUpdated(group);
-  return group;
+  // Increment trips_completed for all members ONLY once on successful atomic transition
+  const memberUserIds = (updatedGroup.members || [])
+    .map((m) => m.user_id || m.userId || m.id)
+    .filter(Boolean);
+
+  if (memberUserIds.length > 0) {
+    await User.updateMany(
+      { id: { $in: memberUserIds } },
+      { $inc: { trips_completed: 1 }, $set: { active_group_id: null } }
+    );
+
+    await Journey.updateMany(
+      { user_id: { $in: memberUserIds }, destination_id: updatedGroup.destination_id, status: 'Grouped' },
+      { $set: { status: 'Completed' } }
+    );
+  }
+
+  notifyGroupMembersUpdated(updatedGroup);
+  return updatedGroup;
 }

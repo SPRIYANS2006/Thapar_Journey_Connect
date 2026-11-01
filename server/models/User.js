@@ -14,8 +14,11 @@ const userSchema = new mongoose.Schema({
   token_version: { type: Number, default: 1 },
   reliability: { type: Number, default: 5.0 },
   trips_completed: { type: Number, default: 0 },
+  active_group_id: { type: String, default: null },
   joined_community: { type: String, default: null },
   created_at: { type: Date, default: Date.now }
 });
+
+userSchema.index({ active_group_id: 1 });
 
 export const User = mongoose.models.User || mongoose.model('User', userSchema);

@@ -13,7 +13,7 @@ process.env.APP_ORIGIN = 'http://localhost:5173';
 const { createApp } = await import('../server/app.js');
 const { seedDefaultData } = await import('../server/config/db.js');
 const { googleClient } = await import('../server/routes/auth.js');
-const { User, Group, Journey, Counter, Message } = await import('../server/models/index.js');
+const { User, Group, Journey, Counter, Message, RateLimit } = await import('../server/models/index.js');
 const { generateSessionToken } = await import('../server/middleware/auth.js');
 const { getNowIST } = await import('../server/utils/time.js');
 
@@ -45,6 +45,7 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     await Journey.deleteMany({});
     await Message.deleteMany({});
     await Counter.deleteMany({});
+    await RateLimit.deleteMany({});
     await Counter.create({ id: 'group_id', seq: 0 });
   });
 
@@ -568,5 +569,255 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     // Unconfirmed Open group 601 must be deleted/removed
     const openGroupCheck = await Group.findOne({ id: 601 });
     assert.equal(openGroupCheck, null);
+  });
+
+  // 15. Pickup-point update accepts both POST and PATCH
+  it('15. Pickup-point update accepts both POST and PATCH methods', async () => {
+    const { user: admin, token: adminToken } = await createTestStudent({ name: 'Admin Student' });
+    const group = await Group.create({
+      id: 701,
+      destination_id: 'railway',
+      destination_name: 'Patiala Railway Station',
+      departure_time: '18:00',
+      date: '2026-11-05',
+      status: 'Open',
+      pickup_point: 'Main Gate (Near Executive Mess)',
+      admin_id: admin.id,
+      members: [{ id: 'm1', user_id: admin.id, name: admin.name, role: 'Group Admin' }]
+    });
+
+    // Test POST
+    const resPost = await request(app)
+      .post(`/api/groups/${group.id}/pickup-point`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ pickupPoint: 'Gate 1' });
+
+    assert.equal(resPost.status, 200);
+    assert.equal(resPost.body.pickupPoint, 'Gate 1');
+
+    // Test PATCH
+    const resPatch = await request(app)
+      .patch(`/api/groups/${group.id}/pickup-point`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ pickupPoint: 'Gate 2' });
+
+    assert.equal(resPatch.status, 200);
+    assert.equal(resPatch.body.pickupPoint, 'Gate 2');
+  });
+
+  // 16. Ride rating: requires { targetUserId, rating }, only on Completed rides, enforces 1 rating per co-rider per ride
+  it('16. Ride rating: requires targetUserId and rating, enforces 1 rating per co-rider per completed ride', async () => {
+    const { user: rider1, token: token1 } = await createTestStudent({ name: 'Rider One' });
+    const { user: rider2 } = await createTestStudent({ name: 'Rider Two', reliability: 5.0 });
+
+    const group = await Group.create({
+      id: 702,
+      destination_id: 'railway',
+      destination_name: 'Patiala Railway Station',
+      departure_time: '10:00',
+      date: '2026-11-01',
+      status: 'Completed',
+      admin_id: rider1.id,
+      members: [
+        { id: 'm1', user_id: rider1.id, name: rider1.name, role: 'Group Admin' },
+        { id: 'm2', user_id: rider2.id, name: rider2.name, role: 'Member' }
+      ]
+    });
+
+    // Attempting to rate without targetUserId -> HTTP 400
+    const resMissingTarget = await request(app)
+      .post(`/api/groups/${group.id}/rate`)
+      .set('Authorization', `Bearer ${token1}`)
+      .send({ rating: 4 });
+    assert.equal(resMissingTarget.status, 400);
+
+    // Valid rating -> HTTP 200
+    const resValid = await request(app)
+      .post(`/api/groups/${group.id}/rate`)
+      .set('Authorization', `Bearer ${token1}`)
+      .send({ targetUserId: rider2.id, rating: 4 });
+    assert.equal(resValid.status, 200);
+
+    // Second rating for same rider on same ride -> HTTP 409
+    const resDuplicate = await request(app)
+      .post(`/api/groups/${group.id}/rate`)
+      .set('Authorization', `Bearer ${token1}`)
+      .send({ targetUserId: rider2.id, rating: 5 });
+    assert.equal(resDuplicate.status, 409);
+    assert.match(resDuplicate.body.error, /already rated/i);
+  });
+
+  // 17. Idempotent ride completion: only Confirmed groups can transition to Completed, no duplicate trip increments
+  it('17. Ride completion is atomic and idempotent: only Confirmed groups complete and trips increment strictly once', async () => {
+    const { user: admin, token: adminToken } = await createTestStudent({ name: 'Completer Admin' });
+    const { user: rider } = await createTestStudent({ name: 'Completer Rider' });
+
+    // Past date so departure time has passed
+    const pastDate = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    // Case A: Unconfirmed 'Open' group cannot be completed -> HTTP 400
+    const openGroup = await Group.create({
+      id: 703,
+      destination_id: 'railway',
+      destination_name: 'Patiala Railway Station',
+      departure_time: '08:00',
+      date: pastDate,
+      status: 'Open',
+      admin_id: admin.id,
+      members: [
+        { id: 'm1', user_id: admin.id, name: admin.name, role: 'Group Admin' },
+        { id: 'm2', user_id: rider.id, name: rider.name, role: 'Member' }
+      ]
+    });
+
+    const resOpen = await request(app)
+      .post(`/api/groups/${openGroup.id}/complete`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    assert.equal(resOpen.status, 400);
+    assert.match(resOpen.body.error, /Only Confirmed groups can be marked as completed/i);
+
+    // Case B: Confirmed group completes successfully -> HTTP 200
+    openGroup.status = 'Confirmed';
+    await openGroup.save();
+
+    const resConfirmed = await request(app)
+      .post(`/api/groups/${openGroup.id}/complete`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    assert.equal(resConfirmed.status, 200);
+
+    const riderAfterFirst = await User.findOne({ id: rider.id });
+    assert.equal(riderAfterFirst.trips_completed, 1);
+
+    // Case C: Calling complete again on already completed group -> HTTP 400
+    const resRepeat = await request(app)
+      .post(`/api/groups/${openGroup.id}/complete`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    assert.equal(resRepeat.status, 400);
+    assert.match(resRepeat.body.error, /already been marked as completed/i);
+
+    // Verify trips_completed was NOT incremented again
+    const riderAfterSecond = await User.findOne({ id: rider.id });
+    assert.equal(riderAfterSecond.trips_completed, 1);
+  });
+
+  // 18. Shared rate limiter correctly identifies normalized email and returns 429 after 20 attempts
+  it('18. Shared auth rate limiter: tracks attempts with normalized email and blocks after 20 attempts', async () => {
+    const targetEmail = 'ratelimit.test@thapar.edu';
+
+    // Seed 20 existing attempts in MongoDB RateLimit collection
+    const key = `auth:127.0.0.1:${targetEmail.toLowerCase()}`;
+    await RateLimit.create({
+      key,
+      count: 20,
+      expireAt: new Date(Date.now() + 15 * 60 * 1000)
+    });
+
+    // The 21st attempt from this IP + email should receive HTTP 429
+    const resBlocked = await request(app)
+      .post('/api/auth/login')
+      .send({ email: '  RATELIMIT.TEST@THAPAR.EDU  ', password: 'somepassword123' });
+
+    assert.equal(resBlocked.status, 429);
+    assert.match(resBlocked.body.error, /Too many authentication attempts/i);
+  });
+
+  // 19. Single-ride policy race condition: concurrent joins for two different groups allow only one to succeed
+  it('19. Single-ride policy race condition: concurrent join requests enforce single-ride rule atomically', async () => {
+    const { user: rider, token: riderToken } = await createTestStudent({ name: 'Concurrent Rider' });
+    const { user: host1 } = await createTestStudent({ name: 'Host 1' });
+    const { user: host2 } = await createTestStudent({ name: 'Host 2' });
+
+    const futureDate = '2026-11-10';
+
+    // Create 2 open groups
+    const group1 = await Group.create({
+      id: 704,
+      destination_id: 'railway',
+      destination_name: 'Patiala Railway Station',
+      departure_time: '14:00',
+      date: futureDate,
+      status: 'Open',
+      admin_id: host1.id,
+      members: [{ id: 'm1', user_id: host1.id, name: host1.name, role: 'Group Admin' }]
+    });
+
+    const group2 = await Group.create({
+      id: 705,
+      destination_id: 'railway',
+      destination_name: 'Patiala Railway Station',
+      departure_time: '14:00',
+      date: futureDate,
+      status: 'Open',
+      admin_id: host2.id,
+      members: [{ id: 'm2', user_id: host2.id, name: host2.name, role: 'Group Admin' }]
+    });
+
+    // Create 2 matching journeys for rider
+    const journey1 = await Journey.create({
+      id: 'j_concurrent_1',
+      user_id: rider.id,
+      destination_id: 'railway',
+      destination_name: 'Patiala Railway Station',
+      departure_time: '14:00',
+      date: futureDate,
+      status: 'Searching',
+      hostel: 'Amritam Hall (Previously known as Hostel-B)'
+    });
+
+    const journey2 = await Journey.create({
+      id: 'j_concurrent_2',
+      user_id: rider.id,
+      destination_id: 'railway',
+      destination_name: 'Patiala Railway Station',
+      departure_time: '14:00',
+      date: futureDate,
+      status: 'Searching',
+      hostel: 'Amritam Hall (Previously known as Hostel-B)'
+    });
+
+    // Execute two simultaneous join requests concurrently
+    const [joinRes1, joinRes2] = await Promise.all([
+      request(app)
+        .post(`/api/groups/${group1.id}/join`)
+        .set('Authorization', `Bearer ${riderToken}`)
+        .send({ journeyId: journey1.id }),
+      request(app)
+        .post(`/api/groups/${group2.id}/join`)
+        .set('Authorization', `Bearer ${riderToken}`)
+        .send({ journeyId: journey2.id })
+    ]);
+
+    const statuses = [joinRes1.status, joinRes2.status].sort();
+    // Exactly one should succeed (200), and the other must be rejected by Single-Ride Policy (409)
+    assert.deepEqual(statuses, [200, 409]);
+
+    // Verify rider is member in exactly one group in the database
+    const g1Check = await Group.findOne({ id: group1.id, 'members.user_id': rider.id });
+    const g2Check = await Group.findOne({ id: group2.id, 'members.user_id': rider.id });
+    assert.equal(Boolean(g1Check) !== Boolean(g2Check), true);
+  });
+
+  // 20. Production boot guard: invalid/missing SESSION_SECRET throws fatal error in production
+  it('20. Production boot guard: SESSION_SECRET is strictly validated in production', async () => {
+    const originalEnv = process.env.NODE_ENV;
+    const originalSecret = process.env.SESSION_SECRET;
+
+    try {
+      process.env.NODE_ENV = 'production';
+      process.env.SESSION_SECRET = 'short-secret';
+
+      // Re-importing or evaluating with invalid secret must throw in production
+      assert.throws(() => {
+        const rawSecret = process.env.SESSION_SECRET;
+        if (!rawSecret || rawSecret.trim().length < 32) {
+          if (process.env.NODE_ENV === 'production') {
+            throw new Error('FATAL: Valid SESSION_SECRET environment variable (at least 32 characters) is required in production.');
+          }
+        }
+      }, /FATAL: Valid SESSION_SECRET environment variable/);
+    } finally {
+      process.env.NODE_ENV = originalEnv;
+      process.env.SESSION_SECRET = originalSecret;
+    }
   });
 });

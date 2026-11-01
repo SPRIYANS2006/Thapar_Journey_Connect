@@ -175,8 +175,8 @@ export function useGroups() {
     return res;
   };
 
-  const rateGroup = async (groupId, rating) => {
-    const res = await api.rateGroup(groupId, rating);
+  const rateGroup = async (groupId, targetUserId, rating) => {
+    const res = await api.rateGroup(groupId, targetUserId, rating);
     await fetchGroups();
     return res;
   };

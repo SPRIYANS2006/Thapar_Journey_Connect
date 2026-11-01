@@ -1,6 +1,6 @@
 import express from 'express';
 import crypto from 'node:crypto';
-import { Group, Message } from '../models/index.js';
+import { Group, Message, User } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { HttpError } from '../middleware/errors.js';
 import {
@@ -155,8 +155,8 @@ router.post('/:id/confirm', async (req, res, next) => {
   }
 });
 
-// 7. Change Pickup Point: Admin only
-router.post('/:id/pickup-point', async (req, res, next) => {
+// 7. Change Pickup Point: Admin only (Supports both POST and PATCH for API consistency)
+const handlePickupPointUpdate = async (req, res, next) => {
   try {
     const { pickupPoint } = req.body;
     if (!pickupPoint || !ALLOWED_PICKUP_POINTS.includes(pickupPoint.trim())) {
@@ -190,7 +190,10 @@ router.post('/:id/pickup-point', async (req, res, next) => {
   } catch (err) {
     next(err);
   }
-});
+};
+
+router.post('/:id/pickup-point', handlePickupPointUpdate);
+router.patch('/:id/pickup-point', handlePickupPointUpdate);
 
 // 8. Complete Group: Admin only, on/after departure time
 router.post('/:id/complete', async (req, res, next) => {
@@ -206,22 +209,63 @@ router.post('/:id/complete', async (req, res, next) => {
   }
 });
 
-// 9. Rate Co-rider Punctuality
+// 9. Rate Co-rider Punctuality (Strict 1 rating per co-rider per completed ride)
 router.post('/:id/rate', async (req, res, next) => {
   try {
     const { targetUserId, rating } = req.body;
     const numRating = Number(rating);
-    if (!targetUserId || isNaN(numRating) || numRating < 1 || numRating > 5) {
+    if (!targetUserId || isNaN(numRating) || numRating < 1 || numRating > 5 || !Number.isInteger(numRating)) {
       throw new HttpError(400, 'Rating must be an integer between 1 and 5.');
     }
 
     const group = await Group.findOne({ id: req.params.id });
     if (!group) throw new HttpError(404, 'Group not found.');
 
+    if (group.status !== 'Completed') {
+      throw new HttpError(400, 'Ratings can only be submitted for completed rides.');
+    }
+
     const isCallerMember = group.members.some((m) => m.user_id === req.user.id);
     const isTargetMember = group.members.some((m) => m.user_id === targetUserId);
     if (!isCallerMember || !isTargetMember || req.user.id === targetUserId) {
       throw new HttpError(403, 'You can only rate fellow co-riders from this ride.');
+    }
+
+    // Check if caller already rated this target co-rider for this ride
+    const alreadyRated = group.ratings && group.ratings.some(
+      (r) => r.rater_id === req.user.id && r.target_user_id === targetUserId
+    );
+    if (alreadyRated) {
+      throw new HttpError(409, 'You have already rated this co-rider for this ride.');
+    }
+
+    // Atomic update to ensure no concurrent requests can duplicate rating
+    const updatedGroup = await Group.findOneAndUpdate(
+      {
+        id: req.params.id,
+        status: 'Completed',
+        'members.user_id': { $all: [req.user.id, targetUserId] },
+        ratings: {
+          $not: {
+            $elemMatch: { rater_id: req.user.id, target_user_id: targetUserId }
+          }
+        }
+      },
+      {
+        $push: {
+          ratings: {
+            rater_id: req.user.id,
+            target_user_id: targetUserId,
+            rating: numRating,
+            rated_at: new Date()
+          }
+        }
+      },
+      { returnDocument: 'after' }
+    );
+
+    if (!updatedGroup) {
+      throw new HttpError(409, 'You have already rated this co-rider for this ride.');
     }
 
     const targetUser = await User.findOne({ id: targetUserId });

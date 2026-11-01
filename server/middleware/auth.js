@@ -5,16 +5,13 @@ import { HttpError } from './errors.js';
 const isProduction = process.env.NODE_ENV === 'production';
 const rawSecret = process.env.SESSION_SECRET;
 
-const FALLBACK_SECRET = 'thapar_journey_connect_fallback_production_session_jwt_secret_key_32chars_min!';
-
 if (isProduction && (!rawSecret || rawSecret.trim().length < 32)) {
-  console.warn('⚠️ WARNING: SESSION_SECRET environment variable is missing or less than 32 characters in production.');
-  console.warn('⚠️ Using secure fallback session signing secret. You can configure SESSION_SECRET in the Render dashboard for key rotation.');
+  throw new Error('FATAL: Valid SESSION_SECRET environment variable (at least 32 characters) is required in production.');
 }
 
-export const JWT_SECRET = rawSecret && rawSecret.trim().length >= 32
+export const JWT_SECRET = (rawSecret && rawSecret.trim().length >= 32)
   ? rawSecret.trim()
-  : FALLBACK_SECRET;
+  : 'thapar_journey_connect_dev_only_jwt_session_secret_key_32chars_long!';
 
 export function generateSessionToken(user) {
   return jwt.sign(

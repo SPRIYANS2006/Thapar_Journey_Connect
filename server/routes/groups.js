@@ -60,6 +60,17 @@ function serializeCityRideAsGroup(ride, _viewingUserId) {
   };
 }
 
+async function findGroupOrCityRide(id) {
+  if (String(id).startsWith('cr_')) {
+    const cityRide = await CityRide.findOne({ id });
+    return { group: null, cityRide };
+  }
+  const group = await Group.findOne({ id });
+  if (group) return { group, cityRide: null };
+  const cityRide = await CityRide.findOne({ id });
+  return { group: null, cityRide };
+}
+
 const router = express.Router();
 
 // All group routes require authentication
@@ -143,12 +154,15 @@ router.get('/mine', async (req, res, next) => {
 // 2. Group detail: MEMBERS ONLY (403 otherwise)
 router.get('/:id', async (req, res, next) => {
   try {
-    if (String(req.params.id).startsWith('cr_')) {
-      const cityRide = await CityRide.findOne({ id: req.params.id }).lean();
-      if (!cityRide) {
-        throw new HttpError(404, 'Group not found.');
-      }
-      const isMember = (cityRide.members || []).some((m) => m.user_id === req.user.id);
+    const { group, cityRide } = await findGroupOrCityRide(req.params.id);
+    if (!group && !cityRide) {
+      throw new HttpError(404, 'Group not found.');
+    }
+
+    if (cityRide) {
+      const isMember = (cityRide.members || []).some(
+        (m) => (m.user_id || m.userId || m.id) === req.user.id
+      );
       if (!isMember) {
         throw new HttpError(
           403,
@@ -158,12 +172,9 @@ router.get('/:id', async (req, res, next) => {
       return res.json(serializeCityRideAsGroup(cityRide, req.user.id));
     }
 
-    const group = await Group.findOne({ id: req.params.id }).lean();
-    if (!group) {
-      throw new HttpError(404, 'Group not found.');
-    }
-
-    const isMember = (group.members || []).some((m) => m.user_id === req.user.id);
+    const isMember = (group.members || []).some(
+      (m) => (m.user_id || m.userId || m.id) === req.user.id
+    );
     if (!isMember) {
       throw new HttpError(
         403,
@@ -198,30 +209,38 @@ router.post('/', async (req, res, next) => {
 // 4. Join Group: caller must provide their matching journeyId (or joins community ride directly)
 router.post('/:id/join', async (req, res, next) => {
   try {
-    if (String(req.params.id).startsWith('cr_')) {
-      const ride = await CityRide.findOne({ id: req.params.id });
-      if (!ride) throw new HttpError(404, 'Group not found.');
+    const { group, cityRide } = await findGroupOrCityRide(req.params.id);
+    if (!group && !cityRide) {
+      throw new HttpError(404, 'Group not found.');
+    }
 
-      if (req.user.joined_community !== ride.community_id) {
+    if (cityRide) {
+      if (req.user.joined_community !== cityRide.community_id) {
         throw new HttpError(
           403,
           'Forbidden: You can only join rides within your enrolled hometown community.'
         );
       }
 
-      const isMember = (ride.members || []).some((m) => m.user_id === req.user.id);
+      const isMember = (cityRide.members || []).some(
+        (m) => (m.user_id || m.userId || m.id) === req.user.id
+      );
       if (isMember) {
         throw new HttpError(400, 'You are already a member of this ride.');
       }
 
-      if ((ride.members || []).length >= ride.max_capacity) {
+      if ((cityRide.members || []).length >= cityRide.max_capacity) {
         throw new HttpError(400, 'This ride is already full.');
       }
 
       // Single-Ride Policy: Check if user is already in an active Group or another CityRide
       const activeExistingGroup = await Group.findOne({
         status: { $in: ['Open', 'Confirmed'] },
-        'members.user_id': req.user.id
+        $or: [
+          { 'members.user_id': req.user.id },
+          { 'members.userId': req.user.id },
+          { 'members.id': req.user.id }
+        ]
       });
       if (activeExistingGroup) {
         throw new HttpError(
@@ -231,9 +250,13 @@ router.post('/:id/join', async (req, res, next) => {
       }
 
       const otherActiveRide = await CityRide.findOne({
-        id: { $ne: ride.id },
+        id: { $ne: cityRide.id },
         status: { $in: ['Open', 'Confirmed', 'Full'] },
-        'members.user_id': req.user.id
+        $or: [
+          { 'members.user_id': req.user.id },
+          { 'members.userId': req.user.id },
+          { 'members.id': req.user.id }
+        ]
       });
       if (otherActiveRide) {
         throw new HttpError(
@@ -242,7 +265,9 @@ router.post('/:id/join', async (req, res, next) => {
         );
       }
 
-      ride.members.push({
+      const existingMembers = [...(cityRide.members || [])];
+
+      cityRide.members.push({
         id: crypto.randomUUID(),
         user_id: req.user.id,
         name: req.user.name,
@@ -252,17 +277,33 @@ router.post('/:id/join', async (req, res, next) => {
         role: 'Member',
         joined_at: new Date()
       });
-      ride.current_members_count = ride.members.length;
-      if (ride.members.length >= ride.max_capacity) {
-        ride.status = 'Full';
+      cityRide.current_members_count = cityRide.members.length;
+      if (cityRide.members.length >= cityRide.max_capacity) {
+        cityRide.status = 'Full';
       }
-      await ride.save();
+      await cityRide.save();
 
-      await User.updateOne({ id: req.user.id }, { $set: { active_group_id: ride.id } });
+      await User.updateOne({ id: req.user.id }, { $set: { active_group_id: cityRide.id } });
+
+      // Notify existing members
+      for (const m of existingMembers) {
+        const memberId = m.user_id || m.userId || m.id;
+        if (memberId && memberId !== req.user.id) {
+          notifyUser(memberId, 'member_joined', {
+            groupId: cityRide.id,
+            destinationName: `${cityRide.destination} (${cityRide.community_name})`,
+            joinerId: req.user.id,
+            joinerName: req.user.name,
+            joinerHostel: req.user.hostel || 'Hostel',
+            membersCount: cityRide.members.length,
+            maxMembers: cityRide.max_capacity
+          });
+        }
+      }
 
       return res.json({
         success: true,
-        group: serializeCityRideAsGroup(ride, req.user.id)
+        group: serializeCityRideAsGroup(cityRide, req.user.id)
       });
     }
 
@@ -271,7 +312,7 @@ router.post('/:id/join', async (req, res, next) => {
       throw new HttpError(400, 'A valid journeyId is required to join a travel group.');
     }
 
-    const updated = await joinGroupWithJourney(req.user, req.params.id, journeyId);
+    const updated = await joinGroupWithJourney(req.user, group.id, journeyId);
     res.json({
       success: true,
       group: serializeGroup(updated, req.user.id)
@@ -284,34 +325,39 @@ router.post('/:id/join', async (req, res, next) => {
 // 5. Leave Group (with late cancellation reliability penalty)
 router.post('/:id/leave', async (req, res, next) => {
   try {
-    if (String(req.params.id).startsWith('cr_')) {
-      const ride = await CityRide.findOne({ id: req.params.id });
-      if (!ride) throw new HttpError(404, 'Group not found.');
-      const memberIdx = (ride.members || []).findIndex((m) => m.user_id === req.user.id);
+    const { group, cityRide } = await findGroupOrCityRide(req.params.id);
+    if (!group && !cityRide) {
+      throw new HttpError(404, 'Group not found.');
+    }
+
+    if (cityRide) {
+      const memberIdx = (cityRide.members || []).findIndex(
+        (m) => (m.user_id || m.userId || m.id) === req.user.id
+      );
       if (memberIdx === -1) {
         throw new HttpError(400, 'You are not a member of this travel group.');
       }
-      ride.members.splice(memberIdx, 1);
-      ride.current_members_count = ride.members.length;
-      if (ride.members.length === 0) {
-        await CityRide.deleteOne({ id: ride.id });
-        await User.updateOne({ id: req.user.id, active_group_id: ride.id }, { $set: { active_group_id: null } });
+      cityRide.members.splice(memberIdx, 1);
+      cityRide.current_members_count = cityRide.members.length;
+      if (cityRide.members.length === 0) {
+        await CityRide.deleteOne({ id: cityRide.id });
+        await User.updateOne({ id: req.user.id, active_group_id: cityRide.id }, { $set: { active_group_id: null } });
         return res.json({ message: 'Ride vacated and removed.', removed: true });
       }
-      if (ride.creator_id === req.user.id && ride.members.length > 0) {
-        ride.creator_id = ride.members[0].user_id;
-        ride.creator_name = ride.members[0].name;
-        ride.members[0].role = 'Admin';
+      if (cityRide.creator_id === req.user.id && cityRide.members.length > 0) {
+        cityRide.creator_id = cityRide.members[0].user_id || cityRide.members[0].userId || cityRide.members[0].id;
+        cityRide.creator_name = cityRide.members[0].name;
+        cityRide.members[0].role = 'Admin';
       }
-      if (ride.status === 'Full' && ride.members.length < ride.max_capacity) {
-        ride.status = 'Open';
+      if (cityRide.status === 'Full' && cityRide.members.length < cityRide.max_capacity) {
+        cityRide.status = 'Open';
       }
-      await ride.save();
-      await User.updateOne({ id: req.user.id, active_group_id: ride.id }, { $set: { active_group_id: null } });
+      await cityRide.save();
+      await User.updateOne({ id: req.user.id, active_group_id: cityRide.id }, { $set: { active_group_id: null } });
       return res.json({ message: 'Successfully left the ride.' });
     }
 
-    const result = await leaveGroup(req.user, req.params.id);
+    const result = await leaveGroup(req.user, group.id);
     res.json(result);
   } catch (err) {
     next(err);
@@ -477,15 +523,20 @@ router.post('/:id/rate', async (req, res, next) => {
 // 10. Group Messages: MEMBERS ONLY (403 otherwise), paginated last 100
 router.get('/:id/messages', async (req, res, next) => {
   try {
+    const { group, cityRide } = await findGroupOrCityRide(req.params.id);
+    if (!group && !cityRide) {
+      throw new HttpError(404, 'Group not found.');
+    }
+
     let isMember = false;
-    if (String(req.params.id).startsWith('cr_')) {
-      const ride = await CityRide.findOne({ id: req.params.id }).lean();
-      if (!ride) throw new HttpError(404, 'Group not found.');
-      isMember = (ride.members || []).some((m) => m.user_id === req.user.id);
+    if (cityRide) {
+      isMember = (cityRide.members || []).some(
+        (m) => (m.user_id || m.userId || m.id) === req.user.id
+      );
     } else {
-      const group = await Group.findOne({ id: req.params.id }).lean();
-      if (!group) throw new HttpError(404, 'Group not found.');
-      isMember = (group.members || []).some((m) => m.user_id === req.user.id);
+      isMember = (group.members || []).some(
+        (m) => (m.user_id || m.userId || m.id) === req.user.id
+      );
     }
 
     if (!isMember) {
@@ -508,21 +559,26 @@ router.get('/:id/messages', async (req, res, next) => {
 // 11. Send Message: MEMBERS ONLY, 1-500 chars
 router.post('/:id/messages', validateChatMessage, async (req, res, next) => {
   try {
+    const { group, cityRide } = await findGroupOrCityRide(req.params.id);
+    if (!group && !cityRide) {
+      throw new HttpError(404, 'Group not found.');
+    }
+
     let destinationName = '';
     let members = [];
-    if (String(req.params.id).startsWith('cr_')) {
-      const ride = await CityRide.findOne({ id: req.params.id }).lean();
-      if (!ride) throw new HttpError(404, 'Group not found.');
-      const isMember = (ride.members || []).some((m) => m.user_id === req.user.id);
+    if (cityRide) {
+      const isMember = (cityRide.members || []).some(
+        (m) => (m.user_id || m.userId || m.id) === req.user.id
+      );
       if (!isMember) {
         throw new HttpError(403, 'Forbidden: Only group members can send messages.');
       }
-      destinationName = `${ride.destination} (${ride.community_name})`;
-      members = ride.members || [];
+      destinationName = `${cityRide.destination} (${cityRide.community_name})`;
+      members = cityRide.members || [];
     } else {
-      const group = await Group.findOne({ id: req.params.id }).lean();
-      if (!group) throw new HttpError(404, 'Group not found.');
-      const isMember = (group.members || []).some((m) => m.user_id === req.user.id);
+      const isMember = (group.members || []).some(
+        (m) => (m.user_id || m.userId || m.id) === req.user.id
+      );
       if (!isMember) {
         throw new HttpError(403, 'Forbidden: Only group members can send messages.');
       }
@@ -623,7 +679,12 @@ router.get('/history/mine', async (req, res, next) => {
       .lean();
 
     const completedCityRides = await CityRide.find({
-      'members.user_id': req.user.id,
+      $or: [
+        { 'members.user_id': req.user.id },
+        { 'members.userId': req.user.id },
+        { 'members.id': req.user.id },
+        { creator_id: req.user.id }
+      ],
       status: 'Completed'
     })
       .sort({ created_at: -1 })

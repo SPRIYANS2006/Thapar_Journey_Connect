@@ -1602,4 +1602,83 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     assert.equal(resWrongPass.status, 401);
     assert.match(resWrongPass.body.error, /invalid email or password/i);
   });
+
+  // 37. Non-overlapping sequential group IDs across standard groups & city rides, member_joined alerts, and profile history
+  it('37. Non-overlapping sequential group IDs across standard groups & city rides, member_joined alerts, and profile history', async () => {
+    const { token: token1 } = await createTestStudent({ name: 'Group Number Rider 1', joined_community: 'del' });
+    const { token: token2 } = await createTestStudent({ name: 'Group Number Rider 2', joined_community: 'del' });
+
+    // 1. Create a regular travel journey and form regular Group #1
+    const resJourney = await request(app)
+      .post('/api/journeys')
+      .set('Authorization', `Bearer ${token1}`)
+      .send({
+        destinationId: 'dest_chandigarh_airport',
+        destinationName: 'Chandigarh Airport (IXC)',
+        date: 'Tomorrow',
+        departureTime: '15:00',
+        transport: 'Shared Cab',
+        flexibility: 15,
+        pickupPoint: 'Main Gate'
+      });
+    assert.equal(resJourney.status, 201);
+    const regularJourneyId = resJourney.body.journey.id;
+
+    const resGroup1 = await request(app)
+      .post('/api/groups')
+      .set('Authorization', `Bearer ${token1}`)
+      .send({ journeyId: regularJourneyId, pickupPoint: 'Main Gate' });
+    assert.equal(resGroup1.status, 201);
+    const group1Id = resGroup1.body.group.id;
+    assert.equal(group1Id, '1');
+
+    // 2. Student 2 creates a City Community Ride -> Must receive ID #2 (non-overlapping sequential counter)
+    const resRide2 = await request(app)
+      .post('/api/communities/del/rides')
+      .set('Authorization', `Bearer ${token2}`)
+      .send({
+        date: 'Tomorrow',
+        time: '11:00',
+        mode: 'Cab',
+        destination: 'Delhi Connaught Place',
+        pickupPoint: 'Campus Gate 2',
+        totalFare: 2500,
+        maxCapacity: 4,
+        transitDetails: 'Sedan'
+      });
+    assert.equal(resRide2.status, 201);
+    const ride2Id = resRide2.body.ride.id;
+    assert.equal(ride2Id, '2');
+
+    // 3. Verify IDs are strictly unique, sequential integers
+    assert.notEqual(group1Id, ride2Id);
+
+    // 4. Leave regular group 1 so student 1 can join ride 2
+    const resLeave1 = await request(app)
+      .post(`/api/groups/${group1Id}/leave`)
+      .set('Authorization', `Bearer ${token1}`);
+    assert.equal(resLeave1.status, 200);
+
+    // 5. Student 1 joins City Ride 2
+    const resJoinRide2 = await request(app)
+      .post(`/api/communities/del/rides/${ride2Id}/join`)
+      .set('Authorization', `Bearer ${token1}`);
+    assert.equal(resJoinRide2.status, 200);
+    assert.equal(resJoinRide2.body.ride.currentMembersCount, 2);
+
+    // 6. Complete ride 2 (mark status as Completed)
+    await CityRide.updateOne(
+      { id: ride2Id },
+      { $set: { status: 'Completed', completed_at: new Date() } }
+    );
+
+    // 7. Check Profile ride history (/api/groups/history/mine) for Student 1 -> Must contain ride 2
+    const resHistory = await request(app)
+      .get('/api/groups/history/mine')
+      .set('Authorization', `Bearer ${token1}`);
+    assert.equal(resHistory.status, 200);
+    const completedEntry = resHistory.body.find((r) => String(r.id) === String(ride2Id));
+    assert.ok(completedEntry, 'Ride #2 must be present in profile confirmed ride history');
+    assert.equal(completedEntry.id, '2');
+  });
 });

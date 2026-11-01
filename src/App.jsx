@@ -123,14 +123,34 @@ function AppContent() {
       });
     };
 
+    const handleMemberJoined = (data) => {
+      if (!data) return;
+      if (data.joinerId === user.id) return;
+
+      triggerToast({
+        id: `join_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+        type: 'success',
+        title: `👤 New Member Joined Group #${data.groupId}!`,
+        message: `${data.joinerName} (${data.joinerHostel}) just joined your ride to ${data.destinationName}. (${data.membersCount}/${data.maxMembers} seats filled)`,
+        actionLabel: 'Open Chat',
+        onAction: () => {
+          setChatGroupId(data.groupId);
+          setIsChatOpen(true);
+        }
+      });
+      fetchGroups();
+    };
+
     socket.on('new_chat_message', handleNewChatMessage);
     socket.on('group_found', handleGroupFound);
+    socket.on('member_joined', handleMemberJoined);
 
     return () => {
       socket.off('new_chat_message', handleNewChatMessage);
       socket.off('group_found', handleGroupFound);
+      socket.off('member_joined', handleMemberJoined);
     };
-  }, [token, user, isChatOpen, chatGroupId, triggerToast, setSelectedGroupId]);
+  }, [token, user, isChatOpen, chatGroupId, triggerToast, setSelectedGroupId, fetchGroups]);
 
   // Destination Selection & Journey Creation
   const handleOpenJourneyForm = (destObj) => {

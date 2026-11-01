@@ -151,7 +151,7 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
         <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm text-center">
           <div className="text-3xl font-black text-indigo-600 mb-1">
-            {user?.tripsCompleted ?? 0}
+            {Math.max(user?.tripsCompleted || 0, history.length)}
           </div>
           <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
             Trips Completed

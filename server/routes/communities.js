@@ -1,8 +1,9 @@
 import express from 'express';
 import crypto from 'node:crypto';
-import { Community, CommunityPost, User, CityRide, Group } from '../models/index.js';
+import { Community, CommunityPost, User, CityRide, Group, getNextGroupId } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { HttpError } from '../middleware/errors.js';
+import { notifyUser } from '../services/notifications.js';
 import {
   validateCommunityPost,
   validatePostComment
@@ -398,9 +399,10 @@ router.post('/:id/rides', async (req, res, next) => {
     const defaultCapacity = selectedMode === 'Cab' ? 4 : 6;
     const capacityNum = Number(maxCapacity) > 0 ? Number(maxCapacity) : defaultCapacity;
     const fareNum = Number(totalFare) >= 0 ? Number(totalFare) : 0;
+    const groupId = await getNextGroupId();
 
     const newRide = await CityRide.create({
-      id: `cr_${crypto.randomUUID().slice(0, 8)}`,
+      id: groupId,
       community_id: community.id,
       community_name: community.name,
       creator_id: req.user.id,
@@ -515,6 +517,23 @@ router.post('/:id/rides/:rideId/join', async (req, res, next) => {
     await ride.save();
 
     await User.updateOne({ id: req.user.id }, { $set: { active_group_id: ride.id } });
+
+    // Notify all existing members of this group with an in-app popup toast
+    const existingMembers = (ride.members || []).filter((m) => m.user_id !== req.user.id);
+    for (const em of existingMembers) {
+      const memberId = em.user_id || em.userId || em.id;
+      if (memberId) {
+        notifyUser(memberId, 'member_joined', {
+          groupId: ride.id,
+          destinationName: `${ride.destination} (${ride.community_name || 'Community'})`,
+          joinerId: req.user.id,
+          joinerName: req.user.name,
+          joinerHostel: req.user.hostel || 'Campus',
+          membersCount: ride.members.length,
+          maxMembers: ride.max_capacity || (ride.mode === 'Cab' ? 4 : 6)
+        });
+      }
+    }
 
     res.json({
       success: true,

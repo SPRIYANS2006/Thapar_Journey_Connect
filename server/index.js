@@ -99,9 +99,26 @@ async function bootstrap() {
         } else {
           const group = await Group.findOne({
             id: sGroupId,
-            'members.user_id': socket.user.id
+            $or: [
+              { 'members.user_id': socket.user.id },
+              { 'members.userId': socket.user.id },
+              { 'members.id': socket.user.id }
+            ]
           }).lean();
-          isMember = Boolean(group);
+          if (group) {
+            isMember = true;
+          } else {
+            const ride = await CityRide.findOne({
+              id: sGroupId,
+              $or: [
+                { 'members.user_id': socket.user.id },
+                { 'members.userId': socket.user.id },
+                { 'members.id': socket.user.id },
+                { creator_id: socket.user.id }
+              ]
+            }).lean();
+            isMember = Boolean(ride);
+          }
         }
 
         if (isMember) {

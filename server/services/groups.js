@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import { Group, Journey, User, Message, getNextGroupId, RideRecord, CityRide } from '../models/index.js';
 import { HttpError } from '../middleware/errors.js';
 import { getHoursUntilDeparture, normalizeDateStr, validateTravelDateTime, getCircularMinuteDiff } from '../utils/time.js';
-import { notifyGroup, notifyGroupMembersUpdated } from './notifications.js';
+import { notifyGroup, notifyUser, notifyGroupMembersUpdated } from './notifications.js';
 
 export async function createGroupFromJourney(creatorUser, journeyId, pickupPoint) {
   // 1. Verify caller has an active searching journey
@@ -309,6 +309,26 @@ export async function joinGroupWithJourney(user, groupId, journeyId) {
   });
 
   notifyGroupMembersUpdated(updatedGroup);
+
+  // 9. Notify existing group members with a real-time toast popup
+  const existingMembers = (group.members || []).filter(
+    (m) => (m.user_id || m.userId || m.id) !== user.id
+  );
+  for (const em of existingMembers) {
+    const memberId = em.user_id || em.userId || em.id;
+    if (memberId) {
+      notifyUser(memberId, 'member_joined', {
+        groupId: updatedGroup.id,
+        destinationName: updatedGroup.destination_name,
+        joinerId: user.id,
+        joinerName: user.name,
+        joinerHostel: user.hostel || 'Campus',
+        membersCount: updatedGroup.members.length,
+        maxMembers: updatedGroup.max_members || 4
+      });
+    }
+  }
+
   return updatedGroup;
 }
 
@@ -505,6 +525,35 @@ export async function cleanupExpiredGroups() {
 
             await Message.deleteMany({ group_id: deleted.id });
           }
+        }
+      }
+    }
+
+    // Also process City Community Rides whose departure time has passed
+    const activeCityRides = await CityRide.find({
+      status: { $in: ['Open', 'Confirmed', 'Full'] }
+    });
+
+    for (const ride of activeCityRides) {
+      const hoursLeft = getHoursUntilDeparture(ride.date, ride.time);
+      if (hoursLeft < 0) {
+        if ((ride.members && ride.members.length > 0) || ride.status === 'Full' || ride.status === 'Confirmed') {
+          ride.status = 'Completed';
+          ride.completed_at = new Date();
+          await ride.save();
+
+          const memberUserIds = (ride.members || [])
+            .map((m) => m.user_id || m.userId || m.id)
+            .filter(Boolean);
+
+          if (memberUserIds.length > 0) {
+            await User.updateMany(
+              { id: { $in: memberUserIds } },
+              { $inc: { trips_completed: 1 }, $set: { active_group_id: null } }
+            );
+          }
+        } else {
+          await CityRide.deleteOne({ id: ride.id });
         }
       }
     }

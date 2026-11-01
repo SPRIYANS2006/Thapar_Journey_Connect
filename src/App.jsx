@@ -29,6 +29,7 @@ function AppContent() {
     activeGroup,
     selectedGroup,
     setSelectedGroupId,
+    fetchGroups,
     createGroup,
     joinGroup,
     leaveGroup,
@@ -178,6 +179,12 @@ function AppContent() {
       });
     }
   };
+
+  useEffect(() => {
+    if (activePage === 'my-journeys') {
+      fetchGroups().catch(() => {});
+    }
+  }, [activePage, fetchGroups]);
 
   // Group Handlers
   const handleJoinGroup = async (groupId) => {
@@ -489,6 +496,7 @@ function AppContent() {
             <MyJourneysPage
               activeGroups={groups}
               currentUser={user}
+              onRefresh={fetchGroups}
               onViewGroupDetails={(gId) => {
                 setSelectedGroupId(gId);
                 setActivePage('group-details');
@@ -504,6 +512,8 @@ function AppContent() {
               user={user}
               posts={communityPosts}
               onBack={() => setSelectedCityHub(null)}
+              onRefreshGroups={fetchGroups}
+              onRefreshPosts={(commId) => fetchPosts(commId || selectedCityHub?.id)}
               onSelectOtherCommunity={(comm) => {
                 setSelectedCityHub(comm);
                 fetchPosts(comm.id);
@@ -560,10 +570,11 @@ function AppContent() {
                     title: 'Could Not Post',
                     message: err.message
                   });
+                  throw err;
                 }
               }}
               onLikePost={handleLikePost}
-              onAddComment={handleAddComment}
+              onAddComment={(postId, text) => handleAddComment(postId, text, selectedCityHub?.id)}
               triggerToast={triggerToast}
             />
           ) : activePage === 'communities' ? (

@@ -13,33 +13,56 @@ import {
 import { formatTime24to12 } from '../utils/matchingEngine';
 import { api } from '../services/api';
 
-export default function MyJourneysPage({ activeGroups, currentUser, onViewGroupDetails, onOpenChat }) {
+export default function MyJourneysPage({
+  activeGroups,
+  currentUser: _currentUser,
+  onViewGroupDetails,
+  onOpenChat,
+  onRefresh
+}) {
   const [activeTab, setActiveTab] = useState('upcoming');
+  const [fetchedJourneys, setFetchedJourneys] = useState(null);
   const [completedJourneys, setCompletedJourneys] = useState([]);
   const [loadingCompleted, setLoadingCompleted] = useState(true);
 
   useEffect(() => {
     let active = true;
+    api.getMyGroups()
+      .then((data) => {
+        if (active) {
+          setFetchedJourneys(Array.isArray(data) ? data : []);
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to load active journeys:', err);
+      });
+
     api.getGroupHistory()
       .then((history) => {
-        if (!active) return;
-        setCompletedJourneys(Array.isArray(history) ? history : []);
+        if (active) {
+          setCompletedJourneys(Array.isArray(history) ? history : []);
+          setLoadingCompleted(false);
+        }
       })
       .catch((err) => {
         console.warn('Failed to load completed journeys:', err);
-      })
-      .finally(() => {
-        if (active) setLoadingCompleted(false);
+        if (active) {
+          setLoadingCompleted(false);
+        }
       });
+
+    if (onRefresh) {
+      onRefresh().catch(() => {});
+    }
 
     return () => {
       active = false;
     };
-  }, []);
+  }, [onRefresh]);
 
-  const upcomingJourneys = (activeGroups || []).filter(g =>
-    g.members && g.members.some(m => (m.id && m.id === currentUser?.id) || (m.user_id && m.user_id === currentUser?.id) || (m.userId && m.userId === currentUser?.id))
-  );
+  const upcomingJourneys = fetchedJourneys !== null
+    ? fetchedJourneys
+    : (Array.isArray(activeGroups) ? activeGroups : []);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-in fade-in duration-300">

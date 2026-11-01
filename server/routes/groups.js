@@ -47,9 +47,9 @@ function serializeCityRideAsGroup(ride, _viewingUserId) {
     transitDetails: ride.transit_details,
     notes: ride.notes,
     members: (ride.members || []).map((m) => ({
-      id: m.id || m.user_id,
-      user_id: m.user_id,
-      userId: m.user_id,
+      id: m.user_id || m.userId || m.id,
+      user_id: m.user_id || m.userId || m.id,
+      userId: m.user_id || m.userId || m.id,
       name: m.name,
       avatar: m.avatar || 'ST',
       hostel: m.hostel || '',
@@ -81,7 +81,12 @@ router.get('/', async (req, res, next) => {
       .lean();
 
     const cityRides = await CityRide.find({
-      'members.user_id': req.user.id,
+      $or: [
+        { 'members.user_id': req.user.id },
+        { 'members.userId': req.user.id },
+        { 'members.id': req.user.id },
+        { creator_id: req.user.id }
+      ],
       status: { $in: ['Open', 'Full'] }
     })
       .sort({ created_at: -1 })
@@ -113,7 +118,12 @@ router.get('/mine', async (req, res, next) => {
       .lean();
 
     const cityRides = await CityRide.find({
-      'members.user_id': req.user.id,
+      $or: [
+        { 'members.user_id': req.user.id },
+        { 'members.userId': req.user.id },
+        { 'members.id': req.user.id },
+        { creator_id: req.user.id }
+      ],
       status: { $in: ['Open', 'Full'] }
     })
       .sort({ created_at: -1 })
@@ -185,9 +195,51 @@ router.post('/', async (req, res, next) => {
   }
 });
 
-// 4. Join Group: caller must provide their matching journeyId
+// 4. Join Group: caller must provide their matching journeyId (or joins community ride directly)
 router.post('/:id/join', async (req, res, next) => {
   try {
+    if (String(req.params.id).startsWith('cr_')) {
+      const ride = await CityRide.findOne({ id: req.params.id });
+      if (!ride) throw new HttpError(404, 'Group not found.');
+
+      if (req.user.joined_community !== ride.community_id) {
+        throw new HttpError(
+          403,
+          'Forbidden: You can only join rides within your enrolled hometown community.'
+        );
+      }
+
+      const isMember = (ride.members || []).some((m) => m.user_id === req.user.id);
+      if (isMember) {
+        throw new HttpError(400, 'You are already a member of this ride.');
+      }
+
+      if ((ride.members || []).length >= ride.max_capacity) {
+        throw new HttpError(400, 'This ride is already full.');
+      }
+
+      ride.members.push({
+        id: crypto.randomUUID(),
+        user_id: req.user.id,
+        name: req.user.name,
+        avatar: req.user.avatar || 'ST',
+        hostel: req.user.hostel || '',
+        phone: req.user.phone || '',
+        role: 'Member',
+        joined_at: new Date()
+      });
+      ride.current_members_count = ride.members.length;
+      if (ride.members.length >= ride.max_capacity) {
+        ride.status = 'Full';
+      }
+      await ride.save();
+
+      return res.json({
+        success: true,
+        group: serializeCityRideAsGroup(ride, req.user.id)
+      });
+    }
+
     const { journeyId } = req.body;
     if (!journeyId) {
       throw new HttpError(400, 'A valid journeyId is required to join a travel group.');

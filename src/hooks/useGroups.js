@@ -111,8 +111,13 @@ export function useGroups() {
     return (
       groups.find(
         (g) =>
-          (g.status === 'Open' || g.status === 'Confirmed') &&
-          (g.members || []).some((m) => m.userId === user.id || m.id === user.id)
+          (g.status === 'Open' || g.status === 'Confirmed' || g.status === 'Active') &&
+          (g.members || []).some(
+            (m) =>
+              (m.userId && m.userId === user.id) ||
+              (m.user_id && m.user_id === user.id) ||
+              (m.id && m.id === user.id)
+          )
       ) || null
     );
   }, [groups, user]);
@@ -131,18 +136,18 @@ export function useGroups() {
       setSelectedGroupId(res.group.id);
       setSelectedGroupDetails(res.group);
     }
-    fetchGroups().catch(() => {});
+    await fetchGroups().catch(() => {});
     return res;
   };
 
   const joinGroup = async (groupId, { journeyId } = {}) => {
     const res = await api.joinGroup(groupId, { journeyId });
     if (res?.group) {
-      setGroups((prev) => prev.map((g) => (g.id === groupId ? res.group : g)));
+      setGroups((prev) => [res.group, ...prev.filter((g) => g.id !== groupId)]);
       setSelectedGroupId(groupId);
       setSelectedGroupDetails(res.group);
     }
-    fetchGroups().catch(() => {});
+    await fetchGroups().catch(() => {});
     return res;
   };
 

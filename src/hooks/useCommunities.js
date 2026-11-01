@@ -125,10 +125,24 @@ export function useCommunities() {
     return res;
   };
 
-  const addComment = async (postId, text) => {
+  const addComment = async (postId, text, communityId) => {
     const res = await api.addComment(postId, text);
-    if (activeCommunityId) {
-      await fetchPosts(activeCommunityId);
+    const targetCommId = communityId || activeCommunityId;
+    if (targetCommId) {
+      await fetchPosts(targetCommId);
+    }
+    if (res?.comment) {
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === postId
+            ? {
+                ...p,
+                comments: [...(p.comments || []), res.comment],
+                repliesCount: (p.repliesCount || 0) + 1
+              }
+            : p
+        )
+      );
     }
     return res;
   };

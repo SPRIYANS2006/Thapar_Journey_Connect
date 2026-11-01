@@ -58,6 +58,8 @@ export default function CityCommunityHubPage({
   onAddPost,
   onLikePost,
   onAddComment,
+  onRefreshPosts,
+  onRefreshGroups,
   triggerToast
 }) {
   const [activeTab, setActiveTab] = useState('rides'); // 'rides' | 'board'
@@ -89,11 +91,21 @@ export default function CityCommunityHubPage({
   // Notice board state
   const [postTitle, setPostTitle] = useState('');
   const [postContent, setPostContent] = useState('');
+  const [postCategory, setPostCategory] = useState('Carpool Request');
+  const [postError, setPostError] = useState('');
   const [isPosting, setIsPosting] = useState(false);
+  const [isSubmittingPost, setIsSubmittingPost] = useState(false);
   const [openReplyPostId, setOpenReplyPostId] = useState(null);
   const [replyInputText, setReplyInputText] = useState('');
 
   const isUserEnrolledInCity = user?.joinedCommunity === community?.id;
+
+  // Refresh community notice board posts on mount or community change
+  useEffect(() => {
+    if (community?.id && onRefreshPosts) {
+      onRefreshPosts(community.id);
+    }
+  }, [community?.id, onRefreshPosts]);
 
   const refreshRides = useCallback(() => {
     if (!community?.id || !isUserEnrolledInCity) return;
@@ -189,6 +201,9 @@ export default function CityCommunityHubPage({
 
       setIsCreateRideModalOpen(false);
       refreshRides();
+      if (onRefreshGroups) {
+        onRefreshGroups();
+      }
     } catch (err) {
       setRideFormError(err.message || 'Failed to create ride');
     } finally {
@@ -209,6 +224,9 @@ export default function CityCommunityHubPage({
         });
       }
       refreshRides();
+      if (onRefreshGroups) {
+        onRefreshGroups();
+      }
     } catch (err) {
       if (triggerToast) {
         triggerToast({
@@ -238,6 +256,9 @@ export default function CityCommunityHubPage({
       }
       setRideToLeave(null);
       refreshRides();
+      if (onRefreshGroups) {
+        onRefreshGroups();
+      }
     } catch (err) {
       if (triggerToast) {
         triggerToast({
@@ -255,19 +276,29 @@ export default function CityCommunityHubPage({
   // Notice board handlers
   const handlePostSubmit = async (e) => {
     e.preventDefault();
-    if (!postTitle.trim() || !postContent.trim()) return;
+    if (!postTitle.trim() || !postContent.trim()) {
+      setPostError('Please enter both a title and details for the notice.');
+      return;
+    }
     try {
+      setIsSubmittingPost(true);
+      setPostError('');
       await onAddPost({
         communityId: community.id,
         title: postTitle.trim(),
         content: postContent.trim(),
-        category: postCategory
+        category: postCategory || 'Carpool Request'
       });
       setPostTitle('');
       setPostContent('');
       setIsPosting(false);
+      if (onRefreshPosts) {
+        onRefreshPosts(community.id);
+      }
     } catch (err) {
-      console.error('Failed to post:', err);
+      setPostError(err.message || 'Failed to post notice. Verify you are an enrolled member of this hub.');
+    } finally {
+      setIsSubmittingPost(false);
     }
   };
 
@@ -277,12 +308,15 @@ export default function CityCommunityHubPage({
       await onAddComment(postId, replyInputText.trim());
       setReplyInputText('');
       setOpenReplyPostId(null);
+      if (onRefreshPosts) {
+        onRefreshPosts(community.id);
+      }
     } catch (err) {
       console.error('Failed to add comment:', err);
     }
   };
 
-  const filteredPosts = (posts || []).filter((p) => p.communityId === community?.id);
+  const filteredPosts = (posts || []).filter((p) => (p.communityId || p.community_id) === community?.id);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 animate-in fade-in duration-200">
@@ -742,14 +776,23 @@ export default function CityCommunityHubPage({
               </p>
             </div>
 
-            {isUserEnrolledInCity && !isPosting && (
-              <button
-                onClick={() => setIsPosting(true)}
-                className="px-4 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer inline-flex items-center gap-1.5 shrink-0"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Post Notice</span>
-              </button>
+            {isUserEnrolledInCity ? (
+              !isPosting && (
+                <button
+                  onClick={() => {
+                    setIsPosting(true);
+                    setPostError('');
+                  }}
+                  className="px-4 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer inline-flex items-center gap-1.5 shrink-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Post Notice</span>
+                </button>
+              )
+            ) : (
+              <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-3.5 py-2 rounded-2xl font-medium shrink-0">
+                Join {community?.name} hub to post notices
+              </span>
             )}
           </div>
 
@@ -758,17 +801,43 @@ export default function CityCommunityHubPage({
             <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4 animate-in fade-in">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-slate-900 text-sm">Create New Notice / Carpool Request</h3>
-                <button onClick={() => setIsPosting(false)} className="text-slate-400 hover:text-slate-600">
+                <button
+                  onClick={() => {
+                    setIsPosting(false);
+                    setPostError('');
+                  }}
+                  className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
+              {postError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-2 text-rose-700 text-xs">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{postError}</span>
+                </div>
+              )}
+
               <form onSubmit={handlePostSubmit} className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-bold text-slate-700 shrink-0">Notice Category:</label>
+                  <select
+                    value={postCategory}
+                    onChange={(e) => setPostCategory(e.target.value)}
+                    className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 focus:outline-hidden focus:border-blue-500 cursor-pointer"
+                  >
+                    <option value="Carpool Request">Carpool Request</option>
+                    <option value="Weekend Travel">Weekend Travel</option>
+                    <option value="Holiday Break">Holiday Break</option>
+                    <option value="General Notice">General Notice</option>
+                  </select>
+                </div>
                 <input
                   type="text"
                   value={postTitle}
                   onChange={(e) => setPostTitle(e.target.value)}
-                  placeholder="Notice Title (e.g. Taking Friday Volvo at 6 PM, looking for company)..."
+                  placeholder="Notice Title (e.g. Taking Friday Train at 6 PM, looking for company)..."
                   maxLength={120}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm focus:border-blue-500 focus:outline-hidden"
                   required
@@ -776,7 +845,7 @@ export default function CityCommunityHubPage({
                 <textarea
                   value={postContent}
                   onChange={(e) => setPostContent(e.target.value)}
-                  placeholder="Detailed notes or queries..."
+                  placeholder="Detailed notes, departure timing, or co-traveler requests..."
                   rows={3}
                   maxLength={2000}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm focus:border-blue-500 focus:outline-hidden"
@@ -785,16 +854,20 @@ export default function CityCommunityHubPage({
                 <div className="flex items-center justify-end gap-2">
                   <button
                     type="button"
-                    onClick={() => setIsPosting(false)}
-                    className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                    onClick={() => {
+                      setIsPosting(false);
+                      setPostError('');
+                    }}
+                    className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-xs"
+                    disabled={isSubmittingPost}
+                    className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 shadow-xs cursor-pointer"
                   >
-                    Publish Notice
+                    {isSubmittingPost ? 'Publishing...' : 'Publish Notice'}
                   </button>
                 </div>
               </form>
@@ -811,24 +884,35 @@ export default function CityCommunityHubPage({
           ) : (
             <div className="space-y-4">
               {filteredPosts.map((post) => {
-                const isLiked = post.likes?.includes(user?.id);
-                const hasReplies = post.comments && post.comments.length > 0;
+                const authorName = post.author || post.authorName || 'Student';
+                const authorHostel = post.authorHostel || '';
+                const authorAvatar = post.authorAvatar || 'ST';
+                const isLiked = Boolean(post.isLiked);
+                const likesCount = typeof post.likes === 'number' ? post.likes : (Array.isArray(post.likes) ? post.likes.length : 0);
+                const commentsList = Array.isArray(post.comments) ? post.comments : [];
+                const hasReplies = commentsList.length > 0;
+
                 return (
                   <div key={post.id} className="bg-white rounded-3xl border border-slate-200/90 p-5 shadow-xs space-y-3">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
-                        <Avatar src={post.authorAvatar} name={post.authorName} size="w-9 h-9" textSize="text-xs" rounded="rounded-full" />
+                        <Avatar src={authorAvatar} name={authorName} size="w-9 h-9" textSize="text-xs" rounded="rounded-full" />
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="font-bold text-slate-900 text-sm">{post.authorName}</span>
-                            {post.authorHostel && (
+                            <span className="font-bold text-slate-900 text-sm">{authorName}</span>
+                            {authorHostel && (
                               <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-medium">
-                                {post.authorHostel}
+                                {authorHostel}
+                              </span>
+                            )}
+                            {post.category && (
+                              <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded font-semibold">
+                                {post.category}
                               </span>
                             )}
                           </div>
                           <span className="text-[10px] text-slate-400">
-                            {new Date(post.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                            {post.createdAt ? new Date(post.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : ''}
                           </span>
                         </div>
                       </div>
@@ -847,7 +931,7 @@ export default function CityCommunityHubPage({
                         }`}
                       >
                         <Heart className={`w-4 h-4 ${isLiked ? 'fill-current text-rose-600' : ''}`} />
-                        <span>{post.likes?.length || 0}</span>
+                        <span>{likesCount}</span>
                       </button>
 
                       <button
@@ -855,19 +939,19 @@ export default function CityCommunityHubPage({
                         className="flex items-center gap-1 text-slate-500 hover:text-blue-600 font-semibold transition-colors cursor-pointer"
                       >
                         <MessageSquare className="w-4 h-4" />
-                        <span>{post.comments?.length || 0} Replies</span>
+                        <span>{commentsList.length} Replies</span>
                       </button>
                     </div>
 
                     {/* Replies */}
                     {hasReplies && (
                       <div className="space-y-2 pt-2 border-t border-slate-100 pl-4">
-                        {post.comments.map((comm) => (
+                        {commentsList.map((comm) => (
                           <div key={comm.id} className="bg-slate-50 p-2.5 rounded-2xl text-xs space-y-1">
                             <div className="flex items-center gap-2 font-bold text-slate-700">
-                              <span>{comm.authorName}</span>
+                              <span>{comm.author || comm.authorName || 'Student'}</span>
                               <span className="text-[10px] text-slate-400 font-normal">
-                                {new Date(comm.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                {comm.createdAt ? new Date(comm.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                               </span>
                             </div>
                             <p className="text-slate-600">{comm.text}</p>
@@ -883,14 +967,20 @@ export default function CityCommunityHubPage({
                           type="text"
                           value={replyInputText}
                           onChange={(e) => setReplyInputText(e.target.value)}
-                          placeholder="Write a reply..."
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleCommentSubmit(post.id);
+                            }
+                          }}
+                          placeholder={`Reply to ${authorName}...`}
                           className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs focus:border-blue-500 focus:outline-hidden"
                         />
                         <button
                           onClick={() => handleCommentSubmit(post.id)}
-                          className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold"
+                          className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors cursor-pointer"
                         >
-                          Send
+                          Reply
                         </button>
                       </div>
                     )}

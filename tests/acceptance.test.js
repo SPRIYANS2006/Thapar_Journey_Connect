@@ -1492,4 +1492,81 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     const foundActive = resActive.body.find((g) => g.id === rideId);
     assert.equal(foundActive, undefined);
   });
+
+  // 35. Single-Ride Policy across City Community Rides: Rejects joining a second ride or creating a ride when already enrolled
+  it('35. Single-Ride Policy across City Community Rides: Rejects joining a second ride or creating a ride when already enrolled', async () => {
+    const { token: token1 } = await createTestStudent({ name: 'Solo Commuter', joined_community: 'del' });
+    const { token: otherCreatorToken } = await createTestStudent({ name: 'Creator Other', joined_community: 'del' });
+
+    // 1. Create Ride A
+    const resRideA = await request(app)
+      .post('/api/communities/del/rides')
+      .set('Authorization', `Bearer ${token1}`)
+      .send({
+        date: '2026-11-20',
+        time: '12:00',
+        mode: 'Cab',
+        destination: 'Delhi South Extension',
+        pickupPoint: 'Main Gate',
+        totalFare: 2400,
+        maxCapacity: 4,
+        transitDetails: 'Sedan Cab'
+      });
+    assert.equal(resRideA.status, 201);
+    const rideAId = resRideA.body.ride.id;
+
+    // 2. Creator Other creates Ride B
+    const resRideB = await request(app)
+      .post('/api/communities/del/rides')
+      .set('Authorization', `Bearer ${otherCreatorToken}`)
+      .send({
+        date: '2026-11-20',
+        time: '14:00',
+        mode: 'Train',
+        destination: 'NDLS',
+        pickupPoint: 'Campus Gate 2',
+        totalFare: 300,
+        maxCapacity: 6,
+        transitDetails: 'Shatabdi Express'
+      });
+    assert.equal(resRideB.status, 201);
+    const rideBId = resRideB.body.ride.id;
+
+    // 3. Student (already member of Ride A) attempts to join Ride B -> HTTP 409
+    const resJoinB = await request(app)
+      .post(`/api/communities/del/rides/${rideBId}/join`)
+      .set('Authorization', `Bearer ${token1}`);
+    assert.equal(resJoinB.status, 409);
+    assert.match(resJoinB.body.error, /Single-Ride Policy/i);
+
+    // 4. Student (already member of Ride A) attempts to create a second ride -> HTTP 409
+    const resCreateSecond = await request(app)
+      .post('/api/communities/del/rides')
+      .set('Authorization', `Bearer ${token1}`)
+      .send({
+        date: '2026-11-21',
+        time: '10:00',
+        mode: 'Cab',
+        destination: 'Delhi Airport',
+        pickupPoint: 'Main Gate',
+        totalFare: 2000,
+        maxCapacity: 4,
+        transitDetails: 'Sedan'
+      });
+    assert.equal(resCreateSecond.status, 409);
+    assert.match(resCreateSecond.body.error, /Single-Ride Policy/i);
+
+    // 5. Student leaves Ride A
+    const resLeaveA = await request(app)
+      .post(`/api/communities/del/rides/${rideAId}/leave`)
+      .set('Authorization', `Bearer ${token1}`);
+    assert.equal(resLeaveA.status, 200);
+
+    // 6. Now student can join Ride B successfully -> HTTP 200
+    const resJoinBAfterLeave = await request(app)
+      .post(`/api/communities/del/rides/${rideBId}/join`)
+      .set('Authorization', `Bearer ${token1}`);
+    assert.equal(resJoinBAfterLeave.status, 200);
+    assert.equal(resJoinBAfterLeave.body.ride.currentMembersCount, 2);
+  });
 });

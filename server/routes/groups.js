@@ -218,6 +218,30 @@ router.post('/:id/join', async (req, res, next) => {
         throw new HttpError(400, 'This ride is already full.');
       }
 
+      // Single-Ride Policy: Check if user is already in an active Group or another CityRide
+      const activeExistingGroup = await Group.findOne({
+        status: { $in: ['Open', 'Confirmed'] },
+        'members.user_id': req.user.id
+      });
+      if (activeExistingGroup) {
+        throw new HttpError(
+          409,
+          `Single-Ride Policy: You are already enrolled in active Group #${activeExistingGroup.id} (${activeExistingGroup.destination_name}). Please leave it first before joining another ride.`
+        );
+      }
+
+      const otherActiveRide = await CityRide.findOne({
+        id: { $ne: ride.id },
+        status: { $in: ['Open', 'Confirmed', 'Full'] },
+        'members.user_id': req.user.id
+      });
+      if (otherActiveRide) {
+        throw new HttpError(
+          409,
+          `Single-Ride Policy: You already belong to an active community ride to ${otherActiveRide.destination}. Please leave it first before joining another ride.`
+        );
+      }
+
       ride.members.push({
         id: crypto.randomUUID(),
         user_id: req.user.id,
@@ -233,6 +257,8 @@ router.post('/:id/join', async (req, res, next) => {
         ride.status = 'Full';
       }
       await ride.save();
+
+      await User.updateOne({ id: req.user.id }, { $set: { active_group_id: ride.id } });
 
       return res.json({
         success: true,
@@ -269,6 +295,7 @@ router.post('/:id/leave', async (req, res, next) => {
       ride.current_members_count = ride.members.length;
       if (ride.members.length === 0) {
         await CityRide.deleteOne({ id: ride.id });
+        await User.updateOne({ id: req.user.id, active_group_id: ride.id }, { $set: { active_group_id: null } });
         return res.json({ message: 'Ride vacated and removed.', removed: true });
       }
       if (ride.creator_id === req.user.id && ride.members.length > 0) {
@@ -280,6 +307,7 @@ router.post('/:id/leave', async (req, res, next) => {
         ride.status = 'Open';
       }
       await ride.save();
+      await User.updateOne({ id: req.user.id, active_group_id: ride.id }, { $set: { active_group_id: null } });
       return res.json({ message: 'Successfully left the ride.' });
     }
 

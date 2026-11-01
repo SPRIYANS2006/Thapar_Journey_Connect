@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Car,
   Train,
@@ -50,6 +50,7 @@ export default function CityCommunityHubPage({
   community,
   allCommunities: _allCommunities = [],
   user,
+  activeGroup = null,
   posts = [],
   onBack,
   onSelectOtherCommunity: _onSelectOtherCommunity,
@@ -67,6 +68,23 @@ export default function CityCommunityHubPage({
   const [rides, setRides] = useState([]);
   const [loadingRides, setLoadingRides] = useState(false);
   const [ridesError, setRidesError] = useState(null);
+
+  const userActiveRide = useMemo(() => {
+    if (!user) return null;
+    if (activeGroup) return activeGroup;
+    return (
+      (rides || []).find(
+        (r) =>
+          (r.status === 'Open' || r.status === 'Confirmed' || r.status === 'Full') &&
+          (r.members || []).some(
+            (m) =>
+              (m.userId && m.userId === user.id) ||
+              (m.user_id && m.user_id === user.id) ||
+              (m.id && m.id === user.id)
+          )
+      ) || null
+    );
+  }, [user, activeGroup, rides]);
 
   // Create Ride Modal State
   const [isCreateRideModalOpen, setIsCreateRideModalOpen] = useState(false);
@@ -167,10 +185,33 @@ export default function CityCommunityHubPage({
     }
   };
 
+  const handleOpenCreateRide = (mode = 'Cab') => {
+    if (userActiveRide) {
+      if (triggerToast) {
+        triggerToast({
+          id: 'ride_create_active_err',
+          type: 'error',
+          title: 'Single-Ride Policy',
+          message: `You are already enrolled in active ride (${userActiveRide.destinationName || userActiveRide.destination || 'Group #' + userActiveRide.id}). Leave that ride before creating a new one.`
+        });
+      }
+      return;
+    }
+    handleModeChange(mode);
+    setIsCreateRideModalOpen(true);
+  };
+
   const handleCreateRideSubmit = async (e) => {
     e.preventDefault();
     if (!rideFormDate || !rideFormTime) {
       setRideFormError('Please select departure date and time.');
+      return;
+    }
+
+    if (userActiveRide) {
+      setRideFormError(
+        `Single-Ride Policy: You already belong to an active ride (${userActiveRide.destinationName || userActiveRide.destination || 'Group #' + userActiveRide.id}). Please leave it before creating a new one.`
+      );
       return;
     }
 
@@ -212,6 +253,18 @@ export default function CityCommunityHubPage({
   };
 
   const handleJoinRide = async (ride) => {
+    if (userActiveRide && userActiveRide.id !== ride.id) {
+      if (triggerToast) {
+        triggerToast({
+          id: `ride_active_err_${ride.id}`,
+          type: 'error',
+          title: 'Single-Ride Policy',
+          message: `You are already enrolled in an active ride (${userActiveRide.destinationName || userActiveRide.destination || 'Group #' + userActiveRide.id}). Leave that ride before joining another.`
+        });
+      }
+      return;
+    }
+
     try {
       setActionLoadingRideId(ride.id);
       const res = await api.joinCityRide(community.id, ride.id);
@@ -521,10 +574,7 @@ export default function CityCommunityHubPage({
 
             {/* Create Ride Action */}
             <button
-              onClick={() => {
-                handleModeChange('Cab');
-                setIsCreateRideModalOpen(true);
-              }}
+              onClick={() => handleOpenCreateRide('Cab')}
               className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-5 py-3 rounded-2xl shadow-md shadow-blue-500/20 transition-all cursor-pointer shrink-0"
             >
               <Plus className="w-4 h-4" />
@@ -563,10 +613,7 @@ export default function CityCommunityHubPage({
                 </p>
               </div>
               <button
-                onClick={() => {
-                  handleModeChange(selectedModeFilter !== 'All' ? selectedModeFilter : 'Cab');
-                  setIsCreateRideModalOpen(true);
-                }}
+                onClick={() => handleOpenCreateRide(selectedModeFilter !== 'All' ? selectedModeFilter : 'Cab')}
                 className="px-6 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all cursor-pointer inline-flex items-center gap-2"
               >
                 <Plus className="w-4 h-4" />
@@ -743,7 +790,16 @@ export default function CityCommunityHubPage({
                           <button
                             onClick={() => handleJoinRide(ride)}
                             disabled={actionLoadingRideId === ride.id}
-                            className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                            title={
+                              userActiveRide && userActiveRide.id !== ride.id
+                                ? `Single-Ride Policy: You already belong to active ride (${userActiveRide.destinationName || userActiveRide.destination || 'Group #' + userActiveRide.id})`
+                                : undefined
+                            }
+                            className={`px-4 py-2 rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50 ${
+                              userActiveRide && userActiveRide.id !== ride.id
+                                ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                                : 'bg-blue-600 hover:bg-blue-700 text-white'
+                            }`}
                           >
                             <Plus className="w-3.5 h-3.5" />
                             <span>

@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { Group, Journey, User, Message, getNextGroupId, RideRecord } from '../models/index.js';
+import { Group, Journey, User, Message, getNextGroupId, RideRecord, CityRide } from '../models/index.js';
 import { HttpError } from '../middleware/errors.js';
 import { getHoursUntilDeparture, normalizeDateStr, validateTravelDateTime, getCircularMinuteDiff } from '../utils/time.js';
 import { notifyGroup, notifyGroupMembersUpdated } from './notifications.js';
@@ -26,6 +26,17 @@ export async function createGroupFromJourney(creatorUser, journeyId, pickupPoint
     throw new HttpError(
       409,
       `Single-Ride Policy: You are already a member of active Group #${activeExisting.id} (${activeExisting.destination_name}). Please leave it before creating a new ride.`
+    );
+  }
+
+  const activeExistingCityRide = await CityRide.findOne({
+    status: { $in: ['Open', 'Confirmed', 'Full'] },
+    'members.user_id': creatorUser.id
+  });
+  if (activeExistingCityRide) {
+    throw new HttpError(
+      409,
+      `Single-Ride Policy: You are already enrolled in an active community ride to ${activeExistingCityRide.destination}. Please leave it before creating a new ride.`
     );
   }
 
@@ -145,6 +156,17 @@ export async function joinGroupWithJourney(user, groupId, journeyId) {
     throw new HttpError(
       409,
       `Single-Ride Policy: You already belong to active Group #${otherActive.id} (${otherActive.destination_name}). Please leave it first before joining another.`
+    );
+  }
+
+  const activeCityRide = await CityRide.findOne({
+    status: { $in: ['Open', 'Confirmed', 'Full'] },
+    'members.user_id': user.id
+  });
+  if (activeCityRide) {
+    throw new HttpError(
+      409,
+      `Single-Ride Policy: You already belong to an active community ride to ${activeCityRide.destination}. Please leave it first before joining another.`
     );
   }
 

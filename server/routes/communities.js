@@ -1,6 +1,6 @@
 import express from 'express';
 import crypto from 'node:crypto';
-import { Community, CommunityPost, User, CityRide } from '../models/index.js';
+import { Community, CommunityPost, User, CityRide, Group } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { HttpError } from '../middleware/errors.js';
 import {
@@ -369,6 +369,29 @@ router.post('/:id/rides', async (req, res, next) => {
       throw new HttpError(400, 'Bus feature has been removed. Only Cab and Train modes are supported.');
     }
 
+    // Single-Ride Policy: Check if user is already in an active Group or CityRide
+    const activeExistingGroup = await Group.findOne({
+      status: { $in: ['Open', 'Confirmed'] },
+      'members.user_id': req.user.id
+    });
+    if (activeExistingGroup) {
+      throw new HttpError(
+        409,
+        `Single-Ride Policy: You are already enrolled in active Group #${activeExistingGroup.id} (${activeExistingGroup.destination_name}). Please leave it before creating a new ride.`
+      );
+    }
+
+    const activeExistingRide = await CityRide.findOne({
+      status: { $in: ['Open', 'Confirmed', 'Full'] },
+      'members.user_id': req.user.id
+    });
+    if (activeExistingRide) {
+      throw new HttpError(
+        409,
+        `Single-Ride Policy: You already belong to an active community ride to ${activeExistingRide.destination}. Please leave it before creating a new ride.`
+      );
+    }
+
     const validModes = ['Cab', 'Train'];
     const selectedMode = validModes.includes(mode) ? mode : 'Cab';
 
@@ -408,6 +431,8 @@ router.post('/:id/rides', async (req, res, next) => {
       ]
     });
 
+    await User.updateOne({ id: req.user.id }, { $set: { active_group_id: newRide.id } });
+
     res.status(201).json({
       success: true,
       message: `Created ${selectedMode} ride to ${community.name}!`,
@@ -446,6 +471,30 @@ router.post('/:id/rides/:rideId/join', async (req, res, next) => {
       throw new HttpError(400, 'This ride is already full.');
     }
 
+    // Single-Ride Policy: Check if user is already in an active Group or another CityRide
+    const activeExistingGroup = await Group.findOne({
+      status: { $in: ['Open', 'Confirmed'] },
+      'members.user_id': req.user.id
+    });
+    if (activeExistingGroup) {
+      throw new HttpError(
+        409,
+        `Single-Ride Policy: You are already enrolled in active Group #${activeExistingGroup.id} (${activeExistingGroup.destination_name}). Please leave it first before joining another ride.`
+      );
+    }
+
+    const otherActiveRide = await CityRide.findOne({
+      id: { $ne: req.params.rideId },
+      status: { $in: ['Open', 'Confirmed', 'Full'] },
+      'members.user_id': req.user.id
+    });
+    if (otherActiveRide) {
+      throw new HttpError(
+        409,
+        `Single-Ride Policy: You already belong to an active community ride to ${otherActiveRide.destination}. Please leave it first before joining another ride.`
+      );
+    }
+
     const newMember = {
       id: crypto.randomUUID(),
       user_id: req.user.id,
@@ -464,6 +513,8 @@ router.post('/:id/rides/:rideId/join', async (req, res, next) => {
     }
 
     await ride.save();
+
+    await User.updateOne({ id: req.user.id }, { $set: { active_group_id: ride.id } });
 
     res.json({
       success: true,
@@ -502,6 +553,10 @@ router.post('/:id/rides/:rideId/leave', async (req, res, next) => {
 
     if (ride.members.length === 0) {
       await CityRide.deleteOne({ id: req.params.rideId });
+      await User.updateOne(
+        { id: req.user.id, active_group_id: req.params.rideId },
+        { $set: { active_group_id: null } }
+      );
       return res.json({
         success: true,
         message: 'You left the ride. Since no riders remained, the ride was cancelled.',
@@ -514,6 +569,11 @@ router.post('/:id/rides/:rideId/leave', async (req, res, next) => {
     }
 
     await ride.save();
+
+    await User.updateOne(
+      { id: req.user.id, active_group_id: req.params.rideId },
+      { $set: { active_group_id: null } }
+    );
 
     res.json({
       success: true,
@@ -552,7 +612,7 @@ router.post('/:id/rides/:rideId/complete', async (req, res, next) => {
     if (memberUserIds.length > 0) {
       await User.updateMany(
         { id: { $in: memberUserIds } },
-        { $inc: { trips_completed: 1 } }
+        { $inc: { trips_completed: 1 }, $set: { active_group_id: null } }
       );
     }
 

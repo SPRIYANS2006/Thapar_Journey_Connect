@@ -510,6 +510,7 @@ function AppContent() {
               community={selectedCityHub}
               allCommunities={communities}
               user={user}
+              activeGroup={activeGroup}
               posts={communityPosts}
               onBack={() => setSelectedCityHub(null)}
               onRefreshGroups={fetchGroups}

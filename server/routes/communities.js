@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import { Community, CommunityPost, User, CityRide, Group, getNextGroupId } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { HttpError } from '../middleware/errors.js';
-import { notifyUser } from '../services/notifications.js';
+import { notifyUser, notifyGroupMembersUpdated } from '../services/notifications.js';
 import {
   validateCommunityPost,
   validatePostComment
@@ -593,6 +593,23 @@ router.post('/:id/rides/:rideId/leave', async (req, res, next) => {
       { id: req.user.id, active_group_id: req.params.rideId },
       { $set: { active_group_id: null } }
     );
+
+    // Notify all remaining members with an on-screen toast popup
+    for (const em of ride.members) {
+      const memberId = em.user_id || em.userId || em.id;
+      if (memberId && memberId !== req.user.id) {
+        notifyUser(memberId, 'member_left', {
+          groupId: ride.id,
+          destinationName: `${ride.destination} (${ride.community_name || 'Community'})`,
+          leaverId: req.user.id,
+          leaverName: req.user.name,
+          remainingMembersCount: ride.members.length,
+          maxMembers: ride.max_capacity || (ride.mode === 'Cab' ? 4 : 6)
+        });
+      }
+    }
+
+    notifyGroupMembersUpdated(serializeCityRide(ride, req.user.id));
 
     res.json({
       success: true,

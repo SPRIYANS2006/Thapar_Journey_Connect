@@ -21,12 +21,21 @@ import {
 } from '../middleware/validate.js';
 import { notifyGroup, notifyUser, notifyGroupMembersUpdated } from '../services/notifications.js';
 
-function serializeCityRideAsGroup(ride, _viewingUserId) {
+function serializeCityRideAsGroup(ride, viewingUserId) {
   const membersCount = ride.current_members_count || (ride.members ? ride.members.length : 1);
   const farePerPerson =
     ride.mode === 'Cab' && ride.total_fare > 0 && membersCount > 0
       ? Math.round(ride.total_fare / membersCount)
       : (ride.total_fare || 0);
+
+  const isMember = Boolean(
+    viewingUserId &&
+    ride.members &&
+    ride.members.some((m) => (m.user_id || m.userId || m.id) === viewingUserId)
+  );
+
+  const isConfirmed = ride.status === 'Confirmed' || ride.status === 'Completed';
+  const canSeePhone = isMember && isConfirmed;
 
   return {
     id: ride.id,
@@ -34,11 +43,12 @@ function serializeCityRideAsGroup(ride, _viewingUserId) {
     destinationName: `${ride.destination} (${ride.community_name})`,
     departureTime: ride.time,
     date: ride.date,
-    status: ride.status === 'Full' ? 'Confirmed' : (ride.status || 'Active'),
+    status: ride.status || 'Open',
     transport: ride.mode === 'Cab' ? 'Shared Cab' : 'Train',
     maxMembers: ride.max_capacity || 4,
     pickupPoint: ride.pickup_point,
     adminId: ride.creator_id,
+    creatorId: ride.creator_id,
     isCommunityRide: true,
     communityId: ride.community_id,
     communityName: ride.community_name,
@@ -53,7 +63,7 @@ function serializeCityRideAsGroup(ride, _viewingUserId) {
       name: m.name,
       avatar: m.avatar || 'ST',
       hostel: m.hostel || '',
-      phone: m.phone || '',
+      phone: canSeePhone ? (m.phone || '') : '',
       role: m.role === 'Admin' ? 'Group Admin' : 'Member'
     })),
     createdAt: ride.created_at ? new Date(ride.created_at).toISOString() : new Date().toISOString()
@@ -354,6 +364,24 @@ router.post('/:id/leave', async (req, res, next) => {
       }
       await cityRide.save();
       await User.updateOne({ id: req.user.id, active_group_id: cityRide.id }, { $set: { active_group_id: null } });
+
+      // Notify remaining members with an on-screen toast popup
+      for (const m of cityRide.members) {
+        const memberId = m.user_id || m.userId || m.id;
+        if (memberId && memberId !== req.user.id) {
+          notifyUser(memberId, 'member_left', {
+            groupId: cityRide.id,
+            destinationName: `${cityRide.destination} (${cityRide.community_name || 'Community'})`,
+            leaverId: req.user.id,
+            leaverName: req.user.name,
+            remainingMembersCount: cityRide.members.length,
+            maxMembers: cityRide.max_capacity || 4
+          });
+        }
+      }
+
+      notifyGroupMembersUpdated(serializeCityRideAsGroup(cityRide, req.user.id));
+
       return res.json({ message: 'Successfully left the ride.' });
     }
 
@@ -367,8 +395,47 @@ router.post('/:id/leave', async (req, res, next) => {
 // 6. Confirm Group: Admin only
 router.post('/:id/confirm', async (req, res, next) => {
   try {
-    const group = await Group.findOne({ id: req.params.id });
-    if (!group) throw new HttpError(404, 'Group not found.');
+    const { group, cityRide } = await findGroupOrCityRide(req.params.id);
+    if (!group && !cityRide) throw new HttpError(404, 'Group not found.');
+
+    if (cityRide) {
+      const isAdmin =
+        cityRide.creator_id === req.user.id ||
+        (cityRide.members || []).some(
+          (m) => (m.user_id || m.userId || m.id) === req.user.id && m.role === 'Admin'
+        );
+      if (!isAdmin) {
+        throw new HttpError(403, 'Forbidden: Only the group admin can confirm this journey.');
+      }
+      cityRide.status = 'Confirmed';
+      cityRide.confirmed_at = new Date();
+      cityRide.confirmed_by = req.user.id;
+      await cityRide.save();
+
+      const serializedRide = serializeCityRideAsGroup(cityRide, req.user.id);
+
+      // Notify all other members that journey is confirmed and numbers are now visible
+      for (const m of cityRide.members || []) {
+        const memberId = m.user_id || m.userId || m.id;
+        if (memberId && memberId !== req.user.id) {
+          notifyUser(memberId, 'group_confirmed', {
+            groupId: cityRide.id,
+            destinationName: `${cityRide.destination} (${cityRide.community_name || 'Community'})`
+          });
+        }
+      }
+
+      notifyGroup(cityRide.id, 'group_confirmed', {
+        groupId: cityRide.id,
+        group: serializedRide
+      });
+      notifyGroupMembersUpdated(serializedRide);
+
+      return res.json({
+        success: true,
+        group: serializedRide
+      });
+    }
 
     if (group.admin_id !== req.user.id) {
       throw new HttpError(403, 'Forbidden: Only the group admin can confirm this journey.');
@@ -379,10 +446,28 @@ router.post('/:id/confirm', async (req, res, next) => {
     group.confirmed_by = req.user.id;
     await group.save();
 
+    const serialized = serializeGroup(group, req.user.id);
+
+    // Notify all other members that journey is confirmed and numbers are now visible
+    for (const m of group.members || []) {
+      const memberId = m.user_id || m.userId || m.id;
+      if (memberId && memberId !== req.user.id) {
+        notifyUser(memberId, 'group_confirmed', {
+          groupId: group.id,
+          destinationName: group.destination_name
+        });
+      }
+    }
+
+    notifyGroup(group.id, 'group_confirmed', {
+      groupId: group.id,
+      group: serialized
+    });
     notifyGroupMembersUpdated(group);
+
     res.json({
       success: true,
-      group: serializeGroup(group, req.user.id)
+      group: serialized
     });
   } catch (err) {
     next(err);

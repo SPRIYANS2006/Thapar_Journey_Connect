@@ -20,11 +20,17 @@ export function notifyGroup(groupId, event, payload) {
 
 export function notifyGroupMembersUpdated(group) {
   if (!ioInstance || !group) return;
-  const memberUserIds = (group.members || []).map((m) => m.user_id);
+  const memberUserIds = (group.members || []).map((m) => m.user_id || m.userId || m.id);
   for (const uid of memberUserIds) {
-    ioInstance.to(`user_${uid}`).emit('groups_updated', {
-      groupId: group.id,
-      status: group.status
-    });
+    if (uid) {
+      ioInstance.to(`user_${uid}`).emit('groups_updated', {
+        groupId: group.id,
+        status: group.status
+      });
+      ioInstance.to(`user_${uid}`).emit('group_updated', {
+        groupId: group.id,
+        status: group.status
+      });
+    }
   }
 }

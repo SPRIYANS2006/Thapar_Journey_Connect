@@ -141,14 +141,52 @@ function AppContent() {
       fetchGroups();
     };
 
+    const handleMemberLeft = (data) => {
+      if (!data) return;
+      if (data.leaverId === user.id) return;
+
+      triggerToast({
+        id: `leave_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+        type: 'warning',
+        title: `⚠️ Member Left Group #${data.groupId}`,
+        message: `${data.leaverName} left your ride to ${data.destinationName}. (${data.remainingMembersCount}/${data.maxMembers} seats filled)`,
+        actionLabel: 'Open Chat',
+        onAction: () => {
+          setChatGroupId(data.groupId);
+          setIsChatOpen(true);
+        }
+      });
+      fetchGroups();
+    };
+
+    const handleGroupConfirmed = (data) => {
+      if (!data) return;
+      triggerToast({
+        id: `confirmed_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+        type: 'success',
+        title: `🎉 Group #${data.groupId} Confirmed!`,
+        message: `The admin confirmed your journey to ${data.destinationName}. Member contact phone numbers are now visible!`,
+        actionLabel: 'View Details',
+        onAction: () => {
+          setSelectedGroupId(data.groupId);
+          setActivePage('group-details');
+        }
+      });
+      fetchGroups();
+    };
+
     socket.on('new_chat_message', handleNewChatMessage);
     socket.on('group_found', handleGroupFound);
     socket.on('member_joined', handleMemberJoined);
+    socket.on('member_left', handleMemberLeft);
+    socket.on('group_confirmed', handleGroupConfirmed);
 
     return () => {
       socket.off('new_chat_message', handleNewChatMessage);
       socket.off('group_found', handleGroupFound);
       socket.off('member_joined', handleMemberJoined);
+      socket.off('member_left', handleMemberLeft);
+      socket.off('group_confirmed', handleGroupConfirmed);
     };
   }, [token, user, isChatOpen, chatGroupId, triggerToast, setSelectedGroupId, fetchGroups]);
 

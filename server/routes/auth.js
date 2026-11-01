@@ -2,7 +2,7 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import crypto from 'node:crypto';
 import { OAuth2Client } from 'google-auth-library';
-import { User } from '../models/index.js';
+import { User, Group, CityRide } from '../models/index.js';
 import { generateSessionToken, requireAuth } from '../middleware/auth.js';
 import { authRateLimiter } from '../middleware/rateLimit.js';
 import { serializeUser } from '../services/serializers.js';
@@ -209,6 +209,16 @@ router.put('/profile', requireAuth, async (req, res, next) => {
     }
     if (typeof phone === 'string') {
       user.phone = phone.trim().slice(0, 30);
+      await Group.updateMany(
+        { 'members.user_id': user.id },
+        { $set: { 'members.$[elem].phone': user.phone } },
+        { arrayFilters: [{ 'elem.user_id': user.id }] }
+      ).catch(() => {});
+      await CityRide.updateMany(
+        { 'members.user_id': user.id },
+        { $set: { 'members.$[elem].phone': user.phone } },
+        { arrayFilters: [{ 'elem.user_id': user.id }] }
+      ).catch(() => {});
     }
     if (typeof degree === 'string') {
       user.degree = degree.trim().slice(0, 100);

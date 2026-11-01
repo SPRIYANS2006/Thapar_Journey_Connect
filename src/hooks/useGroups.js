@@ -123,10 +123,10 @@ export function useGroups() {
   }, [groups, user]);
 
   const selectedGroup = useMemo(() => {
-    if (selectedGroupDetails && selectedGroupDetails.id === selectedGroupId) {
+    if (selectedGroupDetails && String(selectedGroupDetails.id) === String(selectedGroupId)) {
       return selectedGroupDetails;
     }
-    return groups.find((g) => g.id === selectedGroupId) || null;
+    return groups.find((g) => String(g.id) === String(selectedGroupId)) || null;
   }, [selectedGroupDetails, selectedGroupId, groups]);
 
   const createGroup = async ({ journeyId, pickupPoint }) => {

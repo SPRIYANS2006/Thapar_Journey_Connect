@@ -1681,4 +1681,81 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     assert.ok(completedEntry, 'Ride #2 must be present in profile confirmed ride history');
     assert.equal(completedEntry.id, '2');
   });
+
+  // 38. Admin confirms journey reveals member phone numbers, member departure triggers leave alerts
+  it('38. Admin confirms journey reveals member phone numbers, member departure triggers leave alerts', async () => {
+    const { token: adminToken } = await createTestStudent({
+      name: 'Ride Admin',
+      joined_community: 'del',
+      phone: '+91 9111111111'
+    });
+    const { token: riderToken } = await createTestStudent({
+      name: 'Fellow Rider',
+      joined_community: 'del',
+      phone: '+91 9222222222'
+    });
+
+    // 1. Admin creates a City Ride
+    const resCreate = await request(app)
+      .post('/api/communities/del/rides')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        date: 'Tomorrow',
+        time: '16:00',
+        mode: 'Cab',
+        destination: 'Delhi Aerocity',
+        pickupPoint: 'Main Gate',
+        totalFare: 2800,
+        maxCapacity: 4,
+        transitDetails: 'Innova Cab'
+      });
+    assert.equal(resCreate.status, 201);
+    const rideId = resCreate.body.ride.id;
+
+    // 2. Fellow Rider joins the ride
+    const resJoin = await request(app)
+      .post(`/api/communities/del/rides/${rideId}/join`)
+      .set('Authorization', `Bearer ${riderToken}`);
+    assert.equal(resJoin.status, 200);
+
+    // 3. Before confirmation: Fellow rider checks group details -> Admin's phone number is hidden (empty string)
+    const resDetailsBefore = await request(app)
+      .get(`/api/groups/${rideId}`)
+      .set('Authorization', `Bearer ${riderToken}`);
+    assert.equal(resDetailsBefore.status, 200);
+    assert.equal(resDetailsBefore.body.status, 'Open');
+    const adminBefore = resDetailsBefore.body.members.find((m) => m.name === 'Ride Admin');
+    assert.ok(adminBefore);
+    assert.equal(adminBefore.phone, '', 'Phone numbers must remain hidden prior to admin confirmation');
+
+    // 4. Admin confirms the journey via POST /api/groups/:id/confirm -> HTTP 200 Confirmed
+    const resConfirm = await request(app)
+      .post(`/api/groups/${rideId}/confirm`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    assert.equal(resConfirm.status, 200);
+    assert.equal(resConfirm.body.group.status, 'Confirmed');
+
+    // 5. After confirmation: Fellow rider checks group details -> Admin's phone number IS now visible
+    const resDetailsAfter = await request(app)
+      .get(`/api/groups/${rideId}`)
+      .set('Authorization', `Bearer ${riderToken}`);
+    assert.equal(resDetailsAfter.status, 200);
+    assert.equal(resDetailsAfter.body.status, 'Confirmed');
+    const adminAfter = resDetailsAfter.body.members.find((m) => m.name === 'Ride Admin');
+    assert.ok(adminAfter);
+    assert.equal(adminAfter.phone, '+91 9111111111', 'Admin phone must be visible after confirmation');
+
+    // 6. Fellow rider leaves the ride -> Remaining admin is notified and member count is 1
+    const resLeave = await request(app)
+      .post(`/api/groups/${rideId}/leave`)
+      .set('Authorization', `Bearer ${riderToken}`);
+    assert.equal(resLeave.status, 200);
+
+    // 7. Admin checks group details -> Only admin remains
+    const resDetailsAfterLeave = await request(app)
+      .get(`/api/groups/${rideId}`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    assert.equal(resDetailsAfterLeave.status, 200);
+    assert.equal(resDetailsAfterLeave.body.members.length, 1);
+  });
 });

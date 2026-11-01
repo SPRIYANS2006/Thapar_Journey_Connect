@@ -48,7 +48,7 @@ const cityRideSchema = new mongoose.Schema({
   status: {
     type: String,
     default: 'Open',
-    enum: ['Open', 'Full', 'Completed', 'Cancelled']
+    enum: ['Open', 'Full', 'Confirmed', 'Completed', 'Cancelled']
   },
   members: [cityRideMemberSchema],
   created_at: { type: Date, default: Date.now }

@@ -70,8 +70,11 @@ export default function GroupDetailsPage({
     currentUser &&
     (group.adminId === currentUserId ||
       group.admin_id === currentUserId ||
+      group.creatorId === currentUserId ||
+      group.creator_id === currentUserId ||
       ((group.members || [])[0]?.userId === currentUserId ||
-        (group.members || [])[0]?.id === currentUserId));
+        (group.members || [])[0]?.id === currentUserId ||
+        (group.members || [])[0]?.user_id === currentUserId));
 
   const isConfirmed = group.status === 'Confirmed';
   const isCompleted = group.status === 'Completed';
@@ -455,10 +458,10 @@ export default function GroupDetailsPage({
                           <Phone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                           <span className="font-mono font-bold text-[11px]">{member.phone || 'No phone set'}</span>
                         </div>
-                      ) : canSeePhone && member.phone ? (
+                      ) : canSeePhone ? (
                         <div className="flex items-center gap-1.5 text-xs text-slate-800">
                           <Phone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                          <span className="font-mono font-bold text-[11px]">{member.phone}</span>
+                          <span className="font-mono font-bold text-[11px]">{member.phone || 'No phone set'}</span>
                         </div>
                       ) : (
                         <div className="flex items-center gap-1.5 text-slate-400 text-[11px]" title="Phone visible only to confirmed group members.">

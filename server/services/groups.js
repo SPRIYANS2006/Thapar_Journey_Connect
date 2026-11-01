@@ -404,6 +404,21 @@ export async function leaveGroup(user, groupId) {
     });
 
     notifyGroupMembersUpdated(group);
+
+    // Notify all remaining members with an on-screen toast popup
+    for (const em of group.members) {
+      const memberId = em.user_id || em.userId || em.id;
+      if (memberId && memberId !== user.id) {
+        notifyUser(memberId, 'member_left', {
+          groupId: group.id,
+          destinationName: group.destination_name,
+          leaverId: user.id,
+          leaverName: user.name,
+          remainingMembersCount: group.members.length,
+          maxMembers: group.max_members || 4
+        });
+      }
+    }
   }
 
   // Restore any journey associated with this user back to Searching

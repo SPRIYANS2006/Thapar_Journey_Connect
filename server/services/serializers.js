@@ -40,7 +40,7 @@ export function serializeGroup(group, viewingUserId = null) {
   const isMember = Boolean(
     viewingUserId &&
     group.members &&
-    group.members.some((m) => m.user_id === viewingUserId)
+    group.members.some((m) => (m.user_id || m.userId || m.id) === viewingUserId)
   );
 
   // Phone numbers are revealed ONLY to fellow members and ONLY when group is Confirmed or Completed
@@ -202,8 +202,10 @@ export function serializeCityRide(ride, viewingUserId = null) {
   const isMember = Boolean(
     viewingUserId &&
     ride.members &&
-    ride.members.some((m) => m.user_id === viewingUserId)
+    ride.members.some((m) => (m.user_id || m.userId || m.id) === viewingUserId)
   );
+
+  const canSeePhones = isMember && (ride.status === 'Confirmed' || ride.status === 'Completed');
 
   const membersCount = ride.current_members_count || (ride.members ? ride.members.length : 1);
   const farePerPerson =
@@ -233,14 +235,14 @@ export function serializeCityRide(ride, viewingUserId = null) {
     isFull: seatsLeft === 0 || ride.status === 'Full',
     transitDetails: ride.transit_details || '',
     notes: ride.notes || '',
-    status: seatsLeft === 0 ? 'Full' : (ride.status || 'Open'),
+    status: ride.status || (seatsLeft === 0 ? 'Full' : 'Open'),
     isMember,
     members: (ride.members || []).map((m) => ({
-      userId: m.user_id,
+      userId: m.user_id || m.userId || m.id,
       name: m.name,
       avatar: m.avatar || 'ST',
       hostel: m.hostel || '',
-      phone: isMember ? (m.phone || '') : '',
+      phone: canSeePhones ? (m.phone || '') : '',
       role: m.role || 'Member',
       joinedAt: m.joined_at ? new Date(m.joined_at).toISOString() : new Date().toISOString()
     })),

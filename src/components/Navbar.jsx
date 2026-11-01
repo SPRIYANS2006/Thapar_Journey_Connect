@@ -8,8 +8,7 @@ import {
   LogOut, 
   Menu, 
   X, 
-  Compass,
-  MessageSquare
+  Compass
 } from 'lucide-react';
 
 export default function Navbar({ activePage, setActivePage, user, onLogout, myGroupsCount = 1 }) {
@@ -18,7 +17,6 @@ export default function Navbar({ activePage, setActivePage, user, onLogout, myGr
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Compass },
     { id: 'communities', label: 'City Communities', icon: Users },
-    { id: 'community-groups', label: 'Community Groups', icon: MessageSquare },
     { id: 'my-journeys', label: 'My Journeys', icon: MapPin },
     { id: 'my-groups', label: 'My Groups', icon: Users, badge: myGroupsCount },
     { id: 'profile', label: 'Profile', icon: User },

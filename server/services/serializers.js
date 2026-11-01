@@ -148,3 +148,51 @@ export function serializePost(post, viewingUserId = null) {
     createdAt: post.created_at ? new Date(post.created_at).toISOString() : new Date().toISOString()
   };
 }
+
+export function serializeCommunityGroup(group, viewingUserId = null) {
+  if (!group) return null;
+  const isMember = Boolean(
+    viewingUserId &&
+    group.members &&
+    group.members.some((m) => m.user_id === viewingUserId)
+  );
+
+  return {
+    id: group.id,
+    name: group.name,
+    description: group.description,
+    communityId: group.community_id,
+    communityName: group.community_name,
+    category: group.category,
+    creatorId: group.creator_id,
+    creatorName: group.creator_name,
+    membersCount: group.members_count ?? (group.members ? group.members.length : 1),
+    isMember,
+    members: (group.members || []).map((m) => ({
+      userId: m.user_id,
+      name: m.name,
+      avatar: m.avatar || 'ST',
+      hostel: m.hostel || '',
+      role: m.role || 'Member',
+      joinedAt: m.joined_at ? new Date(m.joined_at).toISOString() : new Date().toISOString()
+    })),
+    createdAt: group.created_at ? new Date(group.created_at).toISOString() : new Date().toISOString()
+  };
+}
+
+export function serializeCommunityGroupMessage(msg) {
+  if (!msg) return null;
+  return {
+    id: msg.id,
+    groupId: msg.group_id,
+    senderId: msg.sender_id,
+    senderName: msg.sender_name,
+    senderAvatar: msg.sender_avatar || 'ST',
+    senderHostel: msg.sender_hostel || '',
+    text: msg.text,
+    time: msg.created_at
+      ? new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : 'Now',
+    createdAt: msg.created_at ? new Date(msg.created_at).toISOString() : new Date().toISOString()
+  };
+}

@@ -8,6 +8,7 @@ import GroupDetailsPage from './pages/GroupDetailsPage';
 import MyJourneysPage from './pages/MyJourneysPage';
 import ProfilePage from './pages/ProfilePage';
 import CommunitiesPage from './pages/CommunitiesPage';
+import CommunityGroupsPage from './pages/CommunityGroupsPage';
 import ErrorBoundary from './components/ErrorBoundary';
 
 import JourneyFormModal from './components/JourneyFormModal';
@@ -19,6 +20,7 @@ import { useAuth } from './context/useAuth';
 import { useGroups } from './hooks/useGroups';
 import { useCommunities } from './hooks/useCommunities';
 import { useJourneys } from './hooks/useJourneys';
+import { useCommunityGroups } from './hooks/useCommunityGroups';
 import { getSocket } from './services/api';
 
 function AppContent() {
@@ -53,6 +55,25 @@ function AppContent() {
     matchingGroups,
     submitJourney
   } = useJourneys();
+
+  const {
+    groups: communityGroups,
+    selectedGroup: selectedCommunityGroup,
+    setSelectedGroup: setSelectedCommunityGroup,
+    messages: communityGroupMessages,
+    loading: communityGroupsLoading,
+    messagesLoading: communityGroupMessagesLoading,
+    filterCommunity: cgFilterCommunity,
+    setFilterCommunity: setCgFilterCommunity,
+    filterCategory: cgFilterCategory,
+    setFilterCategory: setCgFilterCategory,
+    searchQuery: cgSearchQuery,
+    setSearchQuery: setCgSearchQuery,
+    createGroup: handleCreateCommunityGroup,
+    joinGroup: handleJoinCommunityGroup,
+    leaveGroup: handleLeaveCommunityGroup,
+    sendMessage: handleSendCommunityGroupMessage
+  } = useCommunityGroups();
 
   const [activePage, setActivePage] = useState('dashboard');
 
@@ -589,6 +610,99 @@ function AppContent() {
               onAddComment={handleAddComment}
               onSelectCommunity={(commId) => {
                 fetchPosts(commId);
+              }}
+            />
+          )}
+
+          {activePage === 'community-groups' && (
+            <CommunityGroupsPage
+              communities={communities}
+              groups={communityGroups}
+              selectedGroup={selectedCommunityGroup}
+              messages={communityGroupMessages}
+              loading={communityGroupsLoading}
+              messagesLoading={communityGroupMessagesLoading}
+              filterCommunity={cgFilterCommunity}
+              filterCategory={cgFilterCategory}
+              searchQuery={cgSearchQuery}
+              currentUser={user}
+              onSelectGroup={(grp) => setSelectedCommunityGroup(grp)}
+              onBackToList={() => setSelectedCommunityGroup(null)}
+              onFilterCommunityChange={setCgFilterCommunity}
+              onFilterCategoryChange={setCgFilterCategory}
+              onSearchChange={setCgSearchQuery}
+              onCreateGroup={async (formData) => {
+                try {
+                  const res = await handleCreateCommunityGroup(formData);
+                  triggerToast({
+                    id: `cg_created_${Date.now()}`,
+                    type: 'success',
+                    title: 'Group Created!',
+                    message: `${formData.name} is now active.`
+                  });
+                  return res;
+                } catch (err) {
+                  triggerToast({
+                    id: `cg_err_${Date.now()}`,
+                    type: 'error',
+                    title: 'Creation Failed',
+                    message: err.message
+                  });
+                  throw err;
+                }
+              }}
+              onJoinGroup={async (groupId) => {
+                try {
+                  const res = await handleJoinCommunityGroup(groupId);
+                  triggerToast({
+                    id: `cg_join_${Date.now()}`,
+                    type: 'success',
+                    title: 'Joined Group!',
+                    message: res?.message || 'You joined this community group.'
+                  });
+                  return res;
+                } catch (err) {
+                  triggerToast({
+                    id: `cg_err_${Date.now()}`,
+                    type: 'error',
+                    title: 'Could Not Join',
+                    message: err.message
+                  });
+                  throw err;
+                }
+              }}
+              onLeaveGroup={async (groupId) => {
+                try {
+                  const res = await handleLeaveCommunityGroup(groupId);
+                  triggerToast({
+                    id: `cg_leave_${Date.now()}`,
+                    type: 'info',
+                    title: 'Left Group',
+                    message: res?.message || 'You left this community group.'
+                  });
+                  return res;
+                } catch (err) {
+                  triggerToast({
+                    id: `cg_err_${Date.now()}`,
+                    type: 'error',
+                    title: 'Error Leaving Group',
+                    message: err.message
+                  });
+                  throw err;
+                }
+              }}
+              onSendMessage={async (groupId, text) => {
+                try {
+                  return await handleSendCommunityGroupMessage(groupId, text);
+                } catch (err) {
+                  triggerToast({
+                    id: `cg_msg_err_${Date.now()}`,
+                    type: 'error',
+                    title: 'Message Not Sent',
+                    message: err.message
+                  });
+                  throw err;
+                }
               }}
             />
           )}

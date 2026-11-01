@@ -247,5 +247,41 @@ export const api = {
     request(`/communities/posts/${postId}/comments`, {
       method: 'POST',
       body: JSON.stringify({ text })
+    }),
+
+  // Community Groups (Hometown cohorts, discussions & chats)
+  getCommunityGroups: (params = {}) => {
+    const query = new URLSearchParams();
+    if (params.communityId && params.communityId !== 'All') query.append('communityId', params.communityId);
+    if (params.category && params.category !== 'All') query.append('category', params.category);
+    if (params.search) query.append('search', params.search);
+    const qs = query.toString();
+    return request(`/community-groups${qs ? `?${qs}` : ''}`);
+  },
+
+  getCommunityGroupById: (id) => request(`/community-groups/${id}`),
+
+  createCommunityGroup: (data) =>
+    request('/community-groups', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+  joinCommunityGroup: (id) =>
+    request(`/community-groups/${id}/join`, {
+      method: 'POST'
+    }),
+
+  leaveCommunityGroup: (id) =>
+    request(`/community-groups/${id}/leave`, {
+      method: 'POST'
+    }),
+
+  getCommunityGroupMessages: (id) => request(`/community-groups/${id}/messages`),
+
+  sendCommunityGroupMessage: (id, text) =>
+    request(`/community-groups/${id}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ text })
     })
 };

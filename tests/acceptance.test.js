@@ -13,7 +13,7 @@ process.env.APP_ORIGIN = 'http://localhost:5173';
 const { createApp } = await import('../server/app.js');
 const { seedDefaultData } = await import('../server/config/db.js');
 const { googleClient } = await import('../server/routes/auth.js');
-const { User, Group, Journey, Counter, Message, RateLimit, RideRecord } = await import('../server/models/index.js');
+const { User, Group, Journey, Counter, Message, RateLimit, RideRecord, CommunityGroup, CommunityGroupMessage } = await import('../server/models/index.js');
 const { generateSessionToken } = await import('../server/middleware/auth.js');
 const { getNowIST } = await import('../server/utils/time.js');
 
@@ -47,6 +47,8 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     await Counter.deleteMany({});
     await RateLimit.deleteMany({});
     await RideRecord.deleteMany({});
+    await CommunityGroup.deleteMany({});
+    await CommunityGroupMessage.deleteMany({});
     await Counter.create({ id: 'group_id', seq: 0 });
   });
 
@@ -959,5 +961,214 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
 
     assert.equal(res.status, 200);
     assert.equal(res.headers['access-control-allow-origin'], 'https://thapar-journey-connect.onrender.com');
+  });
+
+  // 26. Community Groups: Creation with validation, Admin assignment, duplicate rejection
+  it('26. Community Groups: Create group with validation, creator is Admin, reject duplicate names', async () => {
+    const { user: student, token } = await createTestStudent({ name: 'Gurpreet Singh' });
+
+    // 1. Missing name -> HTTP 400
+    const resBad = await request(app)
+      .post('/api/community-groups')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: '  ',
+        description: 'Valid description for student cohort',
+        communityId: 'del',
+        category: 'Commute Cohort'
+      });
+    assert.equal(resBad.status, 400);
+
+    // 2. Successful creation
+    const resCreate = await request(app)
+      .post('/api/community-groups')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'South Delhi Weekend Carpool',
+        description: 'Coordinating shared cabs and Volvo buses to South Extension & Lajpat Nagar',
+        communityId: 'del',
+        category: 'Weekend Trips'
+      });
+    assert.equal(resCreate.status, 201);
+    assert.equal(resCreate.body.success, true);
+    assert.equal(resCreate.body.group.name, 'South Delhi Weekend Carpool');
+    assert.equal(resCreate.body.group.communityName, 'Delhi NCR');
+    assert.equal(resCreate.body.group.category, 'Weekend Trips');
+    assert.equal(resCreate.body.group.membersCount, 1);
+    assert.equal(resCreate.body.group.isMember, true);
+    assert.equal(resCreate.body.group.members[0].userId, student.id);
+    assert.equal(resCreate.body.group.members[0].role, 'Admin');
+
+    // 3. Duplicate group name in same community -> HTTP 400
+    const resDup = await request(app)
+      .post('/api/community-groups')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'south delhi weekend carpool', // case-insensitive duplicate
+        description: 'Another group with the identical name',
+        communityId: 'del',
+        category: 'Commute Cohort'
+      });
+    assert.equal(resDup.status, 400);
+    assert.match(resDup.body.error, /already exists/i);
+  });
+
+  // 27. Community Groups: Filter by communityId, category, and keyword search
+  it('27. Community Groups: Filter by communityId, category, and keyword search', async () => {
+    const { token } = await createTestStudent({ name: 'Filter Tester' });
+
+    await CommunityGroup.create([
+      {
+        id: 'cg_delhi_study',
+        name: 'Delhi NCR Tech Study Group',
+        description: 'Preparing for interviews and hackathons together',
+        community_id: 'del',
+        community_name: 'Delhi NCR',
+        category: 'Study & Projects',
+        creator_id: 'user_1',
+        creator_name: 'Aman',
+        members_count: 1,
+        members: [{ user_id: 'user_1', name: 'Aman', role: 'Admin' }]
+      },
+      {
+        id: 'cg_chd_transit',
+        name: 'Chandigarh Daily Commuters',
+        description: 'Daily carpool between Patiala and Mohali Phase 7',
+        community_id: 'chd',
+        community_name: 'Chandigarh & Tri-City',
+        category: 'Commute Cohort',
+        creator_id: 'user_2',
+        creator_name: 'Preet',
+        members_count: 1,
+        members: [{ user_id: 'user_2', name: 'Preet', role: 'Admin' }]
+      }
+    ]);
+
+    // Filter by community
+    const resComm = await request(app)
+      .get('/api/community-groups?communityId=chd')
+      .set('Authorization', `Bearer ${token}`);
+    assert.equal(resComm.status, 200);
+    assert.equal(resComm.body.length, 1);
+    assert.equal(resComm.body[0].id, 'cg_chd_transit');
+
+    // Filter by category
+    const resCat = await request(app)
+      .get('/api/community-groups?category=Study%20%26%20Projects')
+      .set('Authorization', `Bearer ${token}`);
+    assert.equal(resCat.status, 200);
+    assert.equal(resCat.body.length, 1);
+    assert.equal(resCat.body[0].id, 'cg_delhi_study');
+
+    // Search keyword
+    const resSearch = await request(app)
+      .get('/api/community-groups?search=hackathons')
+      .set('Authorization', `Bearer ${token}`);
+    assert.equal(resSearch.status, 200);
+    assert.equal(resSearch.body.length, 1);
+    assert.equal(resSearch.body[0].id, 'cg_delhi_study');
+  });
+
+  // 28. Community Groups: Duplicate join rejection and member departure handling
+  it('28. Community Groups: Duplicate join rejection and member departure handling', async () => {
+    const { user: creator, token: creatorToken } = await createTestStudent({ name: 'Creator Dev' });
+    const { user: joiner, token: joinerToken } = await createTestStudent({ name: 'Joining Student' });
+
+    const group = await CommunityGroup.create({
+      id: 'cg_test_join',
+      name: 'Jaipur Festival Cohort',
+      description: 'Diwali travel group to Jaipur and Ajmer',
+      community_id: 'jpr',
+      community_name: 'Jaipur & Rajasthan',
+      category: 'Festivals & Events',
+      creator_id: creator.id,
+      creator_name: creator.name,
+      members_count: 1,
+      members: [{ user_id: creator.id, name: creator.name, role: 'Admin' }]
+    });
+
+    // 1. Join group succeeds
+    const resJoin = await request(app)
+      .post(`/api/community-groups/${group.id}/join`)
+      .set('Authorization', `Bearer ${joinerToken}`);
+    assert.equal(resJoin.status, 200);
+    assert.equal(resJoin.body.success, true);
+    assert.equal(resJoin.body.group.membersCount, 2);
+
+    // 2. Duplicate join is rejected with HTTP 400
+    const resDupJoin = await request(app)
+      .post(`/api/community-groups/${group.id}/join`)
+      .set('Authorization', `Bearer ${joinerToken}`);
+    assert.equal(resDupJoin.status, 400);
+    assert.match(resDupJoin.body.error, /already a member/i);
+
+    // 3. Creator leaves -> Admin role transfers to next member
+    const resCreatorLeave = await request(app)
+      .post(`/api/community-groups/${group.id}/leave`)
+      .set('Authorization', `Bearer ${creatorToken}`);
+    assert.equal(resCreatorLeave.status, 200);
+    assert.equal(resCreatorLeave.body.group.membersCount, 1);
+    assert.equal(resCreatorLeave.body.group.members[0].userId, joiner.id);
+    assert.equal(resCreatorLeave.body.group.members[0].role, 'Admin');
+
+    // 4. Last member leaves -> Group is archived
+    const resLastLeave = await request(app)
+      .post(`/api/community-groups/${group.id}/leave`)
+      .set('Authorization', `Bearer ${joinerToken}`);
+    assert.equal(resLastLeave.status, 200);
+    assert.equal(resLastLeave.body.group, null);
+
+    const checkArchived = await CommunityGroup.findOne({ id: group.id });
+    assert.equal(checkArchived, null);
+  });
+
+  // 29. Community Groups: Discussion messaging - member can post, non-member blocked HTTP 403
+  it('29. Community Groups: Discussion messaging - member posts, non-member blocked HTTP 403', async () => {
+    const { user: member, token: memberToken } = await createTestStudent({ name: 'Group Member' });
+    const { token: nonMemberToken } = await createTestStudent({ name: 'Outsider Student' });
+
+    const group = await CommunityGroup.create({
+      id: 'cg_chat_test',
+      name: 'Amritsar GT Road Travellers',
+      description: 'Shared cabs from Thapar campus to Amritsar Golden Temple and city centre',
+      community_id: 'asr',
+      community_name: 'Amritsar Hub',
+      category: 'Commute Cohort',
+      creator_id: member.id,
+      creator_name: member.name,
+      members_count: 1,
+      members: [{ user_id: member.id, name: member.name, role: 'Admin' }]
+    });
+
+    // 1. Non-member viewing messages -> HTTP 403 Forbidden
+    const resGetForbidden = await request(app)
+      .get(`/api/community-groups/${group.id}/messages`)
+      .set('Authorization', `Bearer ${nonMemberToken}`);
+    assert.equal(resGetForbidden.status, 403);
+
+    // 2. Non-member posting message -> HTTP 403 Forbidden
+    const resPostForbidden = await request(app)
+      .post(`/api/community-groups/${group.id}/messages`)
+      .set('Authorization', `Bearer ${nonMemberToken}`)
+      .send({ text: 'Hello can I join your cab?' });
+    assert.equal(resPostForbidden.status, 403);
+
+    // 3. Member posting message -> HTTP 201 Created
+    const resPost = await request(app)
+      .post(`/api/community-groups/${group.id}/messages`)
+      .set('Authorization', `Bearer ${memberToken}`)
+      .send({ text: 'Cab leaving gate 2 at 5 PM sharp on Friday!' });
+    assert.equal(resPost.status, 201);
+    assert.equal(resPost.body.success, true);
+    assert.equal(resPost.body.message.text, 'Cab leaving gate 2 at 5 PM sharp on Friday!');
+    assert.equal(resPost.body.message.senderName, member.name);
+
+    // 4. Member reading messages -> HTTP 200 with message list
+    const resGet = await request(app)
+      .get(`/api/community-groups/${group.id}/messages`)
+      .set('Authorization', `Bearer ${memberToken}`);
+    assert.equal(resGet.status, 200);
+    assert.equal(resGet.body.length, 1);
+    assert.equal(resGet.body[0].text, 'Cab leaving gate 2 at 5 PM sharp on Friday!');
   });
 });

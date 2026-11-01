@@ -105,6 +105,19 @@ async function bootstrap() {
       }
     });
 
+    // Community Group discussion rooms
+    socket.on('join_community_group', (groupId) => {
+      if (groupId) {
+        socket.join(`cg_${groupId}`);
+      }
+    });
+
+    socket.on('leave_community_group', (groupId) => {
+      if (groupId) {
+        socket.leave(`cg_${groupId}`);
+      }
+    });
+
     socket.on('disconnect', () => {});
   });
 

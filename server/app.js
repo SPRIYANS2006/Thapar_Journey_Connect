@@ -8,6 +8,7 @@ import authRouter from './routes/auth.js';
 import journeysRouter from './routes/journeys.js';
 import groupsRouter from './routes/groups.js';
 import communitiesRouter from './routes/communities.js';
+import communityGroupsRouter from './routes/communityGroups.js';
 import { errorHandler, notFoundHandler } from './middleware/errors.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -66,6 +67,7 @@ export function createApp() {
   app.use('/api/journeys', journeysRouter);
   app.use('/api/groups', groupsRouter);
   app.use('/api/communities', communitiesRouter);
+  app.use('/api/community-groups', communityGroupsRouter);
 
   // 6. 404 Handler for undefined /api routes
   app.use('/api', notFoundHandler);

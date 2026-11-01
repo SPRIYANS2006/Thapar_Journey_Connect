@@ -8,3 +8,8 @@ export { Hostel } from './Hostel.js';
 export { Counter, getNextGroupId } from './Counter.js';
 export { RateLimit } from './RateLimit.js';
 export { RideRecord } from './RideRecord.js';
+export {
+  CommunityGroup,
+  CommunityGroupMessage,
+  ALLOWED_COMMUNITY_GROUP_CATEGORIES
+} from './CommunityGroup.js';

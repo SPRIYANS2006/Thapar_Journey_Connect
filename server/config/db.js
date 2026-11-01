@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { Destination, Hostel, Community, Counter } from '../models/index.js';
+import { Destination, Hostel, Community, Counter, CommunityGroup } from '../models/index.js';
 
 const FALLBACK_MONGODB_URI = 'mongodb+srv://psoni1be24_db_user:g1A5fLmc2frxKZtN@thaparclusters.mk83gfu.mongodb.net/thapar_journey?retryWrites=true&w=majority';
 
@@ -222,7 +222,77 @@ export async function seedDefaultData() {
       { upsert: true }
     );
 
-    console.log('🌱 Seeded default data (Destinations, Hostels, Communities, Counters)');
+    // 5. Seed sample community groups if none exist
+    const cgCount = await CommunityGroup.countDocuments();
+    if (cgCount === 0) {
+      const sampleGroups = [
+        {
+          id: 'cg_delhi_volvo',
+          name: 'Delhi NCR Volvo & Cab Cohort',
+          description: 'Students coordinating Friday afternoon and Sunday evening shared cabs and Volvos to ISBT Kashmiri Gate & South Delhi.',
+          community_id: 'del',
+          community_name: 'Delhi NCR',
+          category: 'Commute Cohort',
+          creator_id: 'thapar_official',
+          creator_name: 'TIET Transit Network',
+          members_count: 3,
+          members: [
+            { user_id: 'thapar_official', name: 'TIET Transit Network', role: 'Admin', hostel: 'Campus Central' },
+            { user_id: 'sample_student_1', name: 'Aarav Sharma', role: 'Member', hostel: 'Tejas Hall' },
+            { user_id: 'sample_student_2', name: 'Diya Verma', role: 'Member', hostel: 'Vasudha Hall' }
+          ]
+        },
+        {
+          id: 'cg_chd_daily',
+          name: 'Tri-City Daily & Weekend Transit',
+          description: 'Regular commuters between Patiala campus and Chandigarh Sec 17/43, Mohali Phase 7, and Zirakpur.',
+          community_id: 'chd',
+          community_name: 'Chandigarh & Tri-City',
+          category: 'Commute Cohort',
+          creator_id: 'thapar_official',
+          creator_name: 'TIET Transit Network',
+          members_count: 2,
+          members: [
+            { user_id: 'thapar_official', name: 'TIET Transit Network', role: 'Admin', hostel: 'Campus Central' },
+            { user_id: 'sample_student_3', name: 'Rohan Mehra', role: 'Member', hostel: 'Agira Hall' }
+          ]
+        },
+        {
+          id: 'cg_jpr_fest',
+          name: 'Rajasthan Holiday Travel Hub',
+          description: 'Coordinating train berths (Intercity & Shatabdi) and long-distance overnight cabs for semester breaks & Diwali holidays to Jaipur, Jodhpur, and Udaipur.',
+          community_id: 'jpr',
+          community_name: 'Jaipur & Rajasthan',
+          category: 'Festivals & Events',
+          creator_id: 'thapar_official',
+          creator_name: 'TIET Transit Network',
+          members_count: 2,
+          members: [
+            { user_id: 'thapar_official', name: 'TIET Transit Network', role: 'Admin', hostel: 'Campus Central' },
+            { user_id: 'sample_student_4', name: 'Ananya Rathore', role: 'Member', hostel: 'Ira Hall' }
+          ]
+        },
+        {
+          id: 'cg_jal_gt_road',
+          name: 'Jalandhar GT Road Express',
+          description: 'Fast weekend cab sharing for Jalandhar, Phagwara and Doaba region students via NH44 GT Road.',
+          community_id: 'jal',
+          community_name: 'Jalandhar',
+          category: 'Weekend Trips',
+          creator_id: 'thapar_official',
+          creator_name: 'TIET Transit Network',
+          members_count: 2,
+          members: [
+            { user_id: 'thapar_official', name: 'TIET Transit Network', role: 'Admin', hostel: 'Campus Central' },
+            { user_id: 'sample_student_5', name: 'Harpreet Singh', role: 'Member', hostel: 'Amritam Hall' }
+          ]
+        }
+      ];
+
+      await CommunityGroup.insertMany(sampleGroups);
+    }
+
+    console.log('🌱 Seeded default data (Destinations, Hostels, Communities, Counters, Community Groups)');
   } catch (err) {
     console.error('Error during default data seed:', err.message);
   }

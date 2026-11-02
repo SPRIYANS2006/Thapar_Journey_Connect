@@ -51,11 +51,13 @@ const cityRideSchema = new mongoose.Schema({
     enum: ['Open', 'Full', 'Confirmed', 'Completed', 'Cancelled']
   },
   members: [cityRideMemberSchema],
+  slot_key: { type: String },
   created_at: { type: Date, default: Date.now }
 });
 
 cityRideSchema.index({ community_id: 1, mode: 1, date: 1, status: 1 });
 cityRideSchema.index({ 'members.user_id': 1 });
+cityRideSchema.index({ slot_key: 1 }, { unique: true, sparse: true });
 
 export const CityRide =
   mongoose.models.CityRide || mongoose.model('CityRide', cityRideSchema);

@@ -310,6 +310,21 @@ export const api = {
       method: 'POST'
     }),
 
+  getCityCommunitySlots: (communityId, { destination, date, mode } = {}) => {
+    const query = new URLSearchParams();
+    if (destination) query.append('destination', destination);
+    if (date) query.append('date', date);
+    if (mode && mode !== 'All' && mode !== 'Either') query.append('mode', mode);
+    const qs = query.toString();
+    return request(`/communities/${communityId}/slots${qs ? `?${qs}` : ''}`);
+  },
+
+  joinCityCommunitySlot: (communityId, slotData) =>
+    request(`/communities/${communityId}/slots/join`, {
+      method: 'POST',
+      body: JSON.stringify(slotData)
+    }),
+
   // Slot-Based Travel Booking
   getSlots: ({ destinationId, date, vehicle } = {}) => {
     const query = new URLSearchParams();

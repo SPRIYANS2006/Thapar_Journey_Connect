@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import { Community, CommunityPost, User, CityRide, Group, getNextGroupId } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { HttpError } from '../middleware/errors.js';
+import { normalizeDateStr, getHoursUntilDeparture } from '../utils/time.js';
 import { notifyUser, notifyGroupMembersUpdated } from '../services/notifications.js';
 import {
   validateCommunityPost,
@@ -656,6 +657,346 @@ router.post('/:id/rides/:rideId/complete', async (req, res, next) => {
       success: true,
       message: `Completed ${ride.mode} ride to ${ride.destination}!`,
       ride: serializeCityRide(ride, req.user.id)
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 12. GET /:id/slots: 10-minute slots for city community travel
+router.get('/:id/slots', async (req, res, next) => {
+  try {
+    const community = await Community.findOne({ id: req.params.id }).lean();
+    if (!community) {
+      throw new HttpError(404, 'Community not found.');
+    }
+
+    if (req.user.joined_community !== req.params.id) {
+      throw new HttpError(
+        403,
+        'Forbidden: You can only access ride slots for your enrolled hometown community.'
+      );
+    }
+
+    const { date, mode, destination } = req.query;
+    const travelDate = normalizeDateStr(date || 'Today');
+    const selectedMode = ['Cab', 'Train'].includes(mode) ? mode : 'Cab';
+
+    // Find active rides for this community on this date
+    const rideQuery = {
+      community_id: community.id,
+      date: travelDate,
+      status: { $in: ['Open', 'Confirmed', 'Full'] }
+    };
+    if (mode && mode !== 'All' && mode !== 'Either') {
+      rideQuery.mode = selectedMode;
+    }
+
+    const existingRides = await CityRide.find(rideQuery).lean();
+    const ridesByTime = new Map();
+    for (const r of existingRides) {
+      if (r.time) ridesByTime.set(r.time, r);
+    }
+
+    // Default base fare calculation based on distance
+    const distKm = parseInt(community.distance_from_thapar, 10) || 200;
+    const defaultCabFare = Math.round(distKm * 12);
+    const defaultTrainFare = 300;
+
+    const slots = [];
+    for (let h = 0; h < 24; h++) {
+      for (let m = 0; m < 60; m += 10) {
+        const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+        const hoursLeft = getHoursUntilDeparture(travelDate, timeStr);
+        const isPast = hoursLeft < -5 / 60;
+
+        const ride = ridesByTime.get(timeStr);
+        const rideMode = ride ? ride.mode : selectedMode;
+        const maxSeats = ride?.max_capacity || (rideMode === 'Cab' ? 4 : 6);
+        const seatsFilled = ride?.members ? ride.members.length : 0;
+        const isFull = Boolean(seatsFilled >= maxSeats || (ride && (ride.status === 'Full' || ride.status === 'Completed')));
+        const isJoined = Boolean(
+          ride?.members &&
+          ride.members.some((mem) => (mem.user_id || mem.userId || mem.id) === req.user.id)
+        );
+        const isFillingFast = seatsFilled >= 2 && !isFull;
+
+        const totalFareNum = ride ? ride.total_fare : (rideMode === 'Cab' ? defaultCabFare : defaultTrainFare);
+        const perPersonFare = rideMode === 'Cab'
+          ? (seatsFilled > 0 ? Math.round(totalFareNum / seatsFilled) : Math.round(totalFareNum / maxSeats))
+          : totalFareNum;
+
+        const slotDest = ride ? ride.destination : (destination || `${community.name} (City Center)`);
+        const slotKey = ride?.slot_key || `${community.id}_${travelDate}_${timeStr}_${rideMode}`;
+
+        slots.push({
+          slotKey,
+          time: timeStr,
+          date: travelDate,
+          communityId: community.id,
+          communityName: community.name,
+          destination: slotDest,
+          mode: rideMode,
+          maxSeats,
+          seatsFilled,
+          isFull,
+          isJoined,
+          isPast,
+          isFillingFast,
+          estimatedFarePerPerson: perPersonFare,
+          totalFare: totalFareNum,
+          rideId: ride ? ride.id : null,
+          status: ride ? ride.status : 'Open',
+          members: (ride?.members || []).map((mem) => ({
+            id: mem.user_id || mem.userId || mem.id,
+            name: mem.name,
+            avatar: mem.avatar || 'ST',
+            hostel: mem.hostel || '',
+            role: mem.role || 'Member',
+            reliability: typeof mem.reliability === 'number' ? mem.reliability : 5.0
+          }))
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      community: serializeCommunity(community),
+      date: travelDate,
+      mode: selectedMode,
+      totalSlots: slots.length,
+      availableSlotsCount: slots.filter((s) => !s.isPast && !s.isFull).length,
+      slots
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 13. POST /:id/slots/join: Atomic join or lazy creation of a city community ride slot
+router.post('/:id/slots/join', async (req, res, next) => {
+  try {
+    const community = await Community.findOne({ id: req.params.id }).lean();
+    if (!community) {
+      throw new HttpError(404, 'Community not found.');
+    }
+
+    if (req.user.joined_community !== req.params.id) {
+      throw new HttpError(
+        403,
+        'Forbidden: You can only join rides within your enrolled hometown community.'
+      );
+    }
+
+    const { date, time, mode, destination, pickupPoint } = req.body;
+    if (!time) {
+      throw new HttpError(400, 'Departure time is required.');
+    }
+
+    const travelDate = normalizeDateStr(date || 'Today');
+
+    // Departure time cannot be in past
+    const hoursLeft = getHoursUntilDeparture(travelDate, time);
+    if (hoursLeft < -5 / 60) {
+      throw new HttpError(400, 'Cannot book a travel slot in the past.');
+    }
+
+    const validModes = ['Cab', 'Train'];
+    const selectedMode = validModes.includes(mode) ? mode : 'Cab';
+    const maxCapacity = selectedMode === 'Cab' ? 4 : 6;
+    const resolvedDest = (destination && destination.trim()) || `${community.name} (City Center)`;
+    const resolvedPickup = (pickupPoint && pickupPoint.trim()) || 'Main Gate (Near Executive Mess)';
+
+    const distKm = parseInt(community.distance_from_thapar, 10) || 200;
+    const defaultFare = selectedMode === 'Cab' ? Math.round(distKm * 12) : 300;
+
+    const slotKey = `${community.id}_${travelDate}_${time}_${selectedMode}`;
+
+    // Single-Ride Policy check across regular Group & CityRide
+    const activeGroup = await Group.findOne({
+      status: { $in: ['Open', 'Confirmed'] },
+      'members.user_id': req.user.id
+    });
+    if (activeGroup) {
+      throw new HttpError(
+        409,
+        `Single-Ride Policy: You are already enrolled in active Group #${activeGroup.id} (${activeGroup.destination_name}). Please leave it before joining another ride.`
+      );
+    }
+
+    const activeExistingRide = await CityRide.findOne({
+      status: { $in: ['Open', 'Confirmed', 'Full'] },
+      $or: [
+        { 'members.user_id': req.user.id },
+        { creator_id: req.user.id }
+      ]
+    });
+    if (activeExistingRide) {
+      const isAlreadyInThisSlot =
+        activeExistingRide.slot_key === slotKey ||
+        (activeExistingRide.community_id === community.id &&
+          activeExistingRide.date === travelDate &&
+          activeExistingRide.time === time);
+
+      if (isAlreadyInThisSlot) {
+        return res.json({
+          success: true,
+          message: `You are already enrolled in Group #${activeExistingRide.id}.`,
+          ride: serializeCityRide(activeExistingRide, req.user.id),
+          alreadyMember: true
+        });
+      }
+
+      throw new HttpError(
+        409,
+        `Single-Ride Policy: You already belong to an active community ride to ${activeExistingRide.destination}. Please leave it first before joining another ride.`
+      );
+    }
+
+    const newMember = {
+      id: crypto.randomUUID(),
+      user_id: req.user.id,
+      name: req.user.name,
+      avatar: req.user.avatar || 'ST',
+      hostel: req.user.hostel || '',
+      phone: req.user.phone || '',
+      role: 'Member',
+      joined_at: new Date()
+    };
+
+    // Check if CityRide exists for this slot
+    let ride = await CityRide.findOne({
+      $or: [
+        { slot_key: slotKey },
+        { community_id: community.id, date: travelDate, time, mode: selectedMode }
+      ]
+    });
+
+    if (ride) {
+      // Atomic join with capacity guard
+      const updatedRide = await CityRide.findOneAndUpdate(
+        {
+          id: ride.id,
+          status: 'Open',
+          $expr: { $lt: [{ $size: '$members' }, '$max_capacity'] },
+          'members.user_id': { $ne: req.user.id }
+        },
+        {
+          $push: { members: newMember },
+          $inc: { current_members_count: 1 }
+        },
+        { returnDocument: 'after' }
+      );
+
+      if (!updatedRide) {
+        throw new HttpError(
+          409,
+          `This slot is now full (${ride.members?.length || 4}/${ride.max_capacity || 4} seats filled). Please select another slot.`
+        );
+      }
+
+      if (updatedRide.members.length >= updatedRide.max_capacity) {
+        updatedRide.status = 'Full';
+        await updatedRide.save();
+      }
+
+      await User.updateOne({ id: req.user.id }, { $set: { active_group_id: updatedRide.id } });
+
+      // Notify existing members
+      for (const em of ride.members || []) {
+        if (em.user_id && em.user_id !== req.user.id) {
+          notifyUser(em.user_id, 'member_joined', {
+            groupId: updatedRide.id,
+            destinationName: `${updatedRide.destination} (${community.name})`,
+            joinerId: req.user.id,
+            joinerName: req.user.name,
+            joinerHostel: req.user.hostel || 'Campus',
+            membersCount: updatedRide.members.length,
+            maxMembers: updatedRide.max_capacity
+          });
+        }
+      }
+
+      notifyGroupMembersUpdated(updatedRide);
+
+      return res.json({
+        success: true,
+        message: `Successfully joined Group #${updatedRide.id} to ${updatedRide.destination} at ${time}.`,
+        ride: serializeCityRide(updatedRide, req.user.id),
+        created: false
+      });
+    }
+
+    // Lazy atomic creation with sequential ID
+    const groupId = await getNextGroupId();
+    newMember.role = 'Admin';
+
+    let createdRide;
+    try {
+      createdRide = await CityRide.create({
+        id: groupId,
+        slot_key: slotKey,
+        community_id: community.id,
+        community_name: community.name,
+        creator_id: req.user.id,
+        creator_name: req.user.name,
+        origin: 'Thapar Campus (Main Gate)',
+        destination: resolvedDest,
+        date: travelDate,
+        time,
+        mode: selectedMode,
+        pickup_point: resolvedPickup,
+        total_fare: defaultFare,
+        max_capacity: maxCapacity,
+        current_members_count: 1,
+        transit_details: selectedMode === 'Cab' ? 'Sedan AC Cab via Highway' : 'Express Train',
+        notes: '',
+        status: 'Open',
+        members: [newMember]
+      });
+    } catch (createErr) {
+      if (createErr.code === 11000) {
+        // Concurrent race condition fallback
+        const raceRide = await CityRide.findOne({ slot_key: slotKey });
+        if (raceRide) {
+          newMember.role = 'Member';
+          const updatedRace = await CityRide.findOneAndUpdate(
+            {
+              id: raceRide.id,
+              status: 'Open',
+              $expr: { $lt: [{ $size: '$members' }, '$max_capacity'] },
+              'members.user_id': { $ne: req.user.id }
+            },
+            {
+              $push: { members: newMember },
+              $inc: { current_members_count: 1 }
+            },
+            { returnDocument: 'after' }
+          );
+          if (!updatedRace) {
+            throw new HttpError(409, 'This slot is full. Please choose another slot.');
+          }
+          await User.updateOne({ id: req.user.id }, { $set: { active_group_id: updatedRace.id } });
+          notifyGroupMembersUpdated(updatedRace);
+          return res.json({
+            success: true,
+            message: `Successfully joined Group #${updatedRace.id}!`,
+            ride: serializeCityRide(updatedRace, req.user.id),
+            created: false
+          });
+        }
+      }
+      throw createErr;
+    }
+
+    await User.updateOne({ id: req.user.id }, { $set: { active_group_id: createdRide.id } });
+    notifyGroupMembersUpdated(createdRide);
+
+    res.status(201).json({
+      success: true,
+      message: `Formed Group #${createdRide.id} to ${createdRide.destination} at ${time}!`,
+      ride: serializeCityRide(createdRide, req.user.id),
+      created: true
     });
   } catch (err) {
     next(err);

@@ -2067,4 +2067,117 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     assert.equal(resDelivered.status, 200);
     assert.equal(resDelivered.body.luggage.status, 'Delivered');
   });
+
+  // 44. City Community Slots: 144 slots generation, virtual slots (0/4), fare calculation, and enrolled hometown access control
+  it('44. City Community Slots: 144 slots generation, virtual slots (0/4), fare calculation, and enrolled hometown access control', async () => {
+    const { token: delhiStudentToken } = await createTestStudent({
+      name: 'Delhi NCR Student',
+      joined_community: 'del'
+    });
+    const { token: outsiderStudentToken } = await createTestStudent({
+      name: 'Outsider Student',
+      joined_community: 'chd'
+    });
+
+    // 1. Non-member attempting to view Delhi community slots -> HTTP 403 Forbidden
+    const resForbidden = await request(app)
+      .get('/api/communities/del/slots?date=Tomorrow&mode=Cab')
+      .set('Authorization', `Bearer ${outsiderStudentToken}`);
+    assert.equal(resForbidden.status, 403);
+    assert.match(resForbidden.body.error, /enrolled hometown community/i);
+
+    // 2. Enrolled member requests slots -> HTTP 200 with 144 slots
+    const resSlots = await request(app)
+      .get('/api/communities/del/slots?date=Tomorrow&mode=Cab&destination=Kashmiri Gate ISBT')
+      .set('Authorization', `Bearer ${delhiStudentToken}`);
+    assert.equal(resSlots.status, 200);
+    assert.equal(resSlots.body.success, true);
+    assert.equal(resSlots.body.totalSlots, 144);
+    assert.ok(Array.isArray(resSlots.body.slots));
+    assert.equal(resSlots.body.slots.length, 144);
+
+    // 3. Virtual slot (0/4) verification
+    const slot10AM = resSlots.body.slots.find((s) => s.time === '10:00');
+    assert.ok(slot10AM, '10:00 slot must exist');
+    assert.equal(slot10AM.seatsFilled, 0);
+    assert.equal(slot10AM.maxSeats, 4);
+    assert.equal(slot10AM.isFull, false);
+    assert.equal(slot10AM.isJoined, false);
+    assert.equal(slot10AM.rideId, null);
+    assert.ok(slot10AM.estimatedFarePerPerson > 0, 'Estimated per person fare must be calculated');
+  });
+
+  // 45. City Community Slots: Atomic slot join, lazy group creation with sequential Group #id, and Single-Ride Policy enforcement
+  it('45. City Community Slots: Atomic slot join, lazy group creation with sequential Group #id, and Single-Ride Policy enforcement', async () => {
+    const { token: student1Token } = await createTestStudent({
+      name: 'Community Slot Rider 1',
+      joined_community: 'del'
+    });
+    const { token: student2Token } = await createTestStudent({
+      name: 'Community Slot Rider 2',
+      joined_community: 'del'
+    });
+
+    // 1. Student 1 joins 16:30 slot to Kashmiri Gate -> Lazily creates CityRide with sequential Group #id
+    const resJoin1 = await request(app)
+      .post('/api/communities/del/slots/join')
+      .set('Authorization', `Bearer ${student1Token}`)
+      .send({
+        date: 'Tomorrow',
+        time: '16:30',
+        mode: 'Cab',
+        destination: 'Kashmiri Gate ISBT (Metro Hub)',
+        pickupPoint: 'Main Gate'
+      });
+    assert.equal(resJoin1.status, 201);
+    assert.equal(resJoin1.body.success, true);
+    assert.equal(resJoin1.body.created, true);
+    const createdGroupId = resJoin1.body.ride.id;
+    assert.ok(createdGroupId, 'Must return a created group ID');
+    assert.equal(resJoin1.body.ride.currentMembersCount, 1);
+    assert.equal(resJoin1.body.ride.members[0].role, 'Admin');
+
+    // 2. Student 2 joins the SAME slot -> Atomically joins existing Group instead of creating duplicate
+    const resJoin2 = await request(app)
+      .post('/api/communities/del/slots/join')
+      .set('Authorization', `Bearer ${student2Token}`)
+      .send({
+        date: 'Tomorrow',
+        time: '16:30',
+        mode: 'Cab',
+        destination: 'Kashmiri Gate ISBT (Metro Hub)',
+        pickupPoint: 'Hostel-J Gate'
+      });
+    assert.equal(resJoin2.status, 200);
+    assert.equal(resJoin2.body.success, true);
+    assert.equal(resJoin2.body.created, false);
+    assert.equal(resJoin2.body.ride.id, createdGroupId);
+    assert.equal(resJoin2.body.ride.currentMembersCount, 2);
+
+    // 3. Single-Ride Policy: Student 1 attempts to join a different slot (18:00) -> HTTP 409 conflict
+    const resConflict = await request(app)
+      .post('/api/communities/del/slots/join')
+      .set('Authorization', `Bearer ${student1Token}`)
+      .send({
+        date: 'Tomorrow',
+        time: '18:00',
+        mode: 'Cab',
+        destination: 'Gurgaon Cyber Hub'
+      });
+    assert.equal(resConflict.status, 409);
+    assert.match(resConflict.body.error, /Single-Ride Policy/i);
+
+    // 4. Calling join on the SAME slot student is already member of returns alreadyMember: true
+    const resAlready = await request(app)
+      .post('/api/communities/del/slots/join')
+      .set('Authorization', `Bearer ${student1Token}`)
+      .send({
+        date: 'Tomorrow',
+        time: '16:30',
+        mode: 'Cab',
+        destination: 'Kashmiri Gate ISBT (Metro Hub)'
+      });
+    assert.equal(resAlready.status, 200);
+    assert.equal(resAlready.body.alreadyMember, true);
+  });
 });

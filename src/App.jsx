@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Users, Compass } from 'lucide-react';
 import Navbar from './components/Navbar';
 import AuthPage from './pages/AuthPage';
@@ -60,6 +60,14 @@ function AppContent() {
 
   const [activePage, setActivePage] = useState('dashboard');
   const [selectedCityHub, setSelectedCityHub] = useState(null);
+
+  const userCommunity = useMemo(() => {
+    const commId = user?.joinedCommunity;
+    if (!commId || !communities || communities.length === 0) return null;
+    return communities.find((c) => c.id === commId) || null;
+  }, [user?.joinedCommunity, communities]);
+
+  const activeCommunityHub = userCommunity || selectedCityHub;
 
   // Notifications State for Real-Time Toast Popups
   const [notifications, setNotifications] = useState([]);
@@ -620,20 +628,22 @@ function AppContent() {
             />
           )}
 
-          {activePage === 'communities' && selectedCityHub ? (
+          {activePage === 'communities' && activeCommunityHub ? (
             <CityCommunityHubPage
-              community={selectedCityHub}
+              community={activeCommunityHub}
               allCommunities={communities}
               user={user}
               activeGroup={activeGroup}
               posts={communityPosts}
-              onBack={() => setSelectedCityHub(null)}
+              onBack={userCommunity ? null : () => setSelectedCityHub(null)}
               onRefreshGroups={fetchGroups}
-              onRefreshPosts={(commId) => fetchPosts(commId || selectedCityHub?.id)}
-              onSelectOtherCommunity={(comm) => {
-                setSelectedCityHub(comm);
-                fetchPosts(comm.id);
+              onRefreshPosts={(commId) => fetchPosts(commId || activeCommunityHub?.id)}
+              onViewGroupDetails={(gId) => {
+                setSelectedGroupId(gId);
+                setActivePage('group-details');
               }}
+              onOpenChat={handleOpenChatModal}
+              onLeaveGroup={handleLeaveGroup}
               onJoinCommunity={async (commId) => {
                 try {
                   await joinCommunity(commId);
@@ -655,6 +665,7 @@ function AppContent() {
               onLeaveCommunity={async (commId) => {
                 try {
                   await leaveCommunity(commId);
+                  setSelectedCityHub(null);
                   triggerToast({
                     id: `comm_leave_${Date.now()}`,
                     type: 'info',
@@ -690,7 +701,7 @@ function AppContent() {
                 }
               }}
               onLikePost={handleLikePost}
-              onAddComment={(postId, text) => handleAddComment(postId, text, selectedCityHub?.id)}
+              onAddComment={(postId, text) => handleAddComment(postId, text, activeCommunityHub?.id)}
               triggerToast={triggerToast}
             />
           ) : activePage === 'communities' ? (
@@ -705,6 +716,7 @@ function AppContent() {
               onJoinCommunity={async (commId) => {
                 try {
                   await joinCommunity(commId);
+                  setSelectedCityHub(null);
                   triggerToast({
                     id: `comm_join_${Date.now()}`,
                     type: 'success',

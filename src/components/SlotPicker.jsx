@@ -5,6 +5,7 @@ import {
   Users, 
   Flame, 
   Car, 
+  Train,
   Check, 
   ArrowRight, 
   ShieldCheck,
@@ -229,10 +230,14 @@ export default function SlotPicker({
                         </span>
                       </div>
                       <p className="text-xs font-semibold text-slate-600 mt-0.5 flex items-center gap-1">
-                        <Car className="w-3.5 h-3.5 text-blue-600" />
-                        <span>{slot.vehicle}</span>
+                        {slot.mode === 'Train' || (slot.vehicle && slot.vehicle.toLowerCase().includes('train')) ? (
+                          <Train className="w-3.5 h-3.5 text-indigo-600" />
+                        ) : (
+                          <Car className="w-3.5 h-3.5 text-blue-600" />
+                        )}
+                        <span>{slot.vehicle || (slot.mode === 'Train' ? 'Train Cohort' : 'Shared Cab')}</span>
                         <span>•</span>
-                        <span className="text-slate-500 font-normal">{slot.destinationName}</span>
+                        <span className="text-slate-500 font-normal">{slot.destinationName || slot.destination}</span>
                       </p>
                     </div>
 
@@ -262,9 +267,9 @@ export default function SlotPicker({
                         </span>
                       )}
 
-                      {slot.groupId && (
+                      {(slot.groupId || slot.rideId) && (
                         <span className="text-[10px] font-bold text-slate-400">
-                          Group #{slot.groupId}
+                          Group #{slot.groupId || slot.rideId}
                         </span>
                       )}
                     </div>
@@ -343,10 +348,10 @@ export default function SlotPicker({
                 <div className="mt-4 pt-3 border-t border-slate-100">
                   {isJoined ? (
                     <button
-                      onClick={() => onViewGroup && onViewGroup(slot.groupId)}
+                      onClick={() => onViewGroup && onViewGroup(slot.groupId || slot.rideId)}
                       className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                     >
-                      <span>Open Group #{slot.groupId}</span>
+                      <span>Open Group #{slot.groupId || slot.rideId}</span>
                       <ChevronRight className="w-3.5 h-3.5" />
                     </button>
                   ) : isPast ? (

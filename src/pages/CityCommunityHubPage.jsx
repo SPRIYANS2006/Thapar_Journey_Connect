@@ -1,59 +1,34 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Car,
-  Train,
   MapPin,
   Calendar,
-  Clock,
   ArrowLeft,
   Plus,
   CheckCircle2,
   AlertCircle,
-  Sparkles,
   X,
   MessageSquare,
   Heart,
-  TrendingDown,
   Navigation,
-  Lock
+  Lock,
+  Search,
+  ChevronDown,
+  Check
 } from 'lucide-react';
 import Avatar from '../components/Avatar';
 import ConfirmDialog from '../components/ConfirmDialog';
+import SlotPicker from '../components/SlotPicker';
+import { getPresetDestinationsForCommunity } from '../data/cityDestinations';
+import { HOSTELS } from '../data/mockData';
 import { api } from '../services/api';
-
-const getTomorrowDateStr = () => {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().split('T')[0];
-};
-
-const MODE_CONFIG = {
-  Cab: {
-    label: 'Shared Cab',
-    icon: Car,
-    badgeBg: 'bg-blue-50 text-blue-700 border-blue-200',
-    color: 'text-blue-600',
-    accentBg: 'bg-blue-600',
-    description: 'Split the total cab fare equally among student co-riders.'
-  },
-  Train: {
-    label: 'Train Cohort',
-    icon: Train,
-    badgeBg: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-    color: 'text-indigo-600',
-    accentBg: 'bg-indigo-600',
-    description: 'Coordinate train coaches (Shatabdi / Express) and station cabs.'
-  }
-};
 
 export default function CityCommunityHubPage({
   community,
-  allCommunities: _allCommunities = [],
   user,
   activeGroup = null,
   posts = [],
-  onBack,
-  onSelectOtherCommunity: _onSelectOtherCommunity,
+  onBack = null,
   onJoinCommunity,
   onLeaveCommunity,
   onAddPost,
@@ -61,50 +36,79 @@ export default function CityCommunityHubPage({
   onAddComment,
   onRefreshPosts,
   onRefreshGroups,
+  onViewGroupDetails = null,
+  onOpenChat = null,
+  onLeaveGroup = null,
   triggerToast
 }) {
   const [activeTab, setActiveTab] = useState('rides'); // 'rides' | 'board'
-  const [selectedModeFilter, setSelectedModeFilter] = useState('All'); // 'All' | 'Cab' | 'Train'
-  const [rides, setRides] = useState([]);
-  const [loadingRides, setLoadingRides] = useState(false);
-  const [ridesError, setRidesError] = useState(null);
+  const isUserEnrolledInCity = user?.joinedCommunity === community?.id;
 
+  // 1. Date options: Today to +30 days in IST
+  const dateOptions = useMemo(() => {
+    const list = [];
+    const now = new Date();
+    for (let i = 0; i < 31; i++) {
+      const d = new Date(now.getTime() + i * 24 * 60 * 60 * 1000);
+      const isoDate = d.toISOString().split('T')[0];
+      const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
+      const month = d.toLocaleDateString('en-US', { month: 'short' });
+      const day = d.getDate();
+
+      let label = `${weekday}, ${month} ${day}`;
+      if (i === 0) label = `Today (${weekday}, ${month} ${day})`;
+      if (i === 1) label = `Tomorrow (${weekday}, ${month} ${day})`;
+
+      list.push({ value: isoDate, label, isToday: i === 0 });
+    }
+    return list;
+  }, []);
+
+  // 2. Preset Destinations for this community
+  const presetDestinations = useMemo(() => {
+    if (!community?.id) return [];
+    return getPresetDestinationsForCommunity(community.id, community.name);
+  }, [community]);
+
+  // 3. Search Form State (MakeMyTrip style)
+  const [selectedDest, setSelectedDest] = useState(() => {
+    return presetDestinations[0] || `${community?.name || 'City'} Center`;
+  });
+  const [customDestInput, setCustomDestInput] = useState('');
+  const [destSearchQuery, setDestSearchQuery] = useState('');
+  const [isDestDropdownOpen, setIsDestDropdownOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(() => dateOptions[0]?.value || 'Today');
+  const [selectedMode, setSelectedMode] = useState('Shared Cab'); // 'Shared Cab' | 'Train Cohort' | 'Either'
+  const [selectedHostel, setSelectedHostel] = useState(() => user?.hostel || HOSTELS[0].name);
+  const [isHostelDropdownOpen, setIsHostelDropdownOpen] = useState(false);
+
+  // Filtered destinations in typeahead
+  const filteredPresetDestinations = useMemo(() => {
+    if (!destSearchQuery.trim()) return presetDestinations;
+    const q = destSearchQuery.toLowerCase();
+    return presetDestinations.filter((d) => d.toLowerCase().includes(q));
+  }, [presetDestinations, destSearchQuery]);
+
+  const effectiveDest = customDestInput.trim() || selectedDest;
+
+  // 4. Slots State (BlaBlaCar style 10-minute departures)
+  const [slots, setSlots] = useState([]);
+  const [slotsLoading, setSlotsLoading] = useState(true);
+  const [slotsError, setSlotsError] = useState(null);
+  const [joiningSlotKey, setJoiningSlotKey] = useState(null);
+
+  // Active ride tracking
   const userActiveRide = useMemo(() => {
     if (!user) return null;
     if (activeGroup) return activeGroup;
     return (
-      (rides || []).find(
-        (r) =>
-          (r.status === 'Open' || r.status === 'Confirmed' || r.status === 'Full') &&
-          (r.members || []).some(
-            (m) =>
-              (m.userId && m.userId === user.id) ||
-              (m.user_id && m.user_id === user.id) ||
-              (m.id && m.id === user.id)
-          )
-      ) || null
+      (slots || []).find((s) => s.isJoined) || null
     );
-  }, [user, activeGroup, rides]);
+  }, [user, activeGroup, slots]);
 
-  // Create Ride Modal State
-  const [isCreateRideModalOpen, setIsCreateRideModalOpen] = useState(false);
-  const [rideFormMode, setRideFormMode] = useState('Cab');
-  const [rideFormDate, setRideFormDate] = useState(getTomorrowDateStr);
-  const [rideFormTime, setRideFormTime] = useState('17:00');
-  const [rideFormDestination, setRideFormDestination] = useState(
-    () => `${community?.name || 'City'} Center / Hub`
-  );
-  const [rideFormPickup, setRideFormPickup] = useState('Main Gate (Near Executive Mess)');
-  const [rideFormTotalFare, setRideFormTotalFare] = useState(2400);
-  const [rideFormMaxCapacity, setRideFormMaxCapacity] = useState(4);
-  const [rideFormTransitDetails, setRideFormTransitDetails] = useState('');
-  const [rideFormNotes, setRideFormNotes] = useState('');
-  const [isSubmittingRide, setIsSubmittingRide] = useState(false);
-  const [rideFormError, setRideFormError] = useState('');
-
-  // Action / Confirm state
-  const [actionLoadingRideId, setActionLoadingRideId] = useState(null);
+  // Leave ride confirmation state
   const [rideToLeave, setRideToLeave] = useState(null);
+  const [isLeavingRide, setIsLeavingRide] = useState(false);
 
   // Notice board state
   const [postTitle, setPostTitle] = useState('');
@@ -116,213 +120,180 @@ export default function CityCommunityHubPage({
   const [openReplyPostId, setOpenReplyPostId] = useState(null);
   const [replyInputText, setReplyInputText] = useState('');
 
-  const isUserEnrolledInCity = user?.joinedCommunity === community?.id;
+  // Fetch slots for this city community
+  const fetchCommunitySlots = useCallback(
+    async (destName, dateVal, modeVal) => {
+      if (!community?.id || !isUserEnrolledInCity) return;
+      setSlotsLoading(true);
+      setSlotsError(null);
+      try {
+        const modeParam =
+          modeVal === 'Train Cohort' ? 'Train' : modeVal === 'Shared Cab' ? 'Cab' : 'All';
+        const res = await api.getCityCommunitySlots(community.id, {
+          destination: destName,
+          date: dateVal,
+          mode: modeParam
+        });
+        if (res && res.slots) {
+          setSlots(res.slots);
+        } else {
+          setSlots([]);
+        }
+      } catch (err) {
+        console.warn('Failed to fetch community slots:', err.message);
+        setSlotsError(err.message || 'Unable to load travel slots');
+        setSlots([]);
+      } finally {
+        setSlotsLoading(false);
+      }
+    },
+    [community, isUserEnrolledInCity]
+  );
 
-  // Refresh community notice board posts on mount or community change
-  useEffect(() => {
-    if (community?.id && onRefreshPosts) {
-      onRefreshPosts(community.id);
-    }
-  }, [community?.id, onRefreshPosts]);
-
-  const refreshRides = useCallback(() => {
-    if (!community?.id || !isUserEnrolledInCity) return;
-    api.getCityRides(community.id, {
-      mode: selectedModeFilter !== 'All' ? selectedModeFilter : undefined
-    })
-      .then((data) => {
-        setRides(Array.isArray(data) ? data : []);
-        setRidesError(null);
-      })
-      .catch((err) => {
-        setRidesError(err.message || 'Failed to load rides');
-      });
-  }, [community, selectedModeFilter, isUserEnrolledInCity]);
-
-  // Fetch Rides for this City (Restricted to enrolled hometown members)
+  // Fetch slots on criteria change
   useEffect(() => {
     if (!community?.id || !isUserEnrolledInCity) {
       return;
     }
     let active = true;
-    queueMicrotask(() => {
-      if (active) setLoadingRides(true);
-    });
 
-    api.getCityRides(community.id, {
-      mode: selectedModeFilter !== 'All' ? selectedModeFilter : undefined
+    const modeParam =
+      selectedMode === 'Train Cohort' ? 'Train' : selectedMode === 'Shared Cab' ? 'Cab' : 'All';
+
+    api.getCityCommunitySlots(community.id, {
+      destination: effectiveDest,
+      date: selectedDate,
+      mode: modeParam
     })
-      .then((data) => {
+      .then((res) => {
         if (!active) return;
-        setRides(Array.isArray(data) ? data : []);
-        setRidesError(null);
+        setSlots(res?.slots || []);
+        setSlotsError(null);
       })
       .catch((err) => {
         if (!active) return;
-        setRidesError(err.message || 'Failed to load rides');
+        setSlotsError(err.message || 'Unable to load slots');
       })
       .finally(() => {
-        if (active) setLoadingRides(false);
+        if (active) setSlotsLoading(false);
       });
 
     return () => {
       active = false;
     };
-  }, [community?.id, selectedModeFilter, isUserEnrolledInCity]);
+  }, [community, isUserEnrolledInCity, effectiveDest, selectedDate, selectedMode]);
 
-  // Adjust default fare based on mode & distance
-  const handleModeChange = (mode) => {
-    setRideFormMode(mode);
-    if (mode === 'Cab') {
-      const distNum = parseInt(community?.distanceFromThapar, 10) || 200;
-      setRideFormTotalFare(Math.round(distNum * 12));
-      setRideFormMaxCapacity(4);
-      setRideFormTransitDetails('Sedan AC Cab via Highway');
-    } else if (mode === 'Train') {
-      setRideFormTotalFare(300);
-      setRideFormMaxCapacity(6);
-      setRideFormTransitDetails('Shatabdi / Intercity Express');
+  // Refresh notice board posts on mount or community change
+  useEffect(() => {
+    if (community?.id && onRefreshPosts) {
+      onRefreshPosts(community.id);
     }
+  }, [community, onRefreshPosts]);
+
+  // Handle Search Submission
+  const handleSearchSubmit = (e) => {
+    if (e) e.preventDefault();
+    setIsDestDropdownOpen(false);
+    fetchCommunitySlots(effectiveDest, selectedDate, selectedMode);
   };
 
-  const handleOpenCreateRide = (mode = 'Cab') => {
-    if (userActiveRide) {
+  // Handle Join Slot (Atomic Join or Lazy Group Creation)
+  const handleJoinSlot = async (slot) => {
+    if (userActiveRide && userActiveRide.id !== (slot.groupId || slot.rideId)) {
       if (triggerToast) {
         triggerToast({
-          id: 'ride_create_active_err',
+          id: `ride_active_err_${Date.now()}`,
           type: 'error',
-          title: 'Single-Ride Policy',
-          message: `You are already enrolled in active ride (${userActiveRide.destinationName || userActiveRide.destination || 'Group #' + userActiveRide.id}). Leave that ride before creating a new one.`
+          title: 'Single-Ride Policy Active',
+          message: `You already belong to an active ride (${userActiveRide.destinationName || userActiveRide.destination || 'Group #' + userActiveRide.id}). Leave that ride before joining another.`
         });
       }
       return;
     }
-    handleModeChange(mode);
-    setIsCreateRideModalOpen(true);
-  };
 
-  const handleCreateRideSubmit = async (e) => {
-    e.preventDefault();
-    if (!rideFormDate || !rideFormTime) {
-      setRideFormError('Please select departure date and time.');
-      return;
-    }
-
-    if (userActiveRide) {
-      setRideFormError(
-        `Single-Ride Policy: You already belong to an active ride (${userActiveRide.destinationName || userActiveRide.destination || 'Group #' + userActiveRide.id}). Please leave it before creating a new one.`
-      );
-      return;
-    }
-
+    setJoiningSlotKey(slot.slotKey);
     try {
-      setIsSubmittingRide(true);
-      setRideFormError('');
-
-      await api.createCityRide(community.id, {
-        date: rideFormDate,
-        time: rideFormTime,
-        mode: rideFormMode,
-        destination: rideFormDestination,
-        pickupPoint: rideFormPickup,
-        totalFare: Number(rideFormTotalFare) || 0,
-        maxCapacity: Number(rideFormMaxCapacity) || (rideFormMode === 'Cab' ? 4 : 6),
-        transitDetails: rideFormTransitDetails,
-        notes: rideFormNotes
+      const modeParam = slot.mode || (selectedMode === 'Train Cohort' ? 'Train' : 'Cab');
+      const res = await api.joinCityCommunitySlot(community.id, {
+        date: slot.date,
+        time: slot.time,
+        mode: modeParam,
+        destination: slot.destination || effectiveDest,
+        pickupPoint: selectedHostel
       });
 
       if (triggerToast) {
         triggerToast({
-          id: `ride_created_${rideFormMode}_${rideFormDate}`,
+          id: `slot_joined_${Date.now()}`,
           type: 'success',
-          title: 'Ride Posted!',
-          message: `Your ${rideFormMode} ride to ${community.name} is now open for students.`
+          title: res?.created ? 'New Group Formed! 🎉' : 'Joined Ride Group! 🚗',
+          message:
+            res?.message ||
+            `You joined Group #${res?.ride?.id || ''} to ${community.name} at ${slot.time}.`,
+          actionLabel: 'Open Chat',
+          onAction: () => {
+            if (onOpenChat && res?.ride?.id) {
+              onOpenChat(res.ride.id);
+            }
+          }
         });
       }
 
-      setIsCreateRideModalOpen(false);
-      refreshRides();
-      if (onRefreshGroups) {
-        onRefreshGroups();
-      }
-    } catch (err) {
-      setRideFormError(err.message || 'Failed to create ride');
-    } finally {
-      setIsSubmittingRide(false);
-    }
-  };
-
-  const handleJoinRide = async (ride) => {
-    if (userActiveRide && userActiveRide.id !== ride.id) {
-      if (triggerToast) {
-        triggerToast({
-          id: `ride_active_err_${ride.id}`,
-          type: 'error',
-          title: 'Single-Ride Policy',
-          message: `You are already enrolled in an active ride (${userActiveRide.destinationName || userActiveRide.destination || 'Group #' + userActiveRide.id}). Leave that ride before joining another.`
-        });
-      }
-      return;
-    }
-
-    try {
-      setActionLoadingRideId(ride.id);
-      const res = await api.joinCityRide(community.id, ride.id);
-      if (triggerToast) {
-        triggerToast({
-          id: `ride_joined_${ride.id}`,
-          type: 'success',
-          title: 'Joined Ride!',
-          message: res?.message || `You joined the ${ride.mode} ride to ${community.name}.`
-        });
-      }
-      refreshRides();
+      fetchCommunitySlots(effectiveDest, selectedDate, selectedMode);
       if (onRefreshGroups) {
         onRefreshGroups();
       }
     } catch (err) {
       if (triggerToast) {
         triggerToast({
-          id: `ride_join_err_${ride.id}`,
+          id: `slot_join_err_${Date.now()}`,
           type: 'error',
-          title: 'Could Not Join',
-          message: err.message
+          title: 'Could Not Join Slot',
+          message: err.message || 'Unable to join slot'
         });
       }
     } finally {
-      setActionLoadingRideId(null);
+      setJoiningSlotKey(null);
     }
   };
 
+  // Handle Leave Ride Confirmation
   const handleLeaveRideConfirm = async () => {
     if (!rideToLeave) return;
     try {
-      setActionLoadingRideId(rideToLeave.id);
-      const res = await api.leaveCityRide(community.id, rideToLeave.id);
+      setIsLeavingRide(true);
+      const rideId = rideToLeave.id || rideToLeave.rideId;
+      if (rideToLeave.community_id || rideToLeave.communityId) {
+        await api.leaveCityRide(community.id, rideId);
+      } else if (onLeaveGroup) {
+        await onLeaveGroup(rideId);
+      }
+
       if (triggerToast) {
         triggerToast({
-          id: `ride_left_${rideToLeave.id}`,
+          id: `ride_left_${Date.now()}`,
           type: 'info',
           title: 'Left Ride',
-          message: res?.message || 'You left this ride.'
+          message: `You left Group #${rideId}. Seat reopened for fellow students.`
         });
       }
+
       setRideToLeave(null);
-      refreshRides();
+      fetchCommunitySlots(effectiveDest, selectedDate, selectedMode);
       if (onRefreshGroups) {
         onRefreshGroups();
       }
     } catch (err) {
       if (triggerToast) {
         triggerToast({
-          id: `ride_leave_err_${rideToLeave.id}`,
+          id: `ride_leave_err_${Date.now()}`,
           type: 'error',
-          title: 'Could Not Leave',
-          message: err.message
+          title: 'Could Not Leave Ride',
+          message: err.message || 'Error leaving ride'
         });
       }
     } finally {
-      setActionLoadingRideId(null);
+      setIsLeavingRide(false);
     }
   };
 
@@ -336,12 +307,14 @@ export default function CityCommunityHubPage({
     try {
       setIsSubmittingPost(true);
       setPostError('');
-      await onAddPost({
-        communityId: community.id,
-        title: postTitle.trim(),
-        content: postContent.trim(),
-        category: postCategory || 'Carpool Request'
-      });
+      if (onAddPost) {
+        await onAddPost({
+          communityId: community.id,
+          title: postTitle.trim(),
+          content: postContent.trim(),
+          category: postCategory || 'Carpool Request'
+        });
+      }
       setPostTitle('');
       setPostContent('');
       setIsPosting(false);
@@ -349,7 +322,9 @@ export default function CityCommunityHubPage({
         onRefreshPosts(community.id);
       }
     } catch (err) {
-      setPostError(err.message || 'Failed to post notice. Verify you are an enrolled member of this hub.');
+      setPostError(
+        err.message || 'Failed to post notice. Verify you are an enrolled member of this hub.'
+      );
     } finally {
       setIsSubmittingPost(false);
     }
@@ -358,7 +333,9 @@ export default function CityCommunityHubPage({
   const handleCommentSubmit = async (postId) => {
     if (!replyInputText.trim()) return;
     try {
-      await onAddComment(postId, replyInputText.trim());
+      if (onAddComment) {
+        await onAddComment(postId, replyInputText.trim());
+      }
       setReplyInputText('');
       setOpenReplyPostId(null);
       if (onRefreshPosts) {
@@ -369,20 +346,25 @@ export default function CityCommunityHubPage({
     }
   };
 
-  const filteredPosts = (posts || []).filter((p) => (p.communityId || p.community_id) === community?.id);
+  const filteredPosts = (posts || []).filter(
+    (p) => (p.communityId || p.community_id) === community?.id
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 animate-in fade-in duration-200">
-      {/* Top Navigation & Community Switcher */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <button
-          onClick={onBack}
-          className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-blue-600 bg-white px-4 py-2.5 rounded-2xl border border-slate-200 shadow-2xs hover:border-blue-200 transition-all cursor-pointer"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back to All City Communities</span>
-        </button>
-      </div>
+      
+      {/* Back button only shown if user is NOT enrolled (e.g. previewing before joining) */}
+      {!isUserEnrolledInCity && onBack && (
+        <div className="flex items-center justify-between">
+          <button
+            onClick={onBack}
+            className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-blue-600 bg-white px-4 py-2.5 rounded-2xl border border-slate-200 shadow-2xs hover:border-blue-200 transition-all cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back to All City Communities</span>
+          </button>
+        </div>
+      )}
 
       {/* Hero Banner for City Community */}
       <div className="bg-gradient-to-br from-blue-950 via-slate-900 to-indigo-950 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden space-y-6">
@@ -405,7 +387,8 @@ export default function CityCommunityHubPage({
                   {community?.name} Travel Hub
                 </h1>
                 <p className="text-xs sm:text-sm text-slate-300 mt-1 leading-relaxed">
-                  {community?.description || `Connecting students traveling between Thapar & ${community?.name}.`}
+                  {community?.description ||
+                    `Direct travel partner coordination & 10-minute slot booking between Thapar & ${community?.name}.`}
                 </p>
               </div>
             </div>
@@ -443,20 +426,36 @@ export default function CityCommunityHubPage({
         {/* Quick Route Benchmarks */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-white/10 text-xs relative z-10">
           <div className="bg-white/5 rounded-2xl p-3 border border-white/10">
-            <span className="text-slate-400 font-semibold block text-[10px] uppercase tracking-wider">Distance</span>
-            <span className="text-slate-100 font-bold text-sm mt-0.5 block">{community?.distanceFromThapar || '250 km'}</span>
+            <span className="text-slate-400 font-semibold block text-[10px] uppercase tracking-wider">
+              Distance
+            </span>
+            <span className="text-slate-100 font-bold text-sm mt-0.5 block">
+              {community?.distanceFromThapar || '200 km'}
+            </span>
           </div>
           <div className="bg-white/5 rounded-2xl p-3 border border-white/10">
-            <span className="text-slate-400 font-semibold block text-[10px] uppercase tracking-wider">Cab Fare Split</span>
-            <span className="text-slate-100 font-bold text-sm mt-0.5 block">Split 4-ways (Save 75%)</span>
+            <span className="text-slate-400 font-semibold block text-[10px] uppercase tracking-wider">
+              Cab Fare Split
+            </span>
+            <span className="text-slate-100 font-bold text-sm mt-0.5 block">
+              Split 4-ways (Save 75%)
+            </span>
           </div>
           <div className="bg-white/5 rounded-2xl p-3 border border-white/10">
-            <span className="text-slate-400 font-semibold block text-[10px] uppercase tracking-wider">Train Cohort</span>
-            <span className="text-slate-100 font-bold text-sm mt-0.5 block">Group Transit Safety</span>
+            <span className="text-slate-400 font-semibold block text-[10px] uppercase tracking-wider">
+              Train Cohorts
+            </span>
+            <span className="text-slate-100 font-bold text-sm mt-0.5 block">
+              Group Travel Safety
+            </span>
           </div>
           <div className="bg-white/5 rounded-2xl p-3 border border-white/10">
-            <span className="text-slate-400 font-semibold block text-[10px] uppercase tracking-wider">Enrolled Students</span>
-            <span className="text-slate-100 font-bold text-sm mt-0.5 block">{community?.membersCount || 0} Students</span>
+            <span className="text-slate-400 font-semibold block text-[10px] uppercase tracking-wider">
+              Enrolled Students
+            </span>
+            <span className="text-slate-100 font-bold text-sm mt-0.5 block">
+              {community?.membersCount || 0} Students
+            </span>
           </div>
         </div>
 
@@ -476,12 +475,7 @@ export default function CityCommunityHubPage({
           }`}
         >
           <Car className="w-4 h-4" />
-          <span>Thapar ➔ {community?.name} Rides (Cab, Train)</span>
-          {isUserEnrolledInCity && (
-            <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full font-semibold">
-              {rides.length}
-            </span>
-          )}
+          <span>Thapar ➔ {community?.name} Ride Booking (Cab & Train)</span>
         </button>
 
         <button
@@ -493,14 +487,14 @@ export default function CityCommunityHubPage({
           }`}
         >
           <MessageSquare className="w-4 h-4" />
-          <span>City Notice Board & Carpool Requests</span>
+          <span>Notice Board & Carpool Requests</span>
           <span className="bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded-full font-semibold">
             {filteredPosts.length}
           </span>
         </button>
       </div>
 
-      {/* TAB 1: RIDES & COHORTS (Cab, Train) */}
+      {/* TAB 1: RIDES - Restricted if not enrolled */}
       {activeTab === 'rides' && !isUserEnrolledInCity && (
         <div className="bg-white rounded-3xl border border-slate-200 p-8 sm:p-12 text-center space-y-6 shadow-xs max-w-2xl mx-auto">
           <div className="w-16 h-16 rounded-3xl bg-blue-50 text-blue-600 border border-blue-200 mx-auto flex items-center justify-center">
@@ -511,11 +505,11 @@ export default function CityCommunityHubPage({
               {community?.name} Travel Hub Rides Restricted
             </h3>
             <p className="text-sm text-slate-600 leading-relaxed">
-              To view scheduled rides, divide cab fares, or coordinate train travel cohorts for {community?.name}, you must be an enrolled member of this hometown hub.
+              To view 10-minute scheduled departures, divide cab fares, or coordinate train cohorts for {community?.name}, you must be an enrolled member of this hometown hub.
             </p>
             {user?.joinedCommunity && (
               <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mt-2">
-                You are currently enrolled in another community hub. The Single-Community policy allows membership in one hometown hub at a time.
+                Under TIET privacy policy, you can only access the travel slots of your enrolled hometown community.
               </p>
             )}
           </div>
@@ -529,293 +523,311 @@ export default function CityCommunityHubPage({
         </div>
       )}
 
+      {/* TAB 1: RIDES - Active for Enrolled Students */}
       {activeTab === 'rides' && isUserEnrolledInCity && (
         <div className="space-y-6">
-          {/* Controls: Mode Filter & Offer Ride Button */}
-          <div className="bg-white rounded-3xl border border-slate-200 p-4 sm:p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-            {/* Mode Pills */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
-              <span className="text-xs font-bold text-slate-600 shrink-0">Transport Mode:</span>
-              <button
-                onClick={() => setSelectedModeFilter('All')}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all cursor-pointer ${
-                  selectedModeFilter === 'All'
-                    ? 'bg-slate-900 text-white shadow-2xs'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                All Modes ({rides.length})
-              </button>
 
-              <button
-                onClick={() => setSelectedModeFilter('Cab')}
-                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all cursor-pointer ${
-                  selectedModeFilter === 'Cab'
-                    ? 'bg-blue-600 text-white shadow-2xs'
-                    : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
-                }`}
-              >
-                <Car className="w-3.5 h-3.5" />
-                <span>Shared Cabs (Fare Split)</span>
-              </button>
-
-              <button
-                onClick={() => setSelectedModeFilter('Train')}
-                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all cursor-pointer ${
-                  selectedModeFilter === 'Train'
-                    ? 'bg-indigo-600 text-white shadow-2xs'
-                    : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
-                }`}
-              >
-                <Train className="w-3.5 h-3.5" />
-                <span>Trains (Shatabdi & Cohorts)</span>
-              </button>
-            </div>
-
-            {/* Create Ride Action */}
-            <button
-              onClick={() => handleOpenCreateRide('Cab')}
-              className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-5 py-3 rounded-2xl shadow-md shadow-blue-500/20 transition-all cursor-pointer shrink-0"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Offer / Create Ride to {community?.name}</span>
-            </button>
-          </div>
-
-          {/* Rides Grid */}
-          {loadingRides ? (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4 animate-pulse">
-                  <div className="h-6 w-32 bg-slate-200 rounded-full" />
-                  <div className="h-8 w-3/4 bg-slate-200 rounded-lg" />
-                  <div className="h-16 w-full bg-slate-100 rounded-xl" />
+          {/* ACTIVE BOOKING CARD (if user currently has an active ride) */}
+          {userActiveRide && (
+            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/90 rounded-3xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black text-lg shadow-xs shrink-0">
+                  #{userActiveRide.id || userActiveRide.groupId || userActiveRide.rideId}
                 </div>
-              ))}
-            </div>
-          ) : ridesError ? (
-            <div className="p-6 bg-rose-50 border border-rose-200 rounded-3xl text-rose-700 text-sm flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 shrink-0" />
-              <span>{ridesError}</span>
-            </div>
-          ) : rides.length === 0 ? (
-            /* Empty State */
-            <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center space-y-4 shadow-xs">
-              <div className="w-16 h-16 rounded-3xl bg-blue-50 text-blue-600 border border-blue-200 mx-auto flex items-center justify-center">
-                <Car className="w-8 h-8" />
-              </div>
-              <div className="space-y-1.5 max-w-md mx-auto">
-                <h3 className="text-xl font-bold text-slate-900">
-                  No {selectedModeFilter !== 'All' ? selectedModeFilter : ''} Rides Scheduled Yet
-                </h3>
-                <p className="text-sm text-slate-500 leading-relaxed">
-                  Be the first student to schedule a ride from Thapar campus to {community?.name}. Others can join you to divide cab fares or travel safely together!
-                </p>
-              </div>
-              <button
-                onClick={() => handleOpenCreateRide(selectedModeFilter !== 'All' ? selectedModeFilter : 'Cab')}
-                className="px-6 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all cursor-pointer inline-flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Create First Ride to {community?.name}</span>
-              </button>
-            </div>
-          ) : (
-            /* Ride Cards */
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-              {rides.map((ride) => {
-                const modeCfg = MODE_CONFIG[ride.mode] || MODE_CONFIG.Cab;
-                const ModeIcon = modeCfg.icon;
-                const isMember = ride.isMember;
-                const isFull = ride.isFull;
-
-                return (
-                  <div
-                    key={ride.id}
-                    className="bg-white rounded-3xl border border-slate-200/90 hover:border-blue-300 shadow-xs hover:shadow-md transition-all p-6 flex flex-col justify-between space-y-4"
-                  >
-                    <div className="space-y-3.5">
-                      {/* Top Badges */}
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${modeCfg.badgeBg}`}
-                        >
-                          <ModeIcon className="w-3.5 h-3.5" />
-                          <span>{modeCfg.label}</span>
-                        </span>
-
-                        <div className="flex items-center gap-1.5">
-                          {isMember && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                              <CheckCircle2 className="w-3 h-3" />
-                              Joined
-                            </span>
-                          )}
-
-                          {isFull ? (
-                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-700 border border-rose-200">
-                              Ride Full ({ride.maxCapacity}/{ride.maxCapacity})
-                            </span>
-                          ) : (
-                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                              {ride.seatsLeft} {ride.seatsLeft === 1 ? 'seat left' : 'seats left'}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Route & Destination */}
-                      <div>
-                        <div className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                          <span>Origin:</span>
-                          <span className="text-slate-600">{ride.origin}</span>
-                        </div>
-                        <h3 className="text-lg font-black text-slate-900 mt-0.5 leading-tight">
-                          ➔ {ride.destination}
-                        </h3>
-                      </div>
-
-                      {/* Date, Time & Pickup Point */}
-                      <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 bg-slate-50 p-3 rounded-2xl border border-slate-100">
-                        <div className="flex items-center gap-1.5">
-                          <Calendar className="w-4 h-4 text-blue-600 shrink-0" />
-                          <span className="font-semibold">{ride.date}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <Clock className="w-4 h-4 text-blue-600 shrink-0" />
-                          <span className="font-semibold">{ride.time} IST</span>
-                        </div>
-                        <div className="col-span-2 flex items-center gap-1.5 text-[11px] text-slate-500 pt-1 border-t border-slate-200/50">
-                          <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span className="truncate">Pickup: <strong>{ride.pickupPoint}</strong></span>
-                        </div>
-                      </div>
-
-                      {/* SPECIFIC MODE CALLOUTS */}
-                      {ride.mode === 'Cab' ? (
-                        /* CAB FARE DIVISION BOX */
-                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/80 rounded-2xl p-3.5 space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[11px] font-bold text-blue-800 uppercase tracking-wide flex items-center gap-1">
-                              <TrendingDown className="w-3.5 h-3.5" />
-                              Cab Fare Split (Equally Divided)
-                            </span>
-                            <span className="text-xs text-slate-500">
-                              Total: <strong>₹{ride.totalFare}</strong>
-                            </span>
-                          </div>
-
-                          <div className="flex items-baseline justify-between pt-1">
-                            <div>
-                              <span className="text-2xl font-black text-blue-900">
-                                ₹{ride.farePerPerson}
-                              </span>
-                              <span className="text-xs text-blue-700 font-semibold ml-1">
-                                / student ({ride.currentMembersCount} riders)
-                              </span>
-                            </div>
-
-                            {ride.seatsLeft > 0 && (
-                              <div className="text-[11px] text-emerald-700 font-bold bg-emerald-100/80 px-2 py-0.5 rounded-lg">
-                                Drops to ₹{Math.round(ride.totalFare / (ride.currentMembersCount + 1))} if another joins!
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ) : (
-                        /* TRAIN COHORT BOX */
-                        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-1">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-bold text-slate-800">
-                              {ride.transitDetails || `${ride.mode} Group Cohort`}
-                            </span>
-                            <span className="text-[11px] font-bold text-slate-500">
-                              Travel Together Cohort
-                            </span>
-                          </div>
-                          <p className="text-xs text-slate-600 leading-relaxed">
-                            {ride.notes || 'Traveling together for safety, campus taxi sharing, and company during journey.'}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Members Roster / Avatars */}
-                      <div className="flex items-center justify-between pt-1 text-xs">
-                        <div className="flex items-center -space-x-1.5">
-                          {(ride.members || []).map((m, idx) => (
-                            <div key={idx} className="ring-2 ring-white rounded-full" title={`${m.name} (${m.hostel})`}>
-                              <Avatar
-                                src={m.avatar}
-                                name={m.name}
-                                size="w-7 h-7"
-                                textSize="text-[10px]"
-                                rounded="rounded-full"
-                              />
-                            </div>
-                          ))}
-                        </div>
-                        <span className="text-xs text-slate-500 font-medium">
-                          Created by <strong className="text-slate-700">{ride.creatorName}</strong>
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Card Actions */}
-                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
-                      <div className="text-[11px] text-slate-400">
-                        {ride.notes && ride.mode === 'Cab' && (
-                          <span className="truncate max-w-[200px] block" title={ride.notes}>
-                            Note: {ride.notes}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        {isMember ? (
-                          <button
-                            onClick={() => setRideToLeave(ride)}
-                            disabled={actionLoadingRideId === ride.id}
-                            className="px-3.5 py-2 rounded-xl text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-colors cursor-pointer disabled:opacity-50"
-                          >
-                            Leave Ride
-                          </button>
-                        ) : isFull ? (
-                          <button
-                            disabled
-                            className="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 bg-slate-100 cursor-not-allowed"
-                          >
-                            Ride Full
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleJoinRide(ride)}
-                            disabled={actionLoadingRideId === ride.id}
-                            title={
-                              userActiveRide && userActiveRide.id !== ride.id
-                                ? `Single-Ride Policy: You already belong to active ride (${userActiveRide.destinationName || userActiveRide.destination || 'Group #' + userActiveRide.id})`
-                                : undefined
-                            }
-                            className={`px-4 py-2 rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50 ${
-                              userActiveRide && userActiveRide.id !== ride.id
-                                ? 'bg-amber-600 hover:bg-amber-700 text-white'
-                                : 'bg-blue-600 hover:bg-blue-700 text-white'
-                            }`}
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            <span>
-                              {ride.mode === 'Cab'
-                                ? `Join & Pay ₹${Math.round(ride.totalFare / (ride.currentMembersCount + 1))}`
-                                : 'Join Travel Group'}
-                            </span>
-                          </button>
-                        )}
-                      </div>
-                    </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md border border-emerald-300">
+                      Your Active Booked Ride
+                    </span>
+                    <span className="text-xs text-slate-500 font-semibold">
+                      Status: {userActiveRide.status || 'Confirmed'}
+                    </span>
                   </div>
-                );
-              })}
+                  <h4 className="font-extrabold text-slate-900 text-base">
+                    ➔ {userActiveRide.destination || userActiveRide.destinationName} ({userActiveRide.date} at {userActiveRide.time} IST)
+                  </h4>
+                  <div className="text-xs text-slate-600 flex items-center gap-3">
+                    <span>
+                      Pickup: <strong>{userActiveRide.pickupPoint || userActiveRide.pickup_point || selectedHostel}</strong>
+                    </span>
+                    <span>•</span>
+                    <span>
+                      {userActiveRide.members?.length || userActiveRide.currentMembersCount || 1} student(s) booked
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => onOpenChat && onOpenChat(userActiveRide.id || userActiveRide.groupId || userActiveRide.rideId)}
+                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>Open Chat</span>
+                </button>
+
+                {onViewGroupDetails && (
+                  <button
+                    onClick={() => onViewGroupDetails(userActiveRide.id || userActiveRide.groupId || userActiveRide.rideId)}
+                    className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 shadow-2xs transition-colors cursor-pointer"
+                  >
+                    View Details
+                  </button>
+                )}
+
+                <button
+                  onClick={() => setRideToLeave(userActiveRide)}
+                  className="px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 transition-colors cursor-pointer"
+                >
+                  Leave Ride
+                </button>
+              </div>
             </div>
           )}
+
+          {/* STICKY SEARCH CARD (MakeMyTrip style) */}
+          <div className="sticky top-20 z-30 bg-white/95 backdrop-blur-md rounded-3xl border border-slate-200/90 shadow-xl p-5 sm:p-6 transition-all">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse" />
+                <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
+                  Book a Scheduled Travel Slot to {community?.name}
+                </h2>
+                <span className="text-[11px] font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md border border-blue-200 hidden sm:inline-block">
+                  10-Minute Departures
+                </span>
+              </div>
+              <span className="text-xs font-semibold text-slate-500">
+                {community?.distanceFromThapar || '200 km'} • Verified TIET Students
+              </span>
+            </div>
+
+            <form onSubmit={handleSearchSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+
+                {/* 1. FROM: Fixed Thapar Campus */}
+                <div className="bg-slate-50/80 rounded-2xl p-3 border border-slate-200/80 flex flex-col justify-between">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                    <MapPin className="w-3 h-3 text-blue-600" />
+                    <span>From (Fixed Origin)</span>
+                  </span>
+                  <div className="font-extrabold text-slate-800 text-sm mt-1 truncate">
+                    Thapar Institute, Patiala
+                  </div>
+                  <span className="text-[10px] text-slate-500 mt-0.5 truncate">
+                    Pickup: {selectedHostel.split(' ')[0]}
+                  </span>
+                </div>
+
+                {/* 2. TO: Drop Destination in City (Searchable Dropdown) */}
+                <div className="relative bg-slate-50/80 rounded-2xl p-3 border border-slate-200/80 flex flex-col justify-between">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                    <MapPin className="w-3 h-3 text-indigo-600" />
+                    <span>To ({community?.name} Hub)</span>
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsDestDropdownOpen(!isDestDropdownOpen)}
+                    className="font-extrabold text-slate-800 text-sm mt-1 text-left flex items-center justify-between w-full truncate cursor-pointer"
+                  >
+                    <span className="truncate">{effectiveDest}</span>
+                    <ChevronDown className="w-4 h-4 text-slate-400 shrink-0 ml-1" />
+                  </button>
+
+                  <span className="text-[10px] text-slate-500 mt-0.5 truncate">
+                    Preset or Custom Drop Hub
+                  </span>
+
+                  {isDestDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-slate-200 shadow-xl p-3 z-50 space-y-2 max-h-72 overflow-y-auto">
+                      <div className="relative">
+                        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                        <input
+                          type="text"
+                          placeholder="Search drop landmark..."
+                          value={destSearchQuery}
+                          onChange={(e) => setDestSearchQuery(e.target.value)}
+                          className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2">
+                          Popular Drop Points
+                        </span>
+                        {filteredPresetDestinations.map((dest) => (
+                          <div
+                            key={dest}
+                            onClick={() => {
+                              setSelectedDest(dest);
+                              setCustomDestInput('');
+                              setIsDestDropdownOpen(false);
+                            }}
+                            className={`p-2 rounded-xl text-xs font-bold flex items-center justify-between cursor-pointer transition-colors ${
+                              effectiveDest === dest
+                                ? 'bg-blue-50 text-blue-700'
+                                : 'hover:bg-slate-50 text-slate-700'
+                            }`}
+                          >
+                            <span className="truncate">{dest}</span>
+                            {effectiveDest === dest && (
+                              <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-100 space-y-1.5">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1">
+                          Or Type Custom Landmark / Address
+                        </span>
+                        <div className="flex gap-1.5">
+                          <input
+                            type="text"
+                            placeholder="e.g. Rohini Sector 11, GTB Nagar..."
+                            value={customDestInput}
+                            onChange={(e) => setCustomDestInput(e.target.value)}
+                            className="flex-1 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-blue-500"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setIsDestDropdownOpen(false)}
+                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl cursor-pointer"
+                          >
+                            Set
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. DATE: Picker (Today to +30 Days) */}
+                <div className="bg-slate-50/80 rounded-2xl p-3 border border-slate-200/80 flex flex-col justify-between">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                    <Calendar className="w-3 h-3 text-blue-600" />
+                    <span>Travel Date</span>
+                  </span>
+                  <select
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="font-extrabold text-slate-800 text-sm mt-1 bg-transparent border-none focus:outline-hidden cursor-pointer"
+                  >
+                    {dateOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="text-[10px] text-slate-500 mt-0.5">
+                    IST Departure
+                  </span>
+                </div>
+
+                {/* 4. MODE: Shared Cab / Train Cohort */}
+                <div className="bg-slate-50/80 rounded-2xl p-3 border border-slate-200/80 flex flex-col justify-between">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                    <Car className="w-3 h-3 text-blue-600" />
+                    <span>Transport Mode</span>
+                  </span>
+                  <select
+                    value={selectedMode}
+                    onChange={(e) => setSelectedMode(e.target.value)}
+                    className="font-extrabold text-slate-800 text-sm mt-1 bg-transparent border-none focus:outline-hidden cursor-pointer"
+                  >
+                    <option value="Shared Cab">Shared Cab (4 Seats)</option>
+                    <option value="Train Cohort">Train Cohort (6 Seats)</option>
+                    <option value="Either">Either / All Modes</option>
+                  </select>
+                  <span className="text-[10px] text-slate-500 mt-0.5">
+                    {selectedMode === 'Train Cohort' ? 'Shatabdi & Cohorts' : 'Fare Split 4-Ways'}
+                  </span>
+                </div>
+
+                {/* 5. SEARCH BUTTON & HOSTEL SELECTION */}
+                <div className="flex flex-col justify-between gap-1">
+                  <button
+                    type="submit"
+                    className="w-full h-full min-h-[46px] rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-sm shadow-md shadow-blue-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  >
+                    <Search className="w-4 h-4 stroke-[2.5]" />
+                    <span>Search Slots</span>
+                  </button>
+
+                  <div className="relative text-center">
+                    <button
+                      type="button"
+                      onClick={() => setIsHostelDropdownOpen(!isHostelDropdownOpen)}
+                      className="text-[10px] font-bold text-slate-500 hover:text-blue-600 underline cursor-pointer truncate max-w-full block"
+                    >
+                      Pickup: {selectedHostel.split(' ')[0]} ▾
+                    </button>
+
+                    {isHostelDropdownOpen && (
+                      <div className="absolute bottom-full right-0 mb-2 w-64 bg-white rounded-2xl border border-slate-200 shadow-xl p-2 z-50 max-h-60 overflow-y-auto space-y-1 text-left">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2">
+                          Campus Pickup Hostel
+                        </span>
+                        {HOSTELS.map((h) => (
+                          <div
+                            key={h.id}
+                            onClick={() => {
+                              setSelectedHostel(h.name);
+                              setIsHostelDropdownOpen(false);
+                            }}
+                            className={`p-2 rounded-xl text-xs font-bold cursor-pointer transition-colors ${
+                              selectedHostel === h.name
+                                ? 'bg-blue-50 text-blue-700'
+                                : 'hover:bg-slate-50 text-slate-700'
+                            }`}
+                          >
+                            {h.name}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+            </form>
+          </div>
+
+          {/* 10-MINUTE SLOTS (BlaBlaCar style) */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-black text-slate-900">
+                  Available Departures for {selectedDate}
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  From Thapar Campus to {effectiveDest} • {selectedMode}
+                </p>
+              </div>
+            </div>
+
+            {slotsError && (
+              <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-rose-700 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{slotsError}</span>
+              </div>
+            )}
+
+            <SlotPicker
+              slots={slots}
+              loading={slotsLoading}
+              onJoinSlot={handleJoinSlot}
+              onViewGroup={(groupId) => {
+                if (onViewGroupDetails) {
+                  onViewGroupDetails(groupId);
+                }
+              }}
+              joiningSlotKey={joiningSlotKey}
+            />
+          </div>
+
         </div>
       )}
 
@@ -856,7 +868,9 @@ export default function CityCommunityHubPage({
           {isPosting && (
             <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4 animate-in fade-in">
               <div className="flex items-center justify-between">
-                <h3 className="font-bold text-slate-900 text-sm">Create New Notice / Carpool Request</h3>
+                <h3 className="font-bold text-slate-900 text-sm">
+                  Create New Notice / Carpool Request
+                </h3>
                 <button
                   onClick={() => {
                     setIsPosting(false);
@@ -877,7 +891,9 @@ export default function CityCommunityHubPage({
 
               <form onSubmit={handlePostSubmit} className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <label className="text-xs font-bold text-slate-700 shrink-0">Notice Category:</label>
+                  <label className="text-xs font-bold text-slate-700 shrink-0">
+                    Notice Category:
+                  </label>
                   <select
                     value={postCategory}
                     onChange={(e) => setPostCategory(e.target.value)}
@@ -934,8 +950,12 @@ export default function CityCommunityHubPage({
           {filteredPosts.length === 0 ? (
             <div className="bg-white rounded-3xl border border-slate-200 p-10 text-center space-y-2 text-slate-500">
               <MessageSquare className="w-8 h-8 mx-auto text-slate-300" />
-              <p className="text-sm font-bold text-slate-700">No notices posted for {community?.name} yet.</p>
-              <p className="text-xs text-slate-400">Join this community hub to post the first update!</p>
+              <p className="text-sm font-bold text-slate-700">
+                No notices posted for {community?.name} yet.
+              </p>
+              <p className="text-xs text-slate-400">
+                Join this community hub to post the first update!
+              </p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -944,15 +964,29 @@ export default function CityCommunityHubPage({
                 const authorHostel = post.authorHostel || '';
                 const authorAvatar = post.authorAvatar || 'ST';
                 const isLiked = Boolean(post.isLiked);
-                const likesCount = typeof post.likes === 'number' ? post.likes : (Array.isArray(post.likes) ? post.likes.length : 0);
+                const likesCount =
+                  typeof post.likes === 'number'
+                    ? post.likes
+                    : Array.isArray(post.likes)
+                    ? post.likes.length
+                    : 0;
                 const commentsList = Array.isArray(post.comments) ? post.comments : [];
                 const hasReplies = commentsList.length > 0;
 
                 return (
-                  <div key={post.id} className="bg-white rounded-3xl border border-slate-200/90 p-5 shadow-xs space-y-3">
+                  <div
+                    key={post.id}
+                    className="bg-white rounded-3xl border border-slate-200/90 p-5 shadow-xs space-y-3"
+                  >
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
-                        <Avatar src={authorAvatar} name={authorName} size="w-9 h-9" textSize="text-xs" rounded="rounded-full" />
+                        <Avatar
+                          src={authorAvatar}
+                          name={authorName}
+                          size="w-9 h-9"
+                          textSize="text-xs"
+                          rounded="rounded-full"
+                        />
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-slate-900 text-sm">{authorName}</span>
@@ -968,7 +1002,12 @@ export default function CityCommunityHubPage({
                             )}
                           </div>
                           <span className="text-[10px] text-slate-400">
-                            {post.createdAt ? new Date(post.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : ''}
+                            {post.createdAt
+                              ? new Date(post.createdAt).toLocaleDateString('en-IN', {
+                                  day: 'numeric',
+                                  month: 'short'
+                                })
+                              : ''}
                           </span>
                         </div>
                       </div>
@@ -976,7 +1015,9 @@ export default function CityCommunityHubPage({
 
                     <div>
                       <h4 className="font-bold text-slate-900 text-sm">{post.title}</h4>
-                      <p className="text-xs text-slate-600 mt-1 leading-relaxed whitespace-pre-wrap">{post.content}</p>
+                      <p className="text-xs text-slate-600 mt-1 leading-relaxed whitespace-pre-wrap">
+                        {post.content}
+                      </p>
                     </div>
 
                     <div className="pt-2 border-t border-slate-100 flex items-center gap-4 text-xs">
@@ -986,12 +1027,16 @@ export default function CityCommunityHubPage({
                           isLiked ? 'text-rose-600' : 'text-slate-500 hover:text-slate-800'
                         }`}
                       >
-                        <Heart className={`w-4 h-4 ${isLiked ? 'fill-current text-rose-600' : ''}`} />
+                        <Heart
+                          className={`w-4 h-4 ${isLiked ? 'fill-current text-rose-600' : ''}`}
+                        />
                         <span>{likesCount}</span>
                       </button>
 
                       <button
-                        onClick={() => setOpenReplyPostId(openReplyPostId === post.id ? null : post.id)}
+                        onClick={() =>
+                          setOpenReplyPostId(openReplyPostId === post.id ? null : post.id)
+                        }
                         className="flex items-center gap-1 text-slate-500 hover:text-blue-600 font-semibold transition-colors cursor-pointer"
                       >
                         <MessageSquare className="w-4 h-4" />
@@ -1003,11 +1048,19 @@ export default function CityCommunityHubPage({
                     {hasReplies && (
                       <div className="space-y-2 pt-2 border-t border-slate-100 pl-4">
                         {commentsList.map((comm) => (
-                          <div key={comm.id} className="bg-slate-50 p-2.5 rounded-2xl text-xs space-y-1">
+                          <div
+                            key={comm.id}
+                            className="bg-slate-50 p-2.5 rounded-2xl text-xs space-y-1"
+                          >
                             <div className="flex items-center gap-2 font-bold text-slate-700">
                               <span>{comm.author || comm.authorName || 'Student'}</span>
                               <span className="text-[10px] text-slate-400 font-normal">
-                                {comm.createdAt ? new Date(comm.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                                {comm.createdAt
+                                  ? new Date(comm.createdAt).toLocaleTimeString([], {
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })
+                                  : ''}
                               </span>
                             </div>
                             <p className="text-slate-600">{comm.text}</p>
@@ -1048,218 +1101,12 @@ export default function CityCommunityHubPage({
         </div>
       )}
 
-      {/* CREATE RIDE MODAL */}
-      {isCreateRideModalOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
-        >
-          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 p-6 sm:p-8 space-y-5 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-start justify-between">
-              <div>
-                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
-                  <Sparkles className="w-3 h-3" />
-                  Campus Transit to {community?.name}
-                </span>
-                <h2 className="text-xl font-black text-slate-900 mt-1">
-                  Schedule Ride to {community?.name}
-                </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Divide cab fares or coordinate train travel cohorts.
-                </p>
-              </div>
-              <button
-                onClick={() => setIsCreateRideModalOpen(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {rideFormError && (
-              <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-2.5 text-rose-700 text-xs">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{rideFormError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleCreateRideSubmit} className="space-y-4 text-xs sm:text-sm">
-              {/* Transport Mode Selection */}
-              <div className="space-y-1.5">
-                <label className="block font-bold text-slate-700">Transport Mode *</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { id: 'Cab', label: 'Shared Cab', icon: Car },
-                    { id: 'Train', label: 'Train Cohort', icon: Train }
-                  ].map((m) => {
-                    const Icon = m.icon;
-                    const isActive = rideFormMode === m.id;
-                    return (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => handleModeChange(m.id)}
-                        className={`p-3 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center gap-1.5 ${
-                          isActive
-                            ? 'bg-blue-50 border-blue-600 text-blue-700 font-bold shadow-2xs'
-                            : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                        }`}
-                      >
-                        <Icon className="w-5 h-5" />
-                        <span className="text-xs">{m.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Date & Time */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="block font-bold text-slate-700">Departure Date *</label>
-                  <input
-                    type="date"
-                    value={rideFormDate}
-                    onChange={(e) => setRideFormDate(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2.5 text-xs sm:text-sm focus:border-blue-500 focus:outline-hidden"
-                    required
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block font-bold text-slate-700">Departure Time *</label>
-                  <input
-                    type="time"
-                    value={rideFormTime}
-                    onChange={(e) => setRideFormTime(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2.5 text-xs sm:text-sm focus:border-blue-500 focus:outline-hidden"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Drop-off Destination */}
-              <div className="space-y-1.5">
-                <label className="block font-bold text-slate-700">City Drop-off Area *</label>
-                <input
-                  type="text"
-                  value={rideFormDestination}
-                  onChange={(e) => setRideFormDestination(e.target.value)}
-                  placeholder="e.g. Kashmiri Gate ISBT, South Extension, Sector 17..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-2.5 text-xs sm:text-sm focus:border-blue-500 focus:outline-hidden"
-                  required
-                />
-              </div>
-
-              {/* Pickup Point on Campus */}
-              <div className="space-y-1.5">
-                <label className="block font-bold text-slate-700">Campus Pickup Point *</label>
-                <select
-                  value={rideFormPickup}
-                  onChange={(e) => setRideFormPickup(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-2.5 text-xs sm:text-sm focus:border-blue-500 focus:outline-hidden"
-                >
-                  <option value="Main Gate (Near Executive Mess)">Main Gate (Near Executive Mess)</option>
-                  <option value="Campus Gate 2 (Near Library)">Campus Gate 2 (Near Library)</option>
-                  <option value="Hostel-J / Tejas Hall Gate">Hostel-J / Tejas Hall Gate</option>
-                  <option value="Hostel-B / Amritam Hall Entrance">Hostel-B / Amritam Hall Entrance</option>
-                  <option value="Patiala Railway Station (Sharing cab to station)">Patiala Railway Station</option>
-                  <option value="Patiala Bus Stand (Sharing cab to bus terminal)">Patiala Bus Stand</option>
-                </select>
-              </div>
-
-              {/* Mode-Specific Settings: Cab Fare or Train Info */}
-              {rideFormMode === 'Cab' ? (
-                <div className="grid grid-cols-2 gap-3 bg-blue-50/50 p-3.5 rounded-2xl border border-blue-100">
-                  <div className="space-y-1.5">
-                    <label className="block font-bold text-blue-900 text-xs">Total Cab Fare (₹) *</label>
-                    <input
-                      type="number"
-                      value={rideFormTotalFare}
-                      onChange={(e) => setRideFormTotalFare(e.target.value)}
-                      placeholder="e.g. 2400"
-                      min={100}
-                      className="w-full bg-white border border-blue-200 rounded-xl px-3 py-2 text-xs sm:text-sm font-bold text-blue-900 focus:border-blue-500 focus:outline-hidden"
-                      required
-                    />
-                    <span className="text-[10px] text-blue-600 block">Divided equally among riders</span>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="block font-bold text-blue-900 text-xs">Total Seats in Cab *</label>
-                    <select
-                      value={rideFormMaxCapacity}
-                      onChange={(e) => setRideFormMaxCapacity(e.target.value)}
-                      className="w-full bg-white border border-blue-200 rounded-xl px-3 py-2 text-xs sm:text-sm font-bold text-blue-900 focus:border-blue-500 focus:outline-hidden"
-                    >
-                      <option value="3">3 Seats (Spacious Sedan)</option>
-                      <option value="4">4 Seats (Standard Cab)</option>
-                      <option value="6">6 Seats (SUV / Ertiga)</option>
-                    </select>
-                    <span className="text-[10px] text-blue-600 block">
-                      ~₹{Math.round((Number(rideFormTotalFare) || 2400) / Number(rideFormMaxCapacity))} per student
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-2 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
-                  <label className="block font-bold text-slate-800 text-xs">
-                    Train Name / Number
-                  </label>
-                  <input
-                    type="text"
-                    value={rideFormTransitDetails}
-                    onChange={(e) => setRideFormTransitDetails(e.target.value)}
-                    placeholder="e.g. Kalka Shatabdi #12006 (Ambala Cantt -> NDLS)"
-                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs sm:text-sm focus:border-blue-500 focus:outline-hidden"
-                  />
-                  <span className="text-[10px] text-slate-500 block">
-                    Helps students book the same train coach or coordinate shared station cabs.
-                  </span>
-                </div>
-              )}
-
-              {/* Notes */}
-              <div className="space-y-1.5">
-                <label className="block font-bold text-slate-700">Notes / Luggage Details</label>
-                <input
-                  type="text"
-                  value={rideFormNotes}
-                  onChange={(e) => setRideFormNotes(e.target.value)}
-                  placeholder="e.g. Leaving right after lab, max 1 trolley bag each, splitting station auto..."
-                  maxLength={500}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-2.5 text-xs sm:text-sm focus:border-blue-500 focus:outline-hidden"
-                />
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsCreateRideModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmittingRide}
-                  className="px-5 py-2.5 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all cursor-pointer disabled:opacity-50"
-                >
-                  {isSubmittingRide ? 'Scheduling...' : 'Post Ride'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
       {/* LEAVE RIDE CONFIRM DIALOG */}
       <ConfirmDialog
         isOpen={Boolean(rideToLeave)}
-        title={`Leave ${rideToLeave?.mode} ride to ${rideToLeave?.destination}?`}
-        message="Are you sure you want to leave this ride? Your reserved seat will be reopened for other students, and the fare will be recalculated among remaining riders."
-        confirmLabel="Leave Ride"
+        title="Leave Scheduled Ride?"
+        message={`Are you sure you want to leave Group #${rideToLeave?.id || rideToLeave?.groupId || rideToLeave?.rideId} to ${rideToLeave?.destination || rideToLeave?.destinationName}? Your reserved seat will be reopened for other students.`}
+        confirmLabel={isLeavingRide ? 'Leaving...' : 'Leave Ride'}
         cancelLabel="Stay in Ride"
         isDestructive={true}
         onConfirm={handleLeaveRideConfirm}

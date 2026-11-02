@@ -83,6 +83,9 @@ export function serializeMember(member, canSeePhone = false) {
     departureTime: member.departure_time,
     role: member.role || 'Member',
     phone: canSeePhone ? (member.phone || '') : '',
+    isCompanion: Boolean(member.is_companion),
+    addedBy: member.added_by || null,
+    companionName: member.companion_name || '',
     joinedAt: member.joined_at ? new Date(member.joined_at).toISOString() : new Date().toISOString()
   };
 }
@@ -293,12 +296,16 @@ export function serializeCityRide(ride, viewingUserId = null) {
     status: ride.status || (seatsLeft === 0 ? 'Full' : 'Open'),
     isMember,
     members: (ride.members || []).map((m) => ({
+      id: m.id || m.user_id,
       userId: m.user_id || m.userId || m.id,
       name: m.name,
       avatar: m.avatar || 'ST',
       hostel: m.hostel || '',
       phone: canSeePhones ? (m.phone || '') : '',
       role: m.role || 'Member',
+      isCompanion: Boolean(m.is_companion),
+      addedBy: m.added_by || null,
+      companionName: m.companion_name || '',
       joinedAt: m.joined_at ? new Date(m.joined_at).toISOString() : new Date().toISOString()
     })),
     createdAt: ride.created_at ? new Date(ride.created_at).toISOString() : new Date().toISOString()

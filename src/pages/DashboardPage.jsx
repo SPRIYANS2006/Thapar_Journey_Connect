@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import DisclaimerBanner from '../components/DisclaimerBanner';
 import SlotPicker from '../components/SlotPicker';
+import AddFriendModal from '../components/AddFriendModal';
 import { DESTINATIONS, HOSTELS } from '../data/mockData';
 import { formatTime24to12 } from '../utils/matchingEngine';
 import { 
@@ -8,13 +9,20 @@ import {
   Clock, 
   MapPin, 
   Car, 
-  Package, 
   Search, 
   Home, 
   Calendar,
-  ChevronDown
+  ChevronDown,
+  UserPlus,
+  X
 } from 'lucide-react';
 import { api } from '../services/api';
+
+let toastSeq = 0;
+function makeToastId(prefix) {
+  toastSeq = (toastSeq + 1) % 1000000;
+  return `${prefix}_${toastSeq}`;
+}
 
 export default function DashboardPage({ 
   user, 
@@ -22,9 +30,8 @@ export default function DashboardPage({
   activeGroups = [], 
   onViewGroupDetails, 
   onJoinGroup: _onJoinGroup,
-  communities = [], 
-  onNavigateToCommunities,
-  onNavigateToSendLuggage,
+  communities: _communities = [], 
+  onNavigateToCommunities: _onNavigateToCommunities,
   triggerToast,
   onRefreshGroups
 }) {
@@ -124,7 +131,7 @@ export default function DashboardPage({
 
       if (triggerToast) {
         triggerToast({
-          id: `join_slot_${Date.now()}`,
+          id: makeToastId('join_slot'),
           type: 'success',
           title: res.created ? '🎉 Group Created!' : '🎉 Joined Group!',
           message: res.message || `Successfully joined Group #${res.group.id} for ${slot.time}!`,
@@ -144,7 +151,7 @@ export default function DashboardPage({
     } catch (err) {
       if (triggerToast) {
         triggerToast({
-          id: `slot_err_${Date.now()}`,
+          id: makeToastId('slot_err'),
           type: 'error',
           title: 'Could Not Book Slot',
           message: err.message || 'Unable to join slot. Please check single-ride policy or capacity.'
@@ -152,6 +159,69 @@ export default function DashboardPage({
       }
     } finally {
       setJoiningSlotKey(null);
+    }
+  };
+
+  // Friend / Companion Management
+  const [isAddFriendOpen, setIsAddFriendOpen] = useState(false);
+  const [friendActionLoading, setFriendActionLoading] = useState(false);
+
+  const handleAddFriend = async (friendData) => {
+    if (!activeUserGroup) return;
+    setFriendActionLoading(true);
+    try {
+      const res = await api.addFriendToGroup(activeUserGroup.id, friendData);
+      if (triggerToast) {
+        triggerToast({
+          id: makeToastId('friend_add'),
+          type: 'success',
+          title: 'Friend Added!',
+          message: res.message || `Added ${friendData.name} to Group #${activeUserGroup.id}!`
+        });
+      }
+      if (onRefreshGroups) await onRefreshGroups().catch(() => {});
+      if (hasSearched) await fetchSlots(selectedDestId, selectedDate, selectedVehicle);
+    } catch (err) {
+      if (triggerToast) {
+        triggerToast({
+          id: makeToastId('friend_err'),
+          type: 'error',
+          title: 'Could Not Add Friend',
+          message: err.message || 'Failed to add friend.'
+        });
+      }
+      throw err;
+    } finally {
+      setFriendActionLoading(false);
+    }
+  };
+
+  const handleRemoveFriend = async (friendId, friendName) => {
+    if (!activeUserGroup) return;
+    setFriendActionLoading(true);
+    try {
+      const res = await api.removeFriendFromGroup(activeUserGroup.id, friendId);
+      if (triggerToast) {
+        triggerToast({
+          id: makeToastId('friend_rm'),
+          type: 'info',
+          title: 'Friend Removed',
+          message: res.message || `Removed ${friendName || 'friend'} from Group #${activeUserGroup.id}.`
+        });
+      }
+      if (onRefreshGroups) await onRefreshGroups().catch(() => {});
+      if (hasSearched) await fetchSlots(selectedDestId, selectedDate, selectedVehicle);
+    } catch (err) {
+      if (triggerToast) {
+        triggerToast({
+          id: makeToastId('friend_rm_err'),
+          type: 'error',
+          title: 'Could Not Remove Friend',
+          message: err.message || 'Failed to remove friend.'
+        });
+      }
+    } finally {
+      setFriendActionLoading(false);
     }
   };
 
@@ -165,9 +235,6 @@ export default function DashboardPage({
         (user?.name && m.name === user.name)
     )
   );
-  const userCommunity = user?.joinedCommunity
-    ? communities.find((c) => c.id === user.joinedCommunity)
-    : null;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-in fade-in duration-300">
@@ -184,7 +251,7 @@ export default function DashboardPage({
               Book a Scheduled Slot
             </h2>
             <span className="text-[11px] font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md border border-blue-200 hidden sm:inline-block">
-              10-Minute Departures
+              15-Minute Departures
             </span>
           </div>
           <span className="text-xs font-semibold text-slate-500">
@@ -380,68 +447,96 @@ export default function DashboardPage({
 
       {/* Active Trip Quick Banner (If user belongs to a group) */}
       {activeUserGroup && (
-        <div className="bg-indigo-50 border border-indigo-200 rounded-3xl p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white font-extrabold flex items-center justify-center text-base shadow-md shrink-0">
-              #{activeUserGroup.id}
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider bg-indigo-200 text-indigo-800 px-2 py-0.5 rounded-md">
-                  Active Joined Group
-                </span>
-                <span className="text-xs text-slate-500 font-medium">
-                  {activeUserGroup.members?.length || 1}/{activeUserGroup.maxMembers || 4} Members
-                </span>
+        <div className="bg-indigo-50 border border-indigo-200 rounded-3xl p-5 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white font-extrabold flex items-center justify-center text-base shadow-md shrink-0">
+                #{activeUserGroup.id}
               </div>
-              <h4 className="font-bold text-slate-900 text-base mt-0.5">
-                TIET → {activeUserGroup.destinationName}
-              </h4>
-              <p className="text-xs text-slate-600 flex items-center gap-2 mt-0.5">
-                <span>⏰ Departure: {activeUserGroup.departureTime}</span>
-                <span>•</span>
-                <span>📍 Pickup: {activeUserGroup.pickupPoint}</span>
-              </p>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider bg-indigo-200 text-indigo-800 px-2 py-0.5 rounded-md">
+                    Active Joined Group
+                  </span>
+                  <span className="text-xs text-slate-500 font-medium">
+                    {activeUserGroup.members?.length || 1}/{activeUserGroup.maxMembers || 4} Members
+                  </span>
+                </div>
+                <h4 className="font-bold text-slate-900 text-base mt-0.5">
+                  TIET → {activeUserGroup.destinationName}
+                </h4>
+                <p className="text-xs text-slate-600 flex items-center gap-2 mt-0.5">
+                  <span>⏰ Departure: {activeUserGroup.departureTime}</span>
+                  <span>•</span>
+                  <span>📍 Pickup: {activeUserGroup.pickupPoint}</span>
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              {(activeUserGroup.members?.length || 0) < (activeUserGroup.maxMembers || 4) && (
+                <button
+                  type="button"
+                  onClick={() => setIsAddFriendOpen(true)}
+                  disabled={friendActionLoading}
+                  className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer shrink-0"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>+ Add Friend</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => onViewGroupDetails && onViewGroupDetails(activeUserGroup.id)}
+                className="w-full sm:w-auto px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer shrink-0"
+              >
+                <span>Open Group & Chat</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
             </div>
           </div>
 
-          <button
-            onClick={() => onViewGroupDetails && onViewGroupDetails(activeUserGroup.id)}
-            className="w-full sm:w-auto px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer shrink-0"
-          >
-            <span>Open Group & Chat</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
+          {/* Members & Companions in Active Group */}
+          <div className="pt-3 border-t border-indigo-100 flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mr-1">Riders:</span>
+            {(activeUserGroup.members || []).map((m) => {
+              const isCompanion = Boolean(m.isCompanion);
+              const isMyCompanion = isCompanion && (m.addedBy === user?.id || activeUserGroup.adminId === user?.id);
+              const memberId = m.id || m.user_id || m.userId;
+              return (
+                <div
+                  key={memberId}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold ${
+                    isCompanion
+                      ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                      : 'bg-white text-slate-800 border border-slate-200'
+                  }`}
+                >
+                  <span>{m.name}</span>
+                  {isCompanion && (
+                    <span className="text-[10px] bg-amber-200/80 px-1 py-0.2 rounded font-bold text-amber-800">
+                      Friend
+                    </span>
+                  )}
+                  {isMyCompanion && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveFriend(memberId, m.name)}
+                      disabled={friendActionLoading}
+                      title="Remove friend from slot"
+                      className="ml-1 text-rose-600 hover:text-rose-800 hover:bg-rose-100 rounded-full p-0.5 transition-colors cursor-pointer"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
-      {/* PART 2.1: PROMINENT "SEND LUGGAGE" CARD (Porter / Rapido style) */}
-      <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-slate-900 rounded-3xl p-6 sm:p-7 text-white shadow-xl flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5 relative overflow-hidden">
-        <div className="space-y-2 max-w-2xl relative z-10">
-          <div className="inline-flex items-center gap-1.5 px-3 py-0.5 bg-white/15 backdrop-blur-md rounded-full text-emerald-200 text-xs font-extrabold border border-white/10">
-            <Package className="w-3.5 h-3.5" />
-            <span>Campus Luggage Transport (Vendor-Based)</span>
-          </div>
-          <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-            Sending Bags or Trunks Home?
-          </h3>
-          <p className="text-emerald-100 text-xs sm:text-sm font-normal leading-relaxed">
-            Book verified local tempo, auto, or bike couriers to deliver heavy luggage to the station or home.
-            <strong className="text-white ml-1">Pool with hostel peers to slash delivery fares up to 50%!</strong>
-          </p>
-        </div>
-
-        <button
-          onClick={() => onNavigateToSendLuggage && onNavigateToSendLuggage()}
-          className="w-full sm:w-auto px-6 py-3.5 bg-white text-emerald-900 hover:bg-emerald-50 font-black text-xs sm:text-sm rounded-2xl shadow-xl flex items-center justify-center gap-2 transition-all cursor-pointer shrink-0"
-        >
-          <Package className="w-4 h-4 text-emerald-600" />
-          <span>Book Luggage Transport</span>
-          <ArrowRight className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* PART 1.2: 10-MINUTE SLOTS (BlaBlaCar-style slot cards, available only after Search) */}
+      {/* PART 1.2: 15-MINUTE SLOTS (BlaBlaCar-style slot cards, available only after Search) */}
       {!hasSearched ? (
         <div className="bg-white rounded-3xl border border-slate-200/90 p-8 sm:p-12 text-center space-y-4 shadow-xs">
           <div className="w-16 h-16 rounded-3xl bg-blue-50 text-blue-600 border border-blue-200 mx-auto flex items-center justify-center">
@@ -452,12 +547,12 @@ export default function DashboardPage({
               Find Scheduled Travel Departures
             </h3>
             <p className="text-sm text-slate-500 leading-relaxed">
-              Choose your destination, travel date, preferred departure time, and vehicle above, then click <strong>"Search Slots"</strong> to view available 10-minute departures with verified TIET students.
+              Choose your destination, travel date, preferred departure time, and vehicle above, then click <strong>"Search Slots"</strong> to view available 15-minute departures with verified TIET students.
             </p>
           </div>
           <div className="pt-2 flex flex-wrap items-center justify-center gap-3 text-xs text-slate-500">
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 font-semibold">
-              ⏱️ 10-minute slot intervals
+              ⏱️ 15-minute slot intervals
             </span>
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 font-semibold">
               🚗 Split cab fare up to 4-ways
@@ -476,7 +571,7 @@ export default function DashboardPage({
                 <span>Available Time Slots ({currentDestination.name})</span>
               </h2>
               <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
-                10-minute departures for {selectedDate}{selectedTime ? ` around ${formatTime24to12(selectedTime)}` : ''}. Join an active group with peers or start a fresh slot!
+                15-minute departures for {selectedDate}{selectedTime ? ` around ${formatTime24to12(selectedTime)}` : ''}. Join an active group with peers or start a fresh slot!
               </p>
             </div>
           </div>
@@ -500,72 +595,15 @@ export default function DashboardPage({
         </div>
       )}
 
-      {/* Community Quick Highlight Card */}
-      {userCommunity ? (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/80 rounded-3xl p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-white border border-blue-200 flex items-center justify-center text-3xl shadow-xs shrink-0">
-              {userCommunity.icon}
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md">
-                  Your Hometown Community
-                </span>
-                <span className="text-xs text-slate-500 font-semibold">
-                  👥 {userCommunity.membersCount} TIET Members
-                </span>
-              </div>
-              <h4 className="font-extrabold text-slate-900 text-lg mt-0.5">
-                {userCommunity.name} ({userCommunity.state})
-              </h4>
-              <p className="text-xs text-slate-600 mt-0.5">
-                {userCommunity.description}
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={() => onNavigateToCommunities && onNavigateToCommunities()}
-            className="w-full sm:w-auto px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-colors shrink-0 cursor-pointer"
-          >
-            <span>Open Notice Board</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
-      ) : (
-        <div className="bg-gradient-to-r from-slate-50 to-blue-50/50 border border-slate-200 rounded-3xl p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-3xl shadow-xs shrink-0">
-              📍
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider bg-slate-200 text-slate-700 px-2 py-0.5 rounded-md">
-                  Hometown Hub
-                </span>
-                <span className="text-xs text-amber-600 font-semibold">
-                  Not Enrolled Yet
-                </span>
-              </div>
-              <h4 className="font-extrabold text-slate-900 text-lg mt-0.5">
-                Join Your City Community
-              </h4>
-              <p className="text-xs text-slate-600 mt-0.5">
-                Connect with students heading home to Delhi NCR, Tri-City, Ludhiana, etc. for festival breaks.
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={() => onNavigateToCommunities && onNavigateToCommunities()}
-            className="w-full sm:w-auto px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-colors shrink-0 cursor-pointer"
-          >
-            <span>Explore Communities</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
-      )}
+      {/* Add Friend to Slot Modal */}
+      <AddFriendModal
+        isOpen={isAddFriendOpen}
+        onClose={() => setIsAddFriendOpen(false)}
+        onAddFriend={handleAddFriend}
+        groupDestination={activeUserGroup ? activeUserGroup.destinationName : 'Travel Slot'}
+        currentSeats={activeUserGroup?.members?.length || 1}
+        maxSeats={activeUserGroup?.maxMembers || 4}
+      />
 
     </div>
   );

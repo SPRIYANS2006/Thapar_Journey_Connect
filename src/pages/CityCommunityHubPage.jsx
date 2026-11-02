@@ -15,15 +15,23 @@ import {
   Lock,
   Search,
   ChevronDown,
-  Check
+  Check,
+  UserPlus
 } from 'lucide-react';
 import Avatar from '../components/Avatar';
 import ConfirmDialog from '../components/ConfirmDialog';
 import SlotPicker from '../components/SlotPicker';
+import AddFriendModal from '../components/AddFriendModal';
 import { getPresetDestinationsForCommunity } from '../data/cityDestinations';
 import { HOSTELS } from '../data/mockData';
 import { formatTime24to12 } from '../utils/matchingEngine';
 import { api } from '../services/api';
+
+let cityToastSeq = 0;
+function makeCityToastId(prefix) {
+  cityToastSeq = (cityToastSeq + 1) % 1000000;
+  return `${prefix}_${cityToastSeq}`;
+}
 
 export default function CityCommunityHubPage({
   community,
@@ -81,7 +89,7 @@ export default function CityCommunityHubPage({
   const [isDestDropdownOpen, setIsDestDropdownOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(() => dateOptions[0]?.value || 'Today');
   const [selectedTime, setSelectedTime] = useState('');
-  const [selectedMode, setSelectedMode] = useState('Shared Cab'); // 'Shared Cab' | 'Train Cohort' | 'Either'
+  const selectedMode = 'Shared Cab';
   const [selectedHostel, setSelectedHostel] = useState(() => user?.hostel || HOSTELS[0].name);
   const [isHostelDropdownOpen, setIsHostelDropdownOpen] = useState(false);
 
@@ -110,6 +118,71 @@ export default function CityCommunityHubPage({
     );
   }, [user, activeGroup, slots]);
 
+  // Friend / Companion Management
+  const [isAddFriendOpen, setIsAddFriendOpen] = useState(false);
+  const [friendActionLoading, setFriendActionLoading] = useState(false);
+
+  const handleAddFriend = async (friendData) => {
+    const rideId = userActiveRide?.id || userActiveRide?.groupId || userActiveRide?.rideId;
+    if (!rideId || !community?.id) return;
+    setFriendActionLoading(true);
+    try {
+      const res = await api.addFriendToCityRide(community.id, rideId, friendData);
+      if (triggerToast) {
+        triggerToast({
+          id: makeCityToastId('city_friend_add'),
+          type: 'success',
+          title: 'Friend Added!',
+          message: res.message || `Added ${friendData.name} to Group #${rideId}!`
+        });
+      }
+      if (onRefreshGroups) await onRefreshGroups().catch(() => {});
+      if (hasSearched) await fetchCommunitySlots(effectiveDest, selectedDate, 'Shared Cab');
+    } catch (err) {
+      if (triggerToast) {
+        triggerToast({
+          id: makeCityToastId('city_friend_err'),
+          type: 'error',
+          title: 'Could Not Add Friend',
+          message: err.message || 'Failed to add friend to ride.'
+        });
+      }
+      throw err;
+    } finally {
+      setFriendActionLoading(false);
+    }
+  };
+
+  const handleRemoveFriend = async (friendId, friendName) => {
+    const rideId = userActiveRide?.id || userActiveRide?.groupId || userActiveRide?.rideId;
+    if (!rideId || !community?.id) return;
+    setFriendActionLoading(true);
+    try {
+      const res = await api.removeFriendFromCityRide(community.id, rideId, friendId);
+      if (triggerToast) {
+        triggerToast({
+          id: makeCityToastId('city_friend_rm'),
+          type: 'info',
+          title: 'Friend Removed',
+          message: res.message || `Removed ${friendName || 'friend'} from Group #${rideId}.`
+        });
+      }
+      if (onRefreshGroups) await onRefreshGroups().catch(() => {});
+      if (hasSearched) await fetchCommunitySlots(effectiveDest, selectedDate, 'Shared Cab');
+    } catch (err) {
+      if (triggerToast) {
+        triggerToast({
+          id: makeCityToastId('city_friend_rm_err'),
+          type: 'error',
+          title: 'Could Not Remove Friend',
+          message: err.message || 'Failed to remove friend.'
+        });
+      }
+    } finally {
+      setFriendActionLoading(false);
+    }
+  };
+
   // Leave ride confirmation state
   const [rideToLeave, setRideToLeave] = useState(null);
   const [isLeavingRide, setIsLeavingRide] = useState(false);
@@ -126,17 +199,15 @@ export default function CityCommunityHubPage({
 
   // Fetch slots for this city community
   const fetchCommunitySlots = useCallback(
-    async (destName, dateVal, modeVal) => {
+    async (destName, dateVal, _modeVal) => {
       if (!community?.id || !isUserEnrolledInCity) return;
       setSlotsLoading(true);
       setSlotsError(null);
       try {
-        const modeParam =
-          modeVal === 'Train Cohort' ? 'Train' : modeVal === 'Shared Cab' ? 'Cab' : 'All';
         const res = await api.getCityCommunitySlots(community.id, {
           destination: destName,
           date: dateVal,
-          mode: modeParam
+          mode: 'Cab'
         });
         if (res && res.slots) {
           setSlots(res.slots);
@@ -166,7 +237,7 @@ export default function CityCommunityHubPage({
     if (e) e.preventDefault();
     setIsDestDropdownOpen(false);
     setHasSearched(true);
-    fetchCommunitySlots(effectiveDest, selectedDate, selectedMode);
+    fetchCommunitySlots(effectiveDest, selectedDate, 'Shared Cab');
   };
 
   // Handle Join Slot (Atomic Join or Lazy Group Creation)
@@ -174,7 +245,7 @@ export default function CityCommunityHubPage({
     if (userActiveRide && userActiveRide.id !== (slot.groupId || slot.rideId)) {
       if (triggerToast) {
         triggerToast({
-          id: `ride_active_err_${Date.now()}`,
+          id: makeCityToastId('ride_active_err'),
           type: 'error',
           title: 'Single-Ride Policy Active',
           message: `You already belong to an active ride (${userActiveRide.destinationName || userActiveRide.destination || 'Group #' + userActiveRide.id}). Leave that ride before joining another.`
@@ -185,18 +256,17 @@ export default function CityCommunityHubPage({
 
     setJoiningSlotKey(slot.slotKey);
     try {
-      const modeParam = slot.mode || (selectedMode === 'Train Cohort' ? 'Train' : 'Cab');
       const res = await api.joinCityCommunitySlot(community.id, {
         date: slot.date,
         time: slot.time,
-        mode: modeParam,
+        mode: 'Cab',
         destination: slot.destination || effectiveDest,
         pickupPoint: selectedHostel
       });
 
       if (triggerToast) {
         triggerToast({
-          id: `slot_joined_${Date.now()}`,
+          id: makeCityToastId('slot_joined'),
           type: 'success',
           title: res?.created ? 'New Group Formed! 🎉' : 'Joined Ride Group! 🚗',
           message:
@@ -218,7 +288,7 @@ export default function CityCommunityHubPage({
     } catch (err) {
       if (triggerToast) {
         triggerToast({
-          id: `slot_join_err_${Date.now()}`,
+          id: makeCityToastId('slot_join_err'),
           type: 'error',
           title: 'Could Not Join Slot',
           message: err.message || 'Unable to join slot'
@@ -243,7 +313,7 @@ export default function CityCommunityHubPage({
 
       if (triggerToast) {
         triggerToast({
-          id: `ride_left_${Date.now()}`,
+          id: makeCityToastId('ride_left'),
           type: 'info',
           title: 'Left Ride',
           message: `You left Group #${rideId}. Seat reopened for fellow students.`
@@ -258,7 +328,7 @@ export default function CityCommunityHubPage({
     } catch (err) {
       if (triggerToast) {
         triggerToast({
-          id: `ride_leave_err_${Date.now()}`,
+          id: makeCityToastId('ride_leave_err'),
           type: 'error',
           title: 'Could Not Leave Ride',
           message: err.message || 'Error leaving ride'
@@ -360,7 +430,7 @@ export default function CityCommunityHubPage({
                 </h1>
                 <p className="text-xs sm:text-sm text-slate-300 mt-1 leading-relaxed">
                   {community?.description ||
-                    `Direct travel partner coordination & 10-minute slot booking between Thapar & ${community?.name}.`}
+                    `Direct travel partner coordination & 15-minute slot booking between Thapar & ${community?.name}.`}
                 </p>
               </div>
             </div>
@@ -415,10 +485,10 @@ export default function CityCommunityHubPage({
           </div>
           <div className="bg-white/5 rounded-2xl p-3 border border-white/10">
             <span className="text-slate-400 font-semibold block text-[10px] uppercase tracking-wider">
-              Train Cohorts
+              Travel Slots
             </span>
             <span className="text-slate-100 font-bold text-sm mt-0.5 block">
-              Group Travel Safety
+              15-Min Intervals
             </span>
           </div>
           <div className="bg-white/5 rounded-2xl p-3 border border-white/10">
@@ -447,7 +517,7 @@ export default function CityCommunityHubPage({
           }`}
         >
           <Car className="w-4 h-4" />
-          <span>Thapar ➔ {community?.name} Ride Booking (Cab & Train)</span>
+          <span>Thapar ➔ {community?.name} Ride Booking (Shared Cab)</span>
         </button>
 
         <button
@@ -477,7 +547,7 @@ export default function CityCommunityHubPage({
               {community?.name} Travel Hub Rides Restricted
             </h3>
             <p className="text-sm text-slate-600 leading-relaxed">
-              To view 10-minute scheduled departures, divide cab fares, or coordinate train cohorts for {community?.name}, you must be an enrolled member of this hometown hub.
+              To view 15-minute scheduled departures and divide cab fares for {community?.name}, you must be an enrolled member of this hometown hub.
             </p>
             {user?.joinedCommunity && (
               <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mt-2">
@@ -501,60 +571,114 @@ export default function CityCommunityHubPage({
 
           {/* ACTIVE BOOKING CARD (if user currently has an active ride) */}
           {userActiveRide && (
-            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/90 rounded-3xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex items-start gap-3.5">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black text-lg shadow-xs shrink-0">
-                  #{userActiveRide.id || userActiveRide.groupId || userActiveRide.rideId}
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md border border-emerald-300">
-                      Your Active Booked Ride
-                    </span>
-                    <span className="text-xs text-slate-500 font-semibold">
-                      Status: {userActiveRide.status || 'Confirmed'}
-                    </span>
+            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/90 rounded-3xl p-5 shadow-xs space-y-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-start gap-3.5">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black text-lg shadow-xs shrink-0">
+                    #{userActiveRide.id || userActiveRide.groupId || userActiveRide.rideId}
                   </div>
-                  <h4 className="font-extrabold text-slate-900 text-base">
-                    ➔ {userActiveRide.destination || userActiveRide.destinationName} ({userActiveRide.date} at {userActiveRide.time} IST)
-                  </h4>
-                  <div className="text-xs text-slate-600 flex items-center gap-3">
-                    <span>
-                      Pickup: <strong>{userActiveRide.pickupPoint || userActiveRide.pickup_point || selectedHostel}</strong>
-                    </span>
-                    <span>•</span>
-                    <span>
-                      {userActiveRide.members?.length || userActiveRide.currentMembersCount || 1} student(s) booked
-                    </span>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md border border-emerald-300">
+                        Your Active Booked Ride
+                      </span>
+                      <span className="text-xs text-slate-500 font-semibold">
+                        Status: {userActiveRide.status || 'Confirmed'}
+                      </span>
+                    </div>
+                    <h4 className="font-extrabold text-slate-900 text-base">
+                      ➔ {userActiveRide.destination || userActiveRide.destinationName} ({userActiveRide.date} at {userActiveRide.time} IST)
+                    </h4>
+                    <div className="text-xs text-slate-600 flex items-center gap-3">
+                      <span>
+                        Pickup: <strong>{userActiveRide.pickupPoint || userActiveRide.pickup_point || selectedHostel}</strong>
+                      </span>
+                      <span>•</span>
+                      <span>
+                        {userActiveRide.members?.length || userActiveRide.currentMembersCount || 1}/4 student(s) booked
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  onClick={() => onOpenChat && onOpenChat(userActiveRide.id || userActiveRide.groupId || userActiveRide.rideId)}
-                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
-                >
-                  <MessageSquare className="w-3.5 h-3.5" />
-                  <span>Open Chat</span>
-                </button>
+                <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                  {(userActiveRide.members?.length || userActiveRide.currentMembersCount || 1) < 4 && (
+                    <button
+                      type="button"
+                      onClick={() => setIsAddFriendOpen(true)}
+                      disabled={friendActionLoading}
+                      className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
+                    >
+                      <UserPlus className="w-3.5 h-3.5" />
+                      <span>+ Add Friend</span>
+                    </button>
+                  )}
 
-                {onViewGroupDetails && (
                   <button
-                    onClick={() => onViewGroupDetails(userActiveRide.id || userActiveRide.groupId || userActiveRide.rideId)}
-                    className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 shadow-2xs transition-colors cursor-pointer"
+                    onClick={() => onOpenChat && onOpenChat(userActiveRide.id || userActiveRide.groupId || userActiveRide.rideId)}
+                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
                   >
-                    View Details
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    <span>Open Chat</span>
                   </button>
-                )}
 
-                <button
-                  onClick={() => setRideToLeave(userActiveRide)}
-                  className="px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 transition-colors cursor-pointer"
-                >
-                  Leave Ride
-                </button>
+                  {onViewGroupDetails && (
+                    <button
+                      onClick={() => onViewGroupDetails(userActiveRide.id || userActiveRide.groupId || userActiveRide.rideId)}
+                      className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 shadow-2xs transition-colors cursor-pointer"
+                    >
+                      View Details
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => setRideToLeave(userActiveRide)}
+                    className="px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 transition-colors cursor-pointer"
+                  >
+                    Leave Ride
+                  </button>
+                </div>
               </div>
+
+              {/* Members / Companions List in Active City Ride */}
+              {userActiveRide.members && userActiveRide.members.length > 0 && (
+                <div className="pt-3 border-t border-emerald-100 flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mr-1">Riders:</span>
+                  {userActiveRide.members.map((m) => {
+                    const isCompanion = Boolean(m.isCompanion);
+                    const isMyCompanion = isCompanion && (m.addedBy === user?.id || userActiveRide.creatorId === user?.id || userActiveRide.adminId === user?.id);
+                    const memberId = m.id || m.user_id || m.userId;
+                    return (
+                      <div
+                        key={memberId}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold ${
+                          isCompanion
+                            ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                            : 'bg-white text-slate-800 border border-slate-200'
+                        }`}
+                      >
+                        <span>{m.name}</span>
+                        {isCompanion && (
+                          <span className="text-[10px] bg-amber-200/80 px-1 py-0.2 rounded font-bold text-amber-800">
+                            Friend
+                          </span>
+                        )}
+                        {isMyCompanion && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveFriend(memberId, m.name)}
+                            disabled={friendActionLoading}
+                            title="Remove friend from slot"
+                            className="ml-1 text-rose-600 hover:text-rose-800 hover:bg-rose-100 rounded-full p-0.5 transition-colors cursor-pointer"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
@@ -567,7 +691,7 @@ export default function CityCommunityHubPage({
                   Book a Scheduled Travel Slot to {community?.name}
                 </h2>
                 <span className="text-[11px] font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md border border-blue-200 hidden sm:inline-block">
-                  10-Minute Departures
+                  15-Minute Departures
                 </span>
               </div>
               <span className="text-xs font-semibold text-slate-500">
@@ -729,23 +853,17 @@ export default function CityCommunityHubPage({
                   </span>
                 </div>
 
-                {/* 5. MODE: Shared Cab / Train Cohort */}
+                {/* 5. MODE: Shared Cab Only */}
                 <div className="bg-slate-50/80 rounded-2xl p-3 border border-slate-200/80 flex flex-col justify-between">
                   <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
                     <Car className="w-3 h-3 text-blue-600" />
                     <span>Transport Mode</span>
                   </span>
-                  <select
-                    value={selectedMode}
-                    onChange={(e) => setSelectedMode(e.target.value)}
-                    className="font-extrabold text-slate-800 text-sm mt-1 bg-transparent border-none focus:outline-hidden cursor-pointer"
-                  >
-                    <option value="Shared Cab">Shared Cab (4 Seats)</option>
-                    <option value="Train Cohort">Train Cohort (6 Seats)</option>
-                    <option value="Either">Either / All Modes</option>
-                  </select>
+                  <div className="font-extrabold text-slate-800 text-sm mt-1 truncate">
+                    Shared Cab (4 Seats)
+                  </div>
                   <span className="text-[10px] text-slate-500 mt-0.5">
-                    {selectedMode === 'Train Cohort' ? 'Shatabdi & Cohorts' : 'Fare Split 4-Ways'}
+                    Split Cab Fare 4-Ways
                   </span>
                 </div>
 
@@ -798,7 +916,7 @@ export default function CityCommunityHubPage({
             </form>
           </div>
 
-          {/* 10-MINUTE SLOTS (BlaBlaCar style, only shown when student presses Search) */}
+          {/* 15-MINUTE SLOTS (BlaBlaCar style, only shown when student presses Search) */}
           {!hasSearched ? (
             <div className="bg-white rounded-3xl border border-slate-200/90 p-8 sm:p-12 text-center space-y-4 shadow-xs">
               <div className="w-16 h-16 rounded-3xl bg-blue-50 text-blue-600 border border-blue-200 mx-auto flex items-center justify-center">
@@ -809,18 +927,18 @@ export default function CityCommunityHubPage({
                   Find Scheduled Departures to {community?.name}
                 </h3>
                 <p className="text-sm text-slate-500 leading-relaxed">
-                  Select your drop landmark, travel date, departure time, and transport mode above, then click <strong>"Search Slots"</strong> to view all 10-minute departure groups with fellow students.
+                  Select your drop landmark, travel date, and departure time above, then click <strong>"Search Slots"</strong> to view all 15-minute departure groups with fellow students.
                 </p>
               </div>
               <div className="pt-2 flex flex-wrap items-center justify-center gap-3 text-xs text-slate-500">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 font-semibold">
-                  ⏱️ 144 slots in 10-min steps
+                  ⏱️ 96 slots in 15-min steps
                 </span>
                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 font-semibold">
                   🚕 Split cab fare 4-ways
                 </span>
                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 font-semibold">
-                  🚆 Train cohort travel company
+                  🛡️ Verified campus co-riders
                 </span>
               </div>
             </div>
@@ -1142,6 +1260,16 @@ export default function CityCommunityHubPage({
         isDestructive={true}
         onConfirm={handleLeaveRideConfirm}
         onCancel={() => setRideToLeave(null)}
+      />
+
+      {/* ADD FRIEND MODAL */}
+      <AddFriendModal
+        isOpen={isAddFriendOpen}
+        onClose={() => setIsAddFriendOpen(false)}
+        onAddFriend={handleAddFriend}
+        groupDestination={userActiveRide?.destination || userActiveRide?.destinationName || community?.name || 'City Ride'}
+        currentSeats={userActiveRide?.members?.length || userActiveRide?.currentMembersCount || 1}
+        maxSeats={4}
       />
     </div>
   );

@@ -9,8 +9,6 @@ import MyJourneysPage from './pages/MyJourneysPage';
 import ProfilePage from './pages/ProfilePage';
 import CommunitiesPage from './pages/CommunitiesPage';
 import CityCommunityHubPage from './pages/CityCommunityHubPage';
-import LuggagePage from './pages/LuggagePage';
-import VendorDashboardPage from './pages/VendorDashboardPage';
 import ErrorBoundary from './components/ErrorBoundary';
 
 import JourneyFormModal from './components/JourneyFormModal';
@@ -498,7 +496,6 @@ function AppContent() {
               user={user}
               communities={communities}
               onNavigateToCommunities={() => setActivePage('communities')}
-              onNavigateToSendLuggage={() => setActivePage('send-luggage')}
               onSelectDestination={handleOpenJourneyForm}
               activeGroups={groups}
               onJoinGroup={handleJoinGroup}
@@ -576,35 +573,6 @@ function AppContent() {
                 <span>Explore Destinations</span>
               </button>
             </div>
-          )}
-
-          {(activePage === 'send-luggage' || activePage === 'luggage') && (
-            <LuggagePage
-              user={user}
-              onNavigateToDashboard={() => setActivePage('dashboard')}
-              triggerToast={(msg, type) =>
-                triggerToast({
-                  id: `lug_${Date.now()}`,
-                  type: type || 'info',
-                  title: 'Luggage Transport',
-                  message: msg
-                })
-              }
-            />
-          )}
-
-          {activePage === 'vendor' && (
-            <VendorDashboardPage
-              user={user}
-              triggerToast={(msg, type) =>
-                triggerToast({
-                  id: `vend_${Date.now()}`,
-                  type: type || 'info',
-                  title: 'Vendor Hub',
-                  message: msg
-                })
-              }
-            />
           )}
 
           {activePage === 'my-journeys' && (

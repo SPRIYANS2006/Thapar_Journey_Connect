@@ -1774,8 +1774,8 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     assert.equal(resDetailsAfterLeave.body.members.length, 1);
   });
 
-  // 39. Slot-Based Travel: 10-minute slots generation, virtual slots (0/4), and atomic lazy group creation
-  it('39. Slot-Based Travel: 10-minute slots generation, virtual slots (0/4), and atomic lazy group creation', async () => {
+  // 39. Slot-Based Travel: 15-minute slots generation (96 slots/day), virtual slots (0/4), and atomic lazy group creation
+  it('39. Slot-Based Travel: 15-minute slots generation (96 slots/day), virtual slots (0/4), and atomic lazy group creation', async () => {
     const { token: studentToken } = await createTestStudent({ name: 'Slot Pioneer' });
 
     // 1. Fetch slots for tomorrow
@@ -1784,7 +1784,7 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
       .set('Authorization', `Bearer ${studentToken}`);
 
     assert.equal(resSlots.status, 200);
-    assert.equal(resSlots.body.totalSlots, 144);
+    assert.equal(resSlots.body.totalSlots, 96);
     assert.ok(Array.isArray(resSlots.body.slots));
 
     // A slot with no joined members appears as 0/4 virtual slot
@@ -2068,8 +2068,8 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     assert.equal(resDelivered.body.luggage.status, 'Delivered');
   });
 
-  // 44. City Community Slots: 144 slots generation, virtual slots (0/4), fare calculation, and enrolled hometown access control
-  it('44. City Community Slots: 144 slots generation, virtual slots (0/4), fare calculation, and enrolled hometown access control', async () => {
+  // 44. City Community Slots: 96 slots generation (15-min intervals), virtual slots (0/4), fare calculation, and enrolled hometown access control
+  it('44. City Community Slots: 96 slots generation (15-min intervals), virtual slots (0/4), fare calculation, and enrolled hometown access control', async () => {
     const { token: delhiStudentToken } = await createTestStudent({
       name: 'Delhi NCR Student',
       joined_community: 'del'
@@ -2086,15 +2086,15 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     assert.equal(resForbidden.status, 403);
     assert.match(resForbidden.body.error, /enrolled hometown community/i);
 
-    // 2. Enrolled member requests slots -> HTTP 200 with 144 slots
+    // 2. Enrolled member requests slots -> HTTP 200 with 96 slots
     const resSlots = await request(app)
       .get('/api/communities/del/slots?date=Tomorrow&mode=Cab&destination=Kashmiri Gate ISBT')
       .set('Authorization', `Bearer ${delhiStudentToken}`);
     assert.equal(resSlots.status, 200);
     assert.equal(resSlots.body.success, true);
-    assert.equal(resSlots.body.totalSlots, 144);
+    assert.equal(resSlots.body.totalSlots, 96);
     assert.ok(Array.isArray(resSlots.body.slots));
-    assert.equal(resSlots.body.slots.length, 144);
+    assert.equal(resSlots.body.slots.length, 96);
 
     // 3. Virtual slot (0/4) verification
     const slot10AM = resSlots.body.slots.find((s) => s.time === '10:00');
@@ -2179,5 +2179,85 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
       });
     assert.equal(resAlready.status, 200);
     assert.equal(resAlready.body.alreadyMember, true);
+  });
+
+  // 46. Friend / Companion Management: Add friend (+1 seat), fare split update, and remove friend
+  it('46. Friend / Companion Management: Add friend (+1 seat), fare split update, and remove friend', async () => {
+    const { token: studentToken } = await createTestStudent({ name: 'Solo Student' });
+
+    // 1. Join a slot
+    const resJoin = await request(app)
+      .post('/api/slots/join')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({
+        destinationId: 'chandigarh_43',
+        date: 'Tomorrow',
+        time: '14:15',
+        vehicle: 'Shared Cab'
+      });
+    assert.equal(resJoin.status, 201);
+    const groupId = resJoin.body.group.id;
+    assert.equal(resJoin.body.group.members.length, 1);
+
+    // 2. Add a companion friend to the slot
+    const resAddFriend = await request(app)
+      .post(`/api/groups/${groupId}/friends`)
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({
+        name: 'Simran Kaur',
+        hostel: 'Hostel PG',
+        phone: '9876543210'
+      });
+
+    assert.equal(resAddFriend.status, 201);
+    assert.equal(resAddFriend.body.success, true);
+    assert.equal(resAddFriend.body.group.members.length, 2);
+
+    const companion = resAddFriend.body.group.members.find((m) => m.isCompanion);
+    assert.ok(companion, 'Companion member must exist with isCompanion: true');
+    assert.equal(companion.companionName, 'Simran Kaur');
+    assert.equal(companion.role, 'Companion');
+
+    // 3. Remove the companion friend from the slot
+    const resRemoveFriend = await request(app)
+      .delete(`/api/groups/${groupId}/friends/${companion.id}`)
+      .set('Authorization', `Bearer ${studentToken}`);
+
+    assert.equal(resRemoveFriend.status, 200);
+    assert.equal(resRemoveFriend.body.success, true);
+    assert.equal(resRemoveFriend.body.group.members.length, 1);
+    assert.ok(!resRemoveFriend.body.group.members.some((m) => m.isCompanion));
+  });
+
+  // 47. Friend / Companion Management: Capacity enforcement (max 4 seats)
+  it('47. Friend / Companion Management: Capacity enforcement (max 4 seats)', async () => {
+    const { token: leaderToken } = await createTestStudent({ name: 'Ride Leader' });
+
+    // 1. Join a slot
+    const resJoin = await request(app)
+      .post('/api/slots/join')
+      .set('Authorization', `Bearer ${leaderToken}`)
+      .send({
+        destinationId: 'delhi_isbt',
+        date: 'Tomorrow',
+        time: '08:30',
+        vehicle: 'Shared Cab'
+      });
+    const groupId = resJoin.body.group.id;
+
+    // 2. Add 3 companions (filling 4/4 seats)
+    await request(app).post(`/api/groups/${groupId}/friends`).set('Authorization', `Bearer ${leaderToken}`).send({ name: 'Friend 1' });
+    await request(app).post(`/api/groups/${groupId}/friends`).set('Authorization', `Bearer ${leaderToken}`).send({ name: 'Friend 2' });
+    const res3 = await request(app).post(`/api/groups/${groupId}/friends`).set('Authorization', `Bearer ${leaderToken}`).send({ name: 'Friend 3' });
+    assert.equal(res3.status, 201);
+    assert.equal(res3.body.group.members.length, 4);
+
+    // 3. Attempting to add a 4th companion exceeds capacity -> HTTP 409
+    const resOverCapacity = await request(app)
+      .post(`/api/groups/${groupId}/friends`)
+      .set('Authorization', `Bearer ${leaderToken}`)
+      .send({ name: 'Friend 4' });
+    assert.equal(resOverCapacity.status, 409);
+    assert.match(resOverCapacity.body.error, /maximum capacity/i);
   });
 });

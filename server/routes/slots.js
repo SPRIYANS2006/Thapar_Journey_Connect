@@ -30,7 +30,7 @@ export function generateTenMinuteSlots(dateStr, destObj, vehicle, existingGroups
   }
 
   for (let h = 0; h < 24; h++) {
-    for (let m = 0; m < 60; m += 10) {
+    for (let m = 0; m < 60; m += 15) {
       const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
       const hoursLeft = getHoursUntilDeparture(normalizedDate, timeStr);
       const isPast = hoursLeft < -5 / 60;

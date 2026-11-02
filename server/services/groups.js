@@ -364,8 +364,14 @@ export async function leaveGroup(user, groupId) {
     user.reliability = newReliability;
   }
 
-  // Remove user from group members
-  group.members.splice(memberIndex, 1);
+  // Remove user and any companions added by this user from group members
+  group.members = group.members.filter(
+    (m) =>
+      m.user_id !== user.id &&
+      m.userId !== user.id &&
+      m.id !== user.id &&
+      m.added_by !== user.id
+  );
 
   if (group.members.length === 0) {
     // Clean up empty group and messages

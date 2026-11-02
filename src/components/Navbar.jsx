@@ -8,20 +8,14 @@ import {
   LogOut, 
   Menu, 
   X, 
-  Compass,
-  Package,
-  Truck
+  Compass
 } from 'lucide-react';
 
 export default function Navbar({ activePage, setActivePage, user, onLogout, _myGroupsCount = 1 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const isVendorOrAdmin = user?.role === 'vendor' || user?.role === 'admin';
-
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Compass },
-    { id: 'send-luggage', label: 'Send Luggage', icon: Package },
-    ...(isVendorOrAdmin ? [{ id: 'vendor', label: 'Vendor Hub', icon: Truck }] : []),
     { id: 'communities', label: 'City Communities', icon: Users },
     { id: 'my-journeys', label: 'My Journeys', icon: MapPin },
     { id: 'profile', label: 'Profile', icon: User },

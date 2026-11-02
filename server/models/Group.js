@@ -15,6 +15,9 @@ const memberSchema = new mongoose.Schema({
   departure_time: { type: String, default: '12:00' },
   role: { type: String, default: 'Member' },
   phone: { type: String, default: '' },
+  is_companion: { type: Boolean, default: false },
+  added_by: { type: String, default: null },
+  companion_name: { type: String, default: '' },
   joined_at: { type: Date, default: Date.now }
 }, { _id: false });
 

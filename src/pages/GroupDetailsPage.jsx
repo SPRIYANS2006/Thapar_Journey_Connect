@@ -20,7 +20,9 @@ import FareSplitModal from '../components/FareSplitModal';
 import EmergencySOSModal from '../components/EmergencySOSModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import RescheduleSlotModal from '../components/RescheduleSlotModal';
+import AddFriendModal from '../components/AddFriendModal';
 import { formatTime24to12 } from '../utils/matchingEngine';
+import { api } from '../services/api';
 
 const PICKUP_POINTS = [
   'Main Gate (Near Executive Mess)',
@@ -49,6 +51,49 @@ export default function GroupDetailsPage({
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [isUpdatingPickup, setIsUpdatingPickup] = useState(false);
+  const [isAddFriendOpen, setIsAddFriendOpen] = useState(false);
+  const [friendActionLoading, setFriendActionLoading] = useState(false);
+
+  const handleAddFriend = async (friendData) => {
+    if (!group?.id) return;
+    setFriendActionLoading(true);
+    try {
+      const res = await api.addFriendToGroup(group.id, friendData);
+      if (triggerToast) {
+        triggerToast(res.message || `Added ${friendData.name} to Group #${group.id}!`, 'success');
+      }
+      if (onRescheduleSuccess && res.group) {
+        onRescheduleSuccess(res.group);
+      }
+    } catch (err) {
+      if (triggerToast) {
+        triggerToast(err.message || 'Failed to add friend.', 'error');
+      }
+      throw err;
+    } finally {
+      setFriendActionLoading(false);
+    }
+  };
+
+  const handleRemoveFriend = async (friendId, friendName) => {
+    if (!group?.id) return;
+    setFriendActionLoading(true);
+    try {
+      const res = await api.removeFriendFromGroup(group.id, friendId);
+      if (triggerToast) {
+        triggerToast(res.message || `Removed ${friendName || 'friend'} from Group #${group.id}.`, 'info');
+      }
+      if (onRescheduleSuccess && res.group) {
+        onRescheduleSuccess(res.group);
+      }
+    } catch (err) {
+      if (triggerToast) {
+        triggerToast(err.message || 'Failed to remove friend.', 'error');
+      }
+    } finally {
+      setFriendActionLoading(false);
+    }
+  };
 
   if (!group) {
     return (
@@ -403,10 +448,23 @@ export default function GroupDetailsPage({
           <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
             <Users className="w-5 h-5 text-indigo-600" />
             <span>
-              Group Members ({(group.members || []).length}/{group.capacity || 4})
+              Group Members ({(group.members || []).length}/{group.capacity || group.maxMembers || 4})
             </span>
           </h2>
-          <span className="text-xs text-slate-500">Verified TIET Student Profiles</span>
+          <div className="flex items-center gap-2">
+            {isMember && (group.members || []).length < (group.capacity || group.maxMembers || 4) && (
+              <button
+                type="button"
+                onClick={() => setIsAddFriendOpen(true)}
+                disabled={friendActionLoading}
+                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>+ Add Friend</span>
+              </button>
+            )}
+            <span className="text-xs text-slate-500 hidden sm:inline">Verified TIET Student Profiles</span>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -415,6 +473,8 @@ export default function GroupDetailsPage({
               (member.userId && member.userId === currentUserId) ||
               (member.id && member.id === currentUserId);
             const canSeePhone = (isConfirmed || isCompleted) && isMember;
+            const isCompanion = Boolean(member.isCompanion);
+            const canRemoveCompanion = isCompanion && (member.addedBy === currentUserId || isAdmin);
 
             return (
               <div
@@ -426,6 +486,11 @@ export default function GroupDetailsPage({
                 {isMe && (
                   <span className="absolute top-3 right-3 text-[10px] font-bold bg-blue-600 text-white px-2 py-0.5 rounded-md">
                     You
+                  </span>
+                )}
+                {isCompanion && (
+                  <span className="absolute top-3 right-3 text-[10px] font-bold bg-amber-500 text-white px-2 py-0.5 rounded-md">
+                    Friend
                   </span>
                 )}
 
@@ -494,7 +559,18 @@ export default function GroupDetailsPage({
                   <span className="bg-slate-100 px-2.5 py-0.5 rounded-md font-bold text-slate-700">
                     {member.role || 'Member'}
                   </span>
-                  <span className="text-emerald-600 font-semibold">✓ Verified TIET</span>
+                  {canRemoveCompanion ? (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveFriend(member.id || member.userId || member.user_id, member.name)}
+                      disabled={friendActionLoading}
+                      className="text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 px-2 py-0.5 rounded-md font-bold transition-colors cursor-pointer"
+                    >
+                      Remove Friend
+                    </button>
+                  ) : (
+                    <span className="text-emerald-600 font-semibold">✓ Verified TIET</span>
+                  )}
                 </div>
               </div>
             );
@@ -544,6 +620,16 @@ export default function GroupDetailsPage({
           }
         }}
         triggerToast={triggerToast}
+      />
+
+      {/* Add Friend to Slot Modal */}
+      <AddFriendModal
+        isOpen={isAddFriendOpen}
+        onClose={() => setIsAddFriendOpen(false)}
+        onAddFriend={handleAddFriend}
+        groupDestination={group.destinationName || 'Travel Slot'}
+        currentSeats={(group.members || []).length}
+        maxSeats={group.capacity || group.maxMembers || 4}
       />
     </div>
   );

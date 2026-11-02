@@ -58,14 +58,17 @@ function serializeCityRideAsGroup(ride, viewingUserId) {
     transitDetails: ride.transit_details,
     notes: ride.notes,
     members: (ride.members || []).map((m) => ({
-      id: m.user_id || m.userId || m.id,
+      id: m.id || m.user_id || m.userId,
       user_id: m.user_id || m.userId || m.id,
       userId: m.user_id || m.userId || m.id,
       name: m.name,
       avatar: m.avatar || 'ST',
       hostel: m.hostel || '',
       phone: canSeePhone ? (m.phone || '') : '',
-      role: m.role === 'Admin' ? 'Group Admin' : 'Member'
+      role: m.role === 'Admin' ? 'Group Admin' : (m.role || 'Member'),
+      isCompanion: Boolean(m.is_companion),
+      addedBy: m.added_by || null,
+      companionName: m.companion_name || ''
     })),
     createdAt: ride.created_at ? new Date(ride.created_at).toISOString() : new Date().toISOString()
   };
@@ -796,6 +799,148 @@ router.post('/:id/reschedule', requireAuth, async (req, res, next) => {
       ...req.body
     });
     res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 15. Add a companion/friend to group slot (works for regular groups and community rides)
+router.post('/:id/friends', requireAuth, async (req, res, next) => {
+  try {
+    const { group, cityRide } = await findGroupOrCityRide(req.params.id);
+    if (!group && !cityRide) {
+      throw new HttpError(404, 'Group not found.');
+    }
+
+    const target = group || cityRide;
+    const isMember = (target.members || []).some(
+      (m) => (m.user_id || m.userId || m.id) === req.user.id
+    );
+    if (!isMember) {
+      throw new HttpError(403, 'Forbidden: You must be a member of this group to add a companion.');
+    }
+
+    if (target.status !== 'Open' && target.status !== 'Confirmed') {
+      throw new HttpError(400, 'Cannot add a companion to a completed or cancelled group.');
+    }
+
+    const maxMembers = target.max_members || target.max_capacity || 4;
+    if (target.members.length >= maxMembers) {
+      throw new HttpError(409, `Group is at maximum capacity (${target.members.length}/${maxMembers} seats filled).`);
+    }
+
+    const friendName = (req.body.name && req.body.name.trim()) || `${req.user.name.split(' ')[0]}'s Friend`;
+    const friendHostel = (req.body.hostel && req.body.hostel.trim()) || req.user.hostel || 'Campus';
+
+    const companion = {
+      id: crypto.randomUUID(),
+      user_id: `comp_${crypto.randomUUID().slice(0, 8)}`,
+      name: `${friendName} (Friend)`,
+      avatar: 'FR',
+      hostel: friendHostel,
+      departure_time: target.departure_time || target.time || '12:00',
+      role: 'Companion',
+      phone: (req.body.phone && req.body.phone.trim()) || '',
+      is_companion: true,
+      added_by: req.user.id,
+      companion_name: friendName,
+      joined_at: new Date()
+    };
+
+    target.members.push(companion);
+    if (cityRide) {
+      cityRide.current_members_count = cityRide.members.length;
+      if (cityRide.members.length >= maxMembers) {
+        cityRide.status = 'Full';
+      }
+    }
+    await target.save();
+
+    const serialized = group ? serializeGroup(group, req.user.id) : serializeCityRideAsGroup(cityRide, req.user.id);
+    notifyGroupMembersUpdated(group || serialized);
+
+    for (const m of target.members) {
+      const memberId = m.user_id || m.userId || m.id;
+      if (memberId && memberId !== req.user.id && !m.is_companion) {
+        notifyUser(memberId, 'member_joined', {
+          groupId: target.id,
+          destinationName: target.destination_name || target.destination,
+          joinerId: companion.user_id,
+          joinerName: companion.name,
+          joinerHostel: companion.hostel,
+          membersCount: target.members.length,
+          maxMembers
+        });
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      message: `Added ${friendName} to Group #${target.id}!`,
+      group: serialized
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 16. Remove a companion/friend from group slot
+router.delete('/:id/friends/:friendId', requireAuth, async (req, res, next) => {
+  try {
+    const { group, cityRide } = await findGroupOrCityRide(req.params.id);
+    if (!group && !cityRide) {
+      throw new HttpError(404, 'Group not found.');
+    }
+
+    const target = group || cityRide;
+    const companionIndex = (target.members || []).findIndex(
+      (m) =>
+        (m.id === req.params.friendId || m.user_id === req.params.friendId) &&
+        Boolean(m.is_companion)
+    );
+    if (companionIndex === -1) {
+      throw new HttpError(404, 'Companion not found in this group.');
+    }
+
+    const companion = target.members[companionIndex];
+    const isOwner = companion.added_by === req.user.id;
+    const isAdmin = (target.admin_id || target.creator_id) === req.user.id;
+    if (!isOwner && !isAdmin) {
+      throw new HttpError(403, 'Forbidden: You can only remove a companion that you added.');
+    }
+
+    const removedName = companion.name;
+    target.members.splice(companionIndex, 1);
+    if (cityRide) {
+      cityRide.current_members_count = cityRide.members.length;
+      if (cityRide.current_members_count < (cityRide.max_capacity || 4) && cityRide.status === 'Full') {
+        cityRide.status = 'Open';
+      }
+    }
+    await target.save();
+
+    const serialized = group ? serializeGroup(group, req.user.id) : serializeCityRideAsGroup(cityRide, req.user.id);
+    notifyGroupMembersUpdated(group || serialized);
+
+    for (const m of target.members) {
+      const memberId = m.user_id || m.userId || m.id;
+      if (memberId && memberId !== req.user.id && !m.is_companion) {
+        notifyUser(memberId, 'member_left', {
+          groupId: target.id,
+          destinationName: target.destination_name || target.destination,
+          leaverId: companion.user_id,
+          leaverName: removedName,
+          remainingMembersCount: target.members.length,
+          maxMembers: target.max_members || target.max_capacity || 4
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Removed ${removedName} from Group #${target.id}.`,
+      group: serialized
+    });
   } catch (err) {
     next(err);
   }

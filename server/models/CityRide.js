@@ -9,7 +9,10 @@ const cityRideMemberSchema = new mongoose.Schema(
     avatar: { type: String, default: 'ST' },
     hostel: { type: String, default: '' },
     phone: { type: String, default: '' },
-    role: { type: String, default: 'Member', enum: ['Admin', 'Member'] },
+    role: { type: String, default: 'Member' },
+    is_companion: { type: Boolean, default: false },
+    added_by: { type: String, default: null },
+    companion_name: { type: String, default: '' },
     joined_at: { type: Date, default: Date.now }
   },
   { _id: false }

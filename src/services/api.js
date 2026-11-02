@@ -353,6 +353,29 @@ export const api = {
       body: JSON.stringify(data)
     }),
 
+  // Friends / Companions in Slots
+  addFriendToGroup: (groupId, data) =>
+    request(`/groups/${groupId}/friends`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+  removeFriendFromGroup: (groupId, friendId) =>
+    request(`/groups/${groupId}/friends/${friendId}`, {
+      method: 'DELETE'
+    }),
+
+  addFriendToCityRide: (communityId, rideId, data) =>
+    request(`/communities/${communityId}/rides/${rideId}/friends`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+  removeFriendFromCityRide: (communityId, rideId, friendId) =>
+    request(`/communities/${communityId}/rides/${rideId}/friends/${friendId}`, {
+      method: 'DELETE'
+    }),
+
   // Luggage Transport (Porter / Rapido Parcel style)
   getLuggageQuote: ({ destination, date, time, vehicleType, items }) => {
     const q = new URLSearchParams();

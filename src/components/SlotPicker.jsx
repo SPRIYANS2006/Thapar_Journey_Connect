@@ -111,7 +111,7 @@ export default function SlotPicker({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              10-Minute Slots ({availableCount} Available)
+              15-Minute Slots ({availableCount} Available)
             </span>
             {fillingFastCount > 0 && (
               <span className="inline-flex items-center gap-1 bg-amber-500/15 text-amber-700 text-[11px] font-black px-2.5 py-0.5 rounded-full border border-amber-300">
@@ -183,7 +183,7 @@ export default function SlotPicker({
           <Clock className="w-10 h-10 text-slate-300 mx-auto" />
           <h3 className="text-base font-bold text-slate-700">No matching slots in this time window</h3>
           <p className="text-xs text-slate-400 max-w-sm mx-auto">
-            Try switching the time filter to "All Slots" or clearing your jump filter to view all 10-minute departures.
+            Try switching the time filter to "All Slots" or clearing your jump filter to view all 15-minute departures.
           </p>
           <button
             onClick={() => {

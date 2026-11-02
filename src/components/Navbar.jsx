@@ -8,17 +8,22 @@ import {
   LogOut, 
   Menu, 
   X, 
-  Compass
+  Compass,
+  Package,
+  Truck
 } from 'lucide-react';
 
-export default function Navbar({ activePage, setActivePage, user, onLogout, myGroupsCount = 1 }) {
+export default function Navbar({ activePage, setActivePage, user, onLogout, _myGroupsCount = 1 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const isVendorOrAdmin = user?.role === 'vendor' || user?.role === 'admin';
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Compass },
+    { id: 'send-luggage', label: 'Send Luggage', icon: Package },
+    ...(isVendorOrAdmin ? [{ id: 'vendor', label: 'Vendor Hub', icon: Truck }] : []),
     { id: 'communities', label: 'City Communities', icon: Users },
     { id: 'my-journeys', label: 'My Journeys', icon: MapPin },
-    { id: 'my-groups', label: 'My Groups', icon: Users, badge: myGroupsCount },
     { id: 'profile', label: 'Profile', icon: User },
   ];
 
@@ -97,7 +102,9 @@ export default function Navbar({ activePage, setActivePage, user, onLogout, myGr
               />
               <div className="text-left leading-tight">
                 <div className="text-xs font-bold text-slate-800">{user?.name || 'TIET Student'}</div>
-                <div className="text-[11px] text-slate-500 max-w-[130px] truncate">{user?.hostel || 'Campus'} • Student</div>
+                <div className="text-[11px] text-slate-500 max-w-[130px] truncate">
+                  {user?.hostel || 'Campus'} • {user?.role === 'vendor' ? 'Vendor' : user?.role === 'admin' ? 'Admin' : 'Student'}
+                </div>
               </div>
             </div>
 

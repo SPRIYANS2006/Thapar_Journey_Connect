@@ -29,6 +29,7 @@ const groupSchema = new mongoose.Schema({
   max_members: { type: Number, default: 4 },
   pickup_point: { type: String, default: 'Main Gate (Near Executive Mess)' },
   match_score: { type: Number, default: 95 },
+  slot_key: { type: String },
   admin_id: {
     type: String,
     required: true,
@@ -58,5 +59,6 @@ const groupSchema = new mongoose.Schema({
 
 groupSchema.index({ destination_id: 1, date: 1, status: 1 });
 groupSchema.index({ 'members.user_id': 1, status: 1 });
+groupSchema.index({ slot_key: 1 }, { unique: true, sparse: true });
 
 export const Group = mongoose.models.Group || mongoose.model('Group', groupSchema);

@@ -20,6 +20,7 @@ import {
   ALLOWED_PICKUP_POINTS
 } from '../middleware/validate.js';
 import { notifyGroup, notifyUser, notifyGroupMembersUpdated } from '../services/notifications.js';
+import { rescheduleGroupSlot } from './slots.js';
 
 function serializeCityRideAsGroup(ride, viewingUserId) {
   const membersCount = ride.current_members_count || (ride.members ? ride.members.length : 1);
@@ -781,6 +782,20 @@ router.get('/history/mine', async (req, res, next) => {
     ];
 
     res.json(merged);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 14. Reschedule Group Slot: atomically change travel slot
+router.post('/:id/reschedule', requireAuth, async (req, res, next) => {
+  try {
+    const result = await rescheduleGroupSlot({
+      user: req.user,
+      oldGroupId: req.params.id,
+      ...req.body
+    });
+    res.json(result);
   } catch (err) {
     next(err);
   }

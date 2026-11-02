@@ -1,6 +1,59 @@
 // Serializers to convert snake_case MongoDB models to camelCase frontend objects
 // and enforce strict privacy rules (e.g. phone numbers only to confirmed group members).
 
+export function serializeLuggage(item, viewingUserId = null, viewingUserRole = 'student') {
+  if (!item) return null;
+
+  const isOwner = viewingUserId && item.user_id === viewingUserId;
+  const isVendorOrAdmin = viewingUserRole === 'vendor' || viewingUserRole === 'admin';
+  const hasAssignedDriver = item.status !== 'Requested' && item.status !== 'Cancelled';
+
+  return {
+    id: item.id,
+    userId: item.user_id,
+    userName: item.user_name,
+    userPhone: (isOwner || isVendorOrAdmin) ? (item.user_phone || '') : '',
+    userHostel: item.user_hostel || '',
+    pickupLocation: item.pickup_location,
+    destination: item.destination,
+    destinationAddress: item.destination_address || '',
+    date: item.date,
+    slotTime: item.slot_time,
+    slotKey: item.slot_key || `${item.destination}_${item.date}_${item.slot_time}`,
+    items: (item.items || []).map((it) => ({
+      size: it.size,
+      count: it.count || 1,
+      notes: it.notes || ''
+    })),
+    totalItemsCount: item.total_items_count || 1,
+    notes: item.notes || '',
+    photoUrl: item.photo_url || '',
+    vehicleType: item.vehicle_type || 'Tempo/Mini-truck',
+    estimatedFare: item.estimated_fare,
+    baseFare: item.base_fare || 0,
+    pooledSavings: item.pooled_savings || 0,
+    poolCount: item.pool_count || 1,
+    paymentMode: item.payment_mode || 'Cash/UPI to Driver on Pickup',
+    status: item.status,
+    // Pickup OTP is only visible to the owner student and vendor/admin
+    pickupOtp: (isOwner || isVendorOrAdmin) ? item.pickup_otp : '****',
+    // Driver & vehicle details visible to owner and vendor after assignment
+    driverName: (hasAssignedDriver && (isOwner || isVendorOrAdmin)) ? (item.driver_name || '') : '',
+    driverPhone: (hasAssignedDriver && (isOwner || isVendorOrAdmin)) ? (item.driver_phone || '') : '',
+    vehicleNumber: (hasAssignedDriver && (isOwner || isVendorOrAdmin)) ? (item.vehicle_number || '') : '',
+    vendorId: item.vendor_id || '',
+    vendorName: item.vendor_name || 'Patiala Campus Express Logistics',
+    timeline: (item.timeline || []).map((tl) => ({
+      status: tl.status,
+      timestamp: tl.timestamp ? new Date(tl.timestamp).toISOString() : new Date().toISOString(),
+      note: tl.note || '',
+      updatedBy: tl.updated_by || 'System'
+    })),
+    createdAt: item.created_at ? new Date(item.created_at).toISOString() : new Date().toISOString(),
+    updatedAt: item.updated_at ? new Date(item.updated_at).toISOString() : new Date().toISOString()
+  };
+}
+
 export function serializeUser(user) {
   if (!user) return null;
   return {
@@ -15,6 +68,7 @@ export function serializeUser(user) {
     hometown: user.hometown || '',
     reliability: typeof user.reliability === 'number' ? +(user.reliability.toFixed(1)) : 5.0,
     tripsCompleted: user.trips_completed || 0,
+    role: user.role || 'student',
     joinedCommunity: user.joined_community || null
   };
 }
@@ -58,6 +112,7 @@ export function serializeGroup(group, viewingUserId = null) {
     transport: group.transport || 'Shared Cab',
     maxMembers: group.max_members || 4,
     pickupPoint: group.pickup_point,
+    slotKey: group.slot_key || null,
     matchScore: group.match_score ?? 95,
     adminId: group.admin_id,
     members,

@@ -6,6 +6,20 @@
 
 ## 🌟 Architecture & Highlights
 
+- **Slot-Based Ride Booking (BlaBlaCar / MakeMyTrip style)**:
+  - Sticky search bar with destination type-ahead, date selector (today to +30 days), and vehicle preferences.
+  - 10-minute interval departures (144 slots/day) with time-of-day filters (Morning, Afternoon, Evening, Night) and jump-to-time picker.
+  - Virtual slots ($0/4$ seats) dynamically rendered; lazy atomic document upsert assigns sequential `Group #ID` only upon the first rider joining.
+  - Real-time seat progress, per-rider split fares, and co-rider avatars with reliability ratings.
+  - Strict capacity enforcement (HTTP 409) with concurrent join race-condition protection.
+  - Atomic date/time rescheduling between slots with late-change reliability penalties ($\le 4\text{h}: -0.3\star, \le 30\text{min}: -0.8\star$).
+- **Vendor-Based Luggage Transport (Porter / Rapido Parcel style)**:
+  - Seamless logistics for moving luggage, iron trunks, and parcels to railway stations or home via verified local tempo, auto, or bike couriers.
+  - 4-step booking flow: Pickup & Drop $\to$ 10-minute pickup slot $\to$ Bag sizes & handling notes $\to$ Vehicle selection with instant fare quote.
+  - Dynamic "Pool & Save" pricing: multi-student bookings to the same destination in the same slot automatically split base transport costs.
+  - Rapido/Porter-style vertical tracking timeline (`Requested` $\to$ `Vendor Assigned` $\to$ `Picked Up` $\to$ `In Transit` $\to$ `Delivered`).
+  - 4-digit pickup handover OTP shared only between the student and driver for secure collection.
+  - Role-based Vendor & Admin Operations Hub (`/vendor`) for driver dispatch, OTP verification, and pooled order batching.
 - **Pure MongoDB Atlas Cloud Architecture**: Complete migration away from SQLite to a robust MongoDB Atlas backend utilizing Mongoose with compound indexing, atomic counters for sequential group numbering (`Group #1`, `Group #2`), and transactional reliability.
 - **Institutional Google SSO Security Model**:
   - Accept exclusively signed Google ID tokens (`POST /api/auth/google`) verified cryptographically via `google-auth-library`.
@@ -87,7 +101,7 @@ npm run dev
 
 ## 🧪 Testing & Verification
 
-The test suite validates all 11 core acceptance criteria using `node:test`, `supertest`, and `mongodb-memory-server`:
+The test suite validates all 43 comprehensive acceptance criteria using `node:test`, `supertest`, and `mongodb-memory-server`:
 
 ```bash
 # Run all automated acceptance tests

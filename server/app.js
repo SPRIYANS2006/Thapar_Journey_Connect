@@ -9,6 +9,9 @@ import journeysRouter from './routes/journeys.js';
 import groupsRouter from './routes/groups.js';
 import communitiesRouter from './routes/communities.js';
 import communityGroupsRouter from './routes/communityGroups.js';
+import slotsRouter from './routes/slots.js';
+import luggageRouter from './routes/luggage.js';
+import vendorRouter from './routes/vendor.js';
 import { errorHandler, notFoundHandler } from './middleware/errors.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -68,6 +71,9 @@ export function createApp() {
   app.use('/api/groups', groupsRouter);
   app.use('/api/communities', communitiesRouter);
   app.use('/api/community-groups', communityGroupsRouter);
+  app.use('/api/slots', slotsRouter);
+  app.use('/api/luggage', luggageRouter);
+  app.use('/api/vendor', vendorRouter);
 
   // 6. 404 Handler for undefined /api routes
   app.use('/api', notFoundHandler);

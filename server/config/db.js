@@ -299,6 +299,36 @@ export async function seedDefaultData() {
         reliability: 4.9,
         trips_completed: 2,
         joined_community: 'del'
+      },
+      {
+        id: 'vendor_patiala_express',
+        name: 'Patiala Campus Express Logistics',
+        email: 'vendor@thapar.edu',
+        password_hash: testPasswordHash,
+        hostel: 'Executive Center',
+        avatar: 'PX',
+        phone: '9888123456',
+        degree: 'Verified Logistics Partner',
+        year: 'Campus Vendor',
+        hometown: 'Patiala',
+        reliability: 5.0,
+        trips_completed: 120,
+        role: 'vendor'
+      },
+      {
+        id: 'admin_thapar',
+        name: 'Thapar Admin Desk',
+        email: 'admin@thapar.edu',
+        password_hash: testPasswordHash,
+        hostel: 'Administrative Block',
+        avatar: 'AD',
+        phone: '9888999999',
+        degree: 'Dean of Student Affairs Office',
+        year: 'Administration',
+        hometown: 'Patiala',
+        reliability: 5.0,
+        trips_completed: 0,
+        role: 'admin'
       }
     ];
 

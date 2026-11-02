@@ -13,7 +13,7 @@ process.env.APP_ORIGIN = 'http://localhost:5173';
 const { createApp } = await import('../server/app.js');
 const { seedDefaultData } = await import('../server/config/db.js');
 const { googleClient } = await import('../server/routes/auth.js');
-const { User, Group, Journey, Counter, Message, RateLimit, RideRecord, CommunityGroup, CommunityGroupMessage, CityRide } = await import('../server/models/index.js');
+const { User, Group, Journey, Counter, getNextGroupId, Message, RateLimit, RideRecord, CommunityGroup, CommunityGroupMessage, CityRide, Luggage } = await import('../server/models/index.js');
 const { generateSessionToken } = await import('../server/middleware/auth.js');
 const { getNowIST } = await import('../server/utils/time.js');
 
@@ -50,6 +50,7 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     await CommunityGroup.deleteMany({});
     await CommunityGroupMessage.deleteMany({});
     await CityRide.deleteMany({});
+    await Luggage.deleteMany({});
     await Counter.create({ id: 'group_id', seq: 0 });
   });
 
@@ -63,6 +64,7 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
       name: overrides.name || 'Test Student',
       hostel: overrides.hostel || 'Amritam Hall (Previously known as Hostel-B)',
       reliability: overrides.reliability !== undefined ? overrides.reliability : 5.0,
+      role: overrides.role || 'student',
       joined_community: overrides.joined_community || null,
       phone: overrides.phone || '+91 9876543210'
     });
@@ -207,19 +209,33 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
       reliability: 1.2
     });
 
-    const { dateStr } = getNowIST();
-    const now = new Date();
+    const istFormatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+    const formatIST = (d) => {
+      const parts = istFormatter.formatToParts(d);
+      const getP = (type) => parts.find((p) => p.type === type)?.value;
+      return {
+        dStr: `${getP('year')}-${getP('month')}-${getP('day')}`,
+        tStr: `${getP('hour')}:${getP('minute')}`
+      };
+    };
 
     // 6a: Under 4 hours (e.g. 2 hours from now) -> -0.3 penalty
-    const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000);
-    const time2h = `${String(twoHoursLater.getHours()).padStart(2, '0')}:${String(twoHoursLater.getMinutes()).padStart(2, '0')}`;
+    const { dStr: dateStr2h, tStr: time2h } = formatIST(new Date(Date.now() + 2 * 60 * 60 * 1000));
 
     const groupUnder4h = await Group.create({
       id: 101,
       destination_id: 'railway',
       destination_name: 'Patiala Railway Station',
       departure_time: time2h,
-      date: dateStr,
+      date: dateStr2h,
       status: 'Open',
       transport: 'Shared Cab',
       max_members: 4,
@@ -242,15 +258,14 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     assert.equal(leave4hRes.body.newReliability, 4.2);
 
     // 6b: Under 30 minutes (e.g. 15 mins from now) -> -0.8 penalty, floor 1.0
-    const fifteenMinsLater = new Date(now.getTime() + 15 * 60 * 1000);
-    const time15m = `${String(fifteenMinsLater.getHours()).padStart(2, '0')}:${String(fifteenMinsLater.getMinutes()).padStart(2, '0')}`;
+    const { dStr: dateStr15m, tStr: time15m } = formatIST(new Date(Date.now() + 15 * 60 * 1000));
 
     const groupUnder30m = await Group.create({
       id: 102,
       destination_id: 'railway',
       destination_name: 'Patiala Railway Station',
       departure_time: time15m,
-      date: dateStr,
+      date: dateStr15m,
       status: 'Open',
       transport: 'Shared Cab',
       max_members: 4,
@@ -1757,5 +1772,299 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
       .set('Authorization', `Bearer ${adminToken}`);
     assert.equal(resDetailsAfterLeave.status, 200);
     assert.equal(resDetailsAfterLeave.body.members.length, 1);
+  });
+
+  // 39. Slot-Based Travel: 10-minute slots generation, virtual slots (0/4), and atomic lazy group creation
+  it('39. Slot-Based Travel: 10-minute slots generation, virtual slots (0/4), and atomic lazy group creation', async () => {
+    const { token: studentToken } = await createTestStudent({ name: 'Slot Pioneer' });
+
+    // 1. Fetch slots for tomorrow
+    const resSlots = await request(app)
+      .get('/api/slots?destinationId=railway&date=Tomorrow&vehicle=Shared+Cab')
+      .set('Authorization', `Bearer ${studentToken}`);
+
+    assert.equal(resSlots.status, 200);
+    assert.equal(resSlots.body.totalSlots, 144);
+    assert.ok(Array.isArray(resSlots.body.slots));
+
+    // A slot with no joined members appears as 0/4 virtual slot
+    const slot10am = resSlots.body.slots.find((s) => s.time === '10:00');
+    assert.ok(slot10am);
+    assert.equal(slot10am.seatsFilled, 0);
+    assert.equal(slot10am.isFull, false);
+    assert.equal(slot10am.groupId, null);
+
+    // 2. Student joins the 10:00 slot -> lazily creates Group #1 atomically
+    const resJoin = await request(app)
+      .post('/api/slots/join')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({
+        destinationId: 'railway',
+        date: 'Tomorrow',
+        time: '10:00',
+        vehicle: 'Shared Cab'
+      });
+
+    assert.equal(resJoin.status, 201);
+    assert.equal(resJoin.body.created, true);
+    assert.equal(resJoin.body.group.id, '1');
+    assert.equal(resJoin.body.group.members.length, 1);
+    assert.equal(resJoin.body.group.members[0].name, 'Slot Pioneer');
+
+    // 3. Now re-fetch slots -> slot at 10:00 now shows 1/4 filled and links to Group #1
+    const resSlotsAfter = await request(app)
+      .get('/api/slots?destinationId=railway&date=Tomorrow&vehicle=Shared+Cab')
+      .set('Authorization', `Bearer ${studentToken}`);
+
+    const slotAfter = resSlotsAfter.body.slots.find((s) => s.time === '10:00');
+    assert.ok(slotAfter);
+    assert.equal(slotAfter.seatsFilled, 1);
+    assert.equal(slotAfter.groupId, '1');
+  });
+
+  // 40. Slot-Based Travel: Strict capacity enforcement (reject 5th member) & Single-Ride Policy
+  it('40. Slot-Based Travel: Strict capacity enforcement (reject 5th member) & Single-Ride Policy', async () => {
+    const students = [];
+    for (let i = 1; i <= 5; i++) {
+      students.push(await createTestStudent({ name: `Rider ${i}` }));
+    }
+
+    // First 4 riders join the 12:00 slot for tomorrow
+    for (let i = 0; i < 4; i++) {
+      const res = await request(app)
+        .post('/api/slots/join')
+        .set('Authorization', `Bearer ${students[i].token}`)
+        .send({
+          destinationId: 'railway',
+          date: 'Tomorrow',
+          time: '12:00',
+          vehicle: 'Shared Cab'
+        });
+      assert.ok([200, 201].includes(res.status));
+    }
+
+    // 5th rider attempts to join full slot -> HTTP 409
+    const res5th = await request(app)
+      .post('/api/slots/join')
+      .set('Authorization', `Bearer ${students[4].token}`)
+      .send({
+        destinationId: 'railway',
+        date: 'Tomorrow',
+        time: '12:00',
+        vehicle: 'Shared Cab'
+      });
+    assert.equal(res5th.status, 409);
+    assert.match(res5th.body.error, /full/i);
+
+    // Rider 1 (already enrolled in Group #1) attempts to join another slot at 14:00 -> Single-Ride Policy error 409
+    const resDouble = await request(app)
+      .post('/api/slots/join')
+      .set('Authorization', `Bearer ${students[0].token}`)
+      .send({
+        destinationId: 'railway',
+        date: 'Tomorrow',
+        time: '14:00',
+        vehicle: 'Shared Cab'
+      });
+    assert.equal(resDouble.status, 409);
+    assert.match(resDouble.body.error, /Single-Ride Policy/i);
+  });
+
+  // 41. Atomic Slot Rescheduling: Switch from Slot A to Slot B within 4h incurs reliability penalty (-0.3)
+  it('41. Atomic Slot Rescheduling: Switch from Slot A to Slot B within 4h incurs reliability penalty (-0.3)', async () => {
+    const { user: student, token: studentToken } = await createTestStudent({ name: 'Shifter Student', reliability: 5.0 });
+
+    // Calculate a departure time 2 hours from now in IST
+    const { now } = getNowIST();
+    const targetDate = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+    const dateStr = targetDate.toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata', weekday: 'short', month: 'short', day: 'numeric' });
+    const timeStr = targetDate.toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false });
+
+    // Create an initial group departing in 2h
+    const oldGroupId = await getNextGroupId();
+    const oldGroup = await Group.create({
+      id: oldGroupId,
+      destination_id: 'railway',
+      destination_name: 'Patiala Railway Station',
+      departure_time: timeStr,
+      date: dateStr,
+      status: 'Open',
+      transport: 'Shared Cab',
+      max_members: 4,
+      pickup_point: 'Main Gate',
+      admin_id: student.id,
+      members: [
+        {
+          id: student.id,
+          user_id: student.id,
+          name: student.name,
+          avatar: 'SS',
+          hostel: 'Hostel-J',
+          departure_time: timeStr,
+          role: 'Group Admin',
+          phone: '+91 9999999999'
+        }
+      ]
+    });
+    await User.updateOne({ id: student.id }, { $set: { active_group_id: oldGroup.id } });
+
+    // Preview penalty
+    const resPreview = await request(app)
+      .post('/api/slots/reschedule/preview')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({ oldGroupId: oldGroup.id });
+    assert.equal(resPreview.status, 200);
+    assert.equal(resPreview.body.willIncurPenalty, true);
+    assert.equal(resPreview.body.penalty, 0.3);
+
+    // Reschedule to tomorrow at 16:00
+    const resResched = await request(app)
+      .post('/api/slots/reschedule')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({
+        oldGroupId: oldGroup.id,
+        targetDestinationId: 'railway',
+        targetDate: 'Tomorrow',
+        targetTime: '16:00',
+        targetVehicle: 'Shared Cab'
+      });
+
+    assert.equal(resResched.status, 200);
+    assert.equal(resResched.body.penaltyApplied, true);
+    assert.equal(resResched.body.penaltyAmount, 0.3);
+    assert.equal(resResched.body.newReliability, 4.7);
+
+    // Verify user reliability was updated in DB
+    const updatedUser = await User.findOne({ id: student.id });
+    assert.equal(updatedUser.reliability, 4.7);
+
+    // Old group was cleanly deleted since only 1 member was in it
+    const checkOldGroup = await Group.findOne({ id: oldGroup.id });
+    assert.equal(checkOldGroup, null);
+  });
+
+  // 42. Luggage Transport: 4-step booking, instant quote with pooling savings, 4-digit pickup OTP
+  it('42. Luggage Transport: 4-step booking, instant quote with pooling savings, 4-digit pickup OTP', async () => {
+    const { token: student1Token } = await createTestStudent({ name: 'Luggage Sender 1' });
+    const { token: student2Token } = await createTestStudent({ name: 'Luggage Sender 2' });
+
+    // 1. Get quote for single sender to Chandigarh
+    const resQuote1 = await request(app)
+      .get('/api/luggage/quote?destination=Chandigarh+ISBT-43&date=Tomorrow&time=11:00&vehicleType=Tempo%2FMini-truck&items=' + encodeURIComponent(JSON.stringify([{ size: 'Trunk-Box', count: 1 }])))
+      .set('Authorization', `Bearer ${student1Token}`);
+    assert.equal(resQuote1.status, 200);
+    assert.ok(resQuote1.body.quote.estimatedFare > 0);
+
+    // 2. Student 1 books luggage
+    const resBook1 = await request(app)
+      .post('/api/luggage')
+      .set('Authorization', `Bearer ${student1Token}`)
+      .send({
+        pickupLocation: 'Tejas Hall (Hostel-J)',
+        destination: 'Chandigarh ISBT Sector 43',
+        date: 'Tomorrow',
+        slotTime: '11:00',
+        vehicleType: 'Tempo/Mini-truck',
+        items: [{ size: 'Trunk-Box', count: 1 }],
+        notes: 'Iron trunk handle with care'
+      });
+
+    assert.equal(resBook1.status, 201);
+    assert.equal(resBook1.body.luggage.status, 'Requested');
+    assert.match(resBook1.body.luggage.pickupOtp, /^\d{4}$/); // 4-digit OTP
+    const order1Id = resBook1.body.luggage.id;
+
+    // 3. Student 2 gets quote for same destination & slot -> Pool & Save applies!
+    const resQuote2 = await request(app)
+      .get('/api/luggage/quote?destination=Chandigarh+ISBT+Sector+43&date=Tomorrow&time=11:00&vehicleType=Tempo%2FMini-truck&items=' + encodeURIComponent(JSON.stringify([{ size: 'Medium', count: 1 }])))
+      .set('Authorization', `Bearer ${student2Token}`);
+    assert.equal(resQuote2.status, 200);
+    assert.ok(resQuote2.body.quote.pooledSavings > 0, 'Pooling discount must apply for second student in same slot');
+
+    // 4. Student 1 checks /api/luggage/mine
+    const resMine = await request(app)
+      .get('/api/luggage/mine')
+      .set('Authorization', `Bearer ${student1Token}`);
+    assert.equal(resMine.status, 200);
+    assert.equal(resMine.body.active.length, 1);
+    assert.equal(resMine.body.active[0].id, order1Id);
+  });
+
+  // 43. Vendor Operations & Role Checks: Student blocked from /api/vendor (HTTP 403), vendor dispatches driver, verifies OTP
+  it('43. Vendor Operations & Role Checks: Student blocked from /api/vendor (HTTP 403), vendor dispatches driver, verifies OTP', async () => {
+    const { token: studentToken } = await createTestStudent({ name: 'Regular Student', role: 'student' });
+    const { token: vendorToken } = await createTestStudent({ name: 'Vendor Dispatcher', email: 'partner@thapar.edu', role: 'vendor' });
+
+    // 1. Regular student attempts to access /api/vendor/requests -> HTTP 403
+    const resForbidden = await request(app)
+      .get('/api/vendor/requests')
+      .set('Authorization', `Bearer ${studentToken}`);
+    assert.equal(resForbidden.status, 403);
+
+    // 2. Student creates a luggage order
+    const resBook = await request(app)
+      .post('/api/luggage')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({
+        pickupLocation: 'Hostel-M Gate',
+        destination: 'Patiala Railway Station',
+        date: 'Tomorrow',
+        slotTime: '15:20',
+        vehicleType: 'Auto/e-rickshaw',
+        items: [{ size: 'Medium', count: 2 }]
+      });
+    assert.equal(resBook.status, 201);
+    const orderId = resBook.body.luggage.id;
+    const studentOtp = resBook.body.luggage.pickupOtp;
+
+    // 3. Vendor accesses /api/vendor/requests -> HTTP 200
+    const resVendorOrders = await request(app)
+      .get('/api/vendor/requests')
+      .set('Authorization', `Bearer ${vendorToken}`);
+    assert.equal(resVendorOrders.status, 200);
+    assert.ok(resVendorOrders.body.allRequests.some((o) => o.id === orderId));
+
+    // 4. Vendor assigns driver and vehicle
+    const resAssign = await request(app)
+      .post(`/api/vendor/requests/${orderId}/assign`)
+      .set('Authorization', `Bearer ${vendorToken}`)
+      .send({
+        driverName: 'Manjit Singh',
+        driverPhone: '9888123456',
+        vehicleNumber: 'PB 11 AZ 9988'
+      });
+    assert.equal(resAssign.status, 200);
+    assert.equal(resAssign.body.luggage.status, 'Vendor Assigned');
+    assert.equal(resAssign.body.luggage.driverName, 'Manjit Singh');
+
+    // 5. Vendor attempts to verify pickup with WRONG OTP -> HTTP 400 rejection
+    const resWrongOtp = await request(app)
+      .post(`/api/vendor/requests/${orderId}/verify-pickup`)
+      .set('Authorization', `Bearer ${vendorToken}`)
+      .send({ otp: '0000' });
+    assert.equal(resWrongOtp.status, 400);
+
+    // 6. Vendor verifies pickup with correct student OTP -> HTTP 200 Picked Up
+    const resCorrectOtp = await request(app)
+      .post(`/api/vendor/requests/${orderId}/verify-pickup`)
+      .set('Authorization', `Bearer ${vendorToken}`)
+      .send({ otp: studentOtp });
+    assert.equal(resCorrectOtp.status, 200);
+    assert.equal(resCorrectOtp.body.luggage.status, 'Picked Up');
+
+    // 7. Student can NO LONGER cancel order once Picked Up -> HTTP 400
+    const resCancelBlocked = await request(app)
+      .post(`/api/luggage/${orderId}/cancel`)
+      .set('Authorization', `Bearer ${studentToken}`);
+    assert.equal(resCancelBlocked.status, 400);
+    assert.match(resCancelBlocked.body.error, /already been collected/i);
+
+    // 8. Vendor transitions to In Transit and Delivered
+    const resDelivered = await request(app)
+      .post(`/api/vendor/requests/${orderId}/status`)
+      .set('Authorization', `Bearer ${vendorToken}`)
+      .send({ status: 'Delivered', note: 'Safely handed over at station' });
+    assert.equal(resDelivered.status, 200);
+    assert.equal(resDelivered.body.luggage.status, 'Delivered');
   });
 });

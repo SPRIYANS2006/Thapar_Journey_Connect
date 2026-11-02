@@ -308,5 +308,101 @@ export const api = {
   leaveCityRide: (communityId, rideId) =>
     request(`/communities/${communityId}/rides/${rideId}/leave`, {
       method: 'POST'
-    })
+    }),
+
+  // Slot-Based Travel Booking
+  getSlots: ({ destinationId, date, vehicle } = {}) => {
+    const query = new URLSearchParams();
+    if (destinationId) query.append('destinationId', destinationId);
+    if (date) query.append('date', date);
+    if (vehicle && vehicle !== 'Either') query.append('vehicle', vehicle);
+    const qs = query.toString();
+    return request(`/slots${qs ? `?${qs}` : ''}`);
+  },
+
+  joinSlot: (slotData) =>
+    request('/slots/join', {
+      method: 'POST',
+      body: JSON.stringify(slotData)
+    }),
+
+  previewRescheduleSlot: (oldGroupId) =>
+    request('/slots/reschedule/preview', {
+      method: 'POST',
+      body: JSON.stringify({ oldGroupId })
+    }),
+
+  rescheduleSlot: (data) =>
+    request('/slots/reschedule', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+  // Luggage Transport (Porter / Rapido Parcel style)
+  getLuggageQuote: ({ destination, date, time, vehicleType, items }) => {
+    const q = new URLSearchParams();
+    if (destination) q.append('destination', destination);
+    if (date) q.append('date', date);
+    if (time) q.append('time', time);
+    if (vehicleType) q.append('vehicleType', vehicleType);
+    if (items) q.append('items', JSON.stringify(items));
+    return request(`/luggage/quote?${q.toString()}`);
+  },
+
+  getLuggageSlots: ({ destination, date, vehicleType } = {}) => {
+    const q = new URLSearchParams();
+    if (destination) q.append('destination', destination);
+    if (date) q.append('date', date);
+    if (vehicleType) q.append('vehicleType', vehicleType);
+    return request(`/luggage/slots?${q.toString()}`);
+  },
+
+  createLuggageRequest: (data) =>
+    request('/luggage', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+  getMyLuggageRequests: () => request('/luggage/mine'),
+
+  getLuggageDetails: (id) => request(`/luggage/${id}`),
+
+  cancelLuggageRequest: (id) =>
+    request(`/luggage/${id}/cancel`, {
+      method: 'POST'
+    }),
+
+  rescheduleLuggageRequest: (id, data) =>
+    request(`/luggage/${id}/reschedule`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+  // Vendor & Admin Hub
+  getVendorRequests: ({ date, status } = {}) => {
+    const q = new URLSearchParams();
+    if (date) q.append('date', date);
+    if (status) q.append('status', status);
+    return request(`/vendor/requests?${q.toString()}`);
+  },
+
+  assignVendorDriver: (id, data) =>
+    request(`/vendor/requests/${id}/assign`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+  verifyLuggagePickup: (id, otp) =>
+    request(`/vendor/requests/${id}/verify-pickup`, {
+      method: 'POST',
+      body: JSON.stringify({ otp })
+    }),
+
+  updateVendorLuggageStatus: (id, status, note) =>
+    request(`/vendor/requests/${id}/status`, {
+      method: 'POST',
+      body: JSON.stringify({ status, note })
+    }),
+
+  getVendorConfig: () => request('/vendor/config')
 };

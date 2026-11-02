@@ -9,6 +9,8 @@ import MyJourneysPage from './pages/MyJourneysPage';
 import ProfilePage from './pages/ProfilePage';
 import CommunitiesPage from './pages/CommunitiesPage';
 import CityCommunityHubPage from './pages/CityCommunityHubPage';
+import LuggagePage from './pages/LuggagePage';
+import VendorDashboardPage from './pages/VendorDashboardPage';
 import ErrorBoundary from './components/ErrorBoundary';
 
 import JourneyFormModal from './components/JourneyFormModal';
@@ -488,9 +490,12 @@ function AppContent() {
               user={user}
               communities={communities}
               onNavigateToCommunities={() => setActivePage('communities')}
+              onNavigateToSendLuggage={() => setActivePage('send-luggage')}
               onSelectDestination={handleOpenJourneyForm}
               activeGroups={groups}
               onJoinGroup={handleJoinGroup}
+              triggerToast={triggerToast}
+              onRefreshGroups={fetchGroups}
               onViewGroupDetails={(gId) => {
                 setSelectedGroupId(gId);
                 setActivePage('group-details');
@@ -525,6 +530,20 @@ function AppContent() {
               onLeaveGroup={handleLeaveGroup}
               onJoinGroup={handleJoinGroup}
               onChangePickupPoint={handleChangePickupPoint}
+              onRescheduleSuccess={async (updatedGroup) => {
+                await fetchGroups();
+                if (updatedGroup?.id) {
+                  setSelectedGroupId(updatedGroup.id);
+                }
+              }}
+              triggerToast={(msg, type) =>
+                triggerToast({
+                  id: `resched_${Date.now()}`,
+                  type: type || 'info',
+                  title: 'Travel Reschedule',
+                  message: msg
+                })
+              }
             />
           )}
 
@@ -551,6 +570,35 @@ function AppContent() {
             </div>
           )}
 
+          {(activePage === 'send-luggage' || activePage === 'luggage') && (
+            <LuggagePage
+              user={user}
+              onNavigateToDashboard={() => setActivePage('dashboard')}
+              triggerToast={(msg, type) =>
+                triggerToast({
+                  id: `lug_${Date.now()}`,
+                  type: type || 'info',
+                  title: 'Luggage Transport',
+                  message: msg
+                })
+              }
+            />
+          )}
+
+          {activePage === 'vendor' && (
+            <VendorDashboardPage
+              user={user}
+              triggerToast={(msg, type) =>
+                triggerToast({
+                  id: `vend_${Date.now()}`,
+                  type: type || 'info',
+                  title: 'Vendor Hub',
+                  message: msg
+                })
+              }
+            />
+          )}
+
           {activePage === 'my-journeys' && (
             <MyJourneysPage
               activeGroups={groups}
@@ -561,6 +609,14 @@ function AppContent() {
                 setActivePage('group-details');
               }}
               onOpenChat={handleOpenChatModal}
+              triggerToast={(msg, type) =>
+                triggerToast({
+                  id: `resched_${Date.now()}`,
+                  type: type || 'info',
+                  title: 'Travel Reschedule',
+                  message: msg
+                })
+              }
             />
           )}
 

@@ -14,6 +14,7 @@ const userSchema = new mongoose.Schema({
   token_version: { type: Number, default: 1 },
   reliability: { type: Number, default: 5.0 },
   trips_completed: { type: Number, default: 0 },
+  role: { type: String, enum: ['student', 'vendor', 'admin'], default: 'student' },
   active_group_id: { type: String, default: null },
   joined_community: { type: String, default: null },
   created_at: { type: Date, default: Date.now }

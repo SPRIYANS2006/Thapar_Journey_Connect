@@ -12,18 +12,21 @@ import {
 } from 'lucide-react';
 import { formatTime24to12 } from '../utils/matchingEngine';
 import { api } from '../services/api';
+import RescheduleSlotModal from '../components/RescheduleSlotModal';
 
 export default function MyJourneysPage({
   activeGroups,
   currentUser: _currentUser,
   onViewGroupDetails,
   onOpenChat,
-  onRefresh
+  onRefresh,
+  triggerToast
 }) {
   const [activeTab, setActiveTab] = useState('upcoming');
   const [fetchedJourneys, setFetchedJourneys] = useState(null);
   const [completedJourneys, setCompletedJourneys] = useState([]);
   const [loadingCompleted, setLoadingCompleted] = useState(true);
+  const [rescheduleGroup, setRescheduleGroup] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -199,20 +202,31 @@ export default function MyJourneysPage({
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="grid grid-cols-2 gap-3 pt-2">
+                    <div className={`grid gap-2 pt-2 ${group.isCommunityRide ? 'grid-cols-2' : 'grid-cols-3'}`}>
                       <button
                         onClick={() => onOpenChat(group.id)}
-                        className="py-2.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors"
+                        className="py-2.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center justify-center gap-1 transition-colors"
                       >
                         <MessageSquare className="w-3.5 h-3.5 text-slate-600" />
                         <span>Chat</span>
                       </button>
 
+                      {!group.isCommunityRide && (
+                        <button
+                          onClick={() => setRescheduleGroup(group)}
+                          className="py-2.5 px-2 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded-xl text-xs flex items-center justify-center gap-1 transition-colors border border-blue-200 cursor-pointer"
+                          title="Change travel date or time"
+                        >
+                          <Clock className="w-3.5 h-3.5 text-blue-600" />
+                          <span>Reschedule</span>
+                        </button>
+                      )}
+
                       <button
                         onClick={() => onViewGroupDetails(group.id)}
-                        className="py-2.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors shadow-xs"
+                        className="py-2.5 px-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1 transition-colors shadow-xs cursor-pointer"
                       >
-                        <span>View Details</span>
+                        <span>Details</span>
                         <ArrowRight className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -286,6 +300,28 @@ export default function MyJourneysPage({
             </div>
           )}
         </div>
+      )}
+
+      {/* Reschedule Slot Modal */}
+      {rescheduleGroup && (
+        <RescheduleSlotModal
+          group={rescheduleGroup}
+          isOpen={Boolean(rescheduleGroup)}
+          onClose={() => setRescheduleGroup(null)}
+          onSuccess={async () => {
+            setRescheduleGroup(null);
+            if (onRefresh) {
+              await onRefresh().catch(() => {});
+            }
+            try {
+              const fresh = await api.getMyGroups();
+              setFetchedJourneys(Array.isArray(fresh) ? fresh : []);
+            } catch {
+              // ignore
+            }
+          }}
+          triggerToast={triggerToast}
+        />
       )}
 
     </div>

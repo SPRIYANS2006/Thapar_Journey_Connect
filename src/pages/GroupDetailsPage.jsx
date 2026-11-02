@@ -19,6 +19,7 @@ import {
 import FareSplitModal from '../components/FareSplitModal';
 import EmergencySOSModal from '../components/EmergencySOSModal';
 import ConfirmDialog from '../components/ConfirmDialog';
+import RescheduleSlotModal from '../components/RescheduleSlotModal';
 import { formatTime24to12 } from '../utils/matchingEngine';
 
 const PICKUP_POINTS = [
@@ -39,11 +40,14 @@ export default function GroupDetailsPage({
   onConfirmJourney,
   onLeaveGroup,
   onJoinGroup,
-  onChangePickupPoint
+  onChangePickupPoint,
+  onRescheduleSuccess,
+  triggerToast
 }) {
   const [showFareSplit, setShowFareSplit] = useState(false);
   const [showSOS, setShowSOS] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [isUpdatingPickup, setIsUpdatingPickup] = useState(false);
 
   if (!group) {
@@ -227,6 +231,17 @@ export default function GroupDetailsPage({
                   <MessageSquare className="w-4 h-4" />
                   <span>Open Group Chat</span>
                 </button>
+
+                {!isCompleted && !group.isCommunityRide && (
+                  <button
+                    onClick={() => setShowRescheduleModal(true)}
+                    className="px-4 py-3 bg-indigo-600/90 hover:bg-indigo-600 text-white font-bold text-xs rounded-2xl border border-indigo-400/40 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md"
+                    title="Move to another 10-minute time slot"
+                  >
+                    <Clock className="w-4 h-4" />
+                    <span>Change date/time</span>
+                  </button>
+                )}
 
                 {!isConfirmed && !isCompleted && isAdmin && (
                   <button
@@ -516,6 +531,19 @@ export default function GroupDetailsPage({
           }
         }}
         onCancel={() => setShowLeaveConfirm(false)}
+      />
+
+      {/* Reschedule Slot Modal */}
+      <RescheduleSlotModal
+        group={group}
+        isOpen={showRescheduleModal}
+        onClose={() => setShowRescheduleModal(false)}
+        onSuccess={(newGroup) => {
+          if (onRescheduleSuccess) {
+            onRescheduleSuccess(newGroup);
+          }
+        }}
+        triggerToast={triggerToast}
       />
     </div>
   );

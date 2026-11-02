@@ -1,25 +1,197 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import DisclaimerBanner from '../components/DisclaimerBanner';
-import DestinationCard from '../components/DestinationCard';
-import Avatar from '../components/Avatar';
-import { DESTINATIONS } from '../data/mockData';
-import { Sparkles, Users, ArrowRight, Clock, MapPin, UserPlus } from 'lucide-react';
-import { formatTime24to12 } from '../utils/matchingEngine';
+import SlotPicker from '../components/SlotPicker';
+import { DESTINATIONS, HOSTELS } from '../data/mockData';
+import { 
+  ArrowRight, 
+  Clock, 
+  MapPin, 
+  Car, 
+  Package, 
+  Search, 
+  Home, 
+  Calendar,
+  ChevronDown
+} from 'lucide-react';
+import { api } from '../services/api';
 
 export default function DashboardPage({ 
   user, 
-  onSelectDestination, 
-  activeGroups, 
+  onSelectDestination: _onSelectDestination, 
+  activeGroups = [], 
   onViewGroupDetails, 
-  onJoinGroup,
+  onJoinGroup: _onJoinGroup,
   communities = [], 
-  onNavigateToCommunities 
+  onNavigateToCommunities,
+  onNavigateToSendLuggage,
+  triggerToast,
+  onRefreshGroups
 }) {
-  const activeUserGroup = (activeGroups || []).find(g =>
-    g.members && g.members.some(m => (m.id && m.id === user?.id) || (m.user_id && m.user_id === user?.id) || (user?.name && m.name === user.name))
+  // Search Form State
+  const [selectedDestId, setSelectedDestId] = useState(DESTINATIONS[0].id);
+  const [destSearchQuery, setDestSearchQuery] = useState('');
+  const [isDestDropdownOpen, setIsDestDropdownOpen] = useState(false);
+
+  // Generate today to +30 days in IST
+  const dateOptions = useMemo(() => {
+    const list = [];
+    const now = new Date();
+    for (let i = 0; i < 31; i++) {
+      const d = new Date(now.getTime() + i * 24 * 60 * 60 * 1000);
+      const isoDate = d.toISOString().split('T')[0];
+      const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
+      const month = d.toLocaleDateString('en-US', { month: 'short' });
+      const day = d.getDate();
+
+      let label = `${weekday}, ${month} ${day}`;
+      if (i === 0) label = `Today (${weekday}, ${month} ${day})`;
+      if (i === 1) label = `Tomorrow (${weekday}, ${month} ${day})`;
+
+      list.push({ value: isoDate, label, isToday: i === 0 });
+    }
+    return list;
+  }, []);
+
+  const [selectedDate, setSelectedDate] = useState(dateOptions[0].value);
+  const [selectedVehicle, setSelectedVehicle] = useState('Shared Cab');
+  const [selectedHostel, setSelectedHostel] = useState(user?.hostel || HOSTELS[0].name);
+
+  // Slots State
+  const [slots, setSlots] = useState([]);
+  const [slotsLoading, setSlotsLoading] = useState(true);
+  const [slotsError, setSlotsError] = useState(null);
+  const [joiningSlotKey, setJoiningSlotKey] = useState(null);
+
+  // Selected Destination Object
+  const currentDestination = useMemo(() => {
+    return DESTINATIONS.find((d) => d.id === selectedDestId) || DESTINATIONS[0];
+  }, [selectedDestId]);
+
+  // Filtered Destinations for Searchable Dropdown
+  const filteredDestinations = useMemo(() => {
+    if (!destSearchQuery.trim()) return DESTINATIONS;
+    const q = destSearchQuery.toLowerCase();
+    return DESTINATIONS.filter(
+      (d) => d.name.toLowerCase().includes(q) || d.description.toLowerCase().includes(q)
+    );
+  }, [destSearchQuery]);
+
+  // Fetch 10-minute slots
+  const fetchSlots = useCallback(async (destId, dateStr, vehicleType) => {
+    setSlotsLoading(true);
+    setSlotsError(null);
+    try {
+      const res = await api.getSlots({
+        destinationId: destId,
+        date: dateStr,
+        vehicle: vehicleType
+      });
+      if (res && res.slots) {
+        setSlots(res.slots);
+      } else {
+        setSlots([]);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch slots:', err.message);
+      setSlotsError(err.message || 'Unable to load slots');
+      setSlots([]);
+    } finally {
+      setSlotsLoading(false);
+    }
+  }, []);
+
+  // Initial & Search Handler
+  useEffect(() => {
+    let active = true;
+
+    api.getSlots({
+      destinationId: selectedDestId,
+      date: selectedDate,
+      vehicle: selectedVehicle
+    })
+      .then((res) => {
+        if (!active) return;
+        setSlots(res?.slots || []);
+        setSlotsError(null);
+      })
+      .catch((err) => {
+        if (!active) return;
+        console.warn('Failed to fetch slots:', err.message);
+        setSlotsError(err.message || 'Unable to load slots');
+      })
+      .finally(() => {
+        if (active) setSlotsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [selectedDestId, selectedDate, selectedVehicle]);
+
+  const handleSearchSubmit = (e) => {
+    if (e) e.preventDefault();
+    setIsDestDropdownOpen(false);
+    fetchSlots(selectedDestId, selectedDate, selectedVehicle);
+  };
+
+  // Join Slot Handler (Atomic Join or Lazy Creation)
+  const handleJoinSlot = async (slot) => {
+    setJoiningSlotKey(slot.slotKey);
+    try {
+      const res = await api.joinSlot({
+        destinationId: slot.destinationId,
+        date: slot.date,
+        time: slot.time,
+        vehicle: slot.vehicle,
+        pickupPoint: 'Main Gate (Near Executive Mess)'
+      });
+
+      if (triggerToast) {
+        triggerToast({
+          id: `join_slot_${Date.now()}`,
+          type: 'success',
+          title: res.created ? '🎉 Group Created!' : '🎉 Joined Group!',
+          message: res.message || `Successfully joined Group #${res.group.id} for ${slot.time}!`,
+          actionLabel: `View Group #${res.group.id}`,
+          onAction: () => onViewGroupDetails && onViewGroupDetails(res.group.id)
+        });
+      }
+
+      if (onRefreshGroups) {
+        await onRefreshGroups().catch(() => {});
+      }
+      await fetchSlots(selectedDestId, selectedDate, selectedVehicle);
+
+      if (onViewGroupDetails && res.group?.id) {
+        onViewGroupDetails(res.group.id);
+      }
+    } catch (err) {
+      if (triggerToast) {
+        triggerToast({
+          id: `slot_err_${Date.now()}`,
+          type: 'error',
+          title: 'Could Not Book Slot',
+          message: err.message || 'Unable to join slot. Please check single-ride policy or capacity.'
+        });
+      }
+    } finally {
+      setJoiningSlotKey(null);
+    }
+  };
+
+  const activeUserGroup = (activeGroups || []).find((g) =>
+    g.members &&
+    g.members.some(
+      (m) =>
+        (m.id && m.id === user?.id) ||
+        (m.userId && m.userId === user?.id) ||
+        (m.user_id && m.user_id === user?.id) ||
+        (user?.name && m.name === user.name)
+    )
   );
-  const openGroups = (activeGroups || []).filter(g => g.status === 'Open' || g.status === 'Confirmed');
-  const userCommunity = user?.joinedCommunity ? communities.find(c => c.id === user.joinedCommunity) : null;
+  const userCommunity = user?.joinedCommunity
+    ? communities.find((c) => c.id === user.joinedCommunity)
+    : null;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-in fade-in duration-300">
@@ -27,109 +199,183 @@ export default function DashboardPage({
       {/* Disclaimer Banner */}
       <DisclaimerBanner />
 
-      {/* Welcome Banner */}
-      <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-slate-900 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
-        <div className="absolute right-0 top-0 w-96 h-96 bg-white/5 rounded-full blur-2xl pointer-events-none" />
-        
-        <div className="relative z-10 max-w-2xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-blue-200 text-xs font-semibold mb-3 border border-white/10">
-            <Sparkles className="w-3.5 h-3.5 text-blue-300" />
-            <span>Welcome, {user?.name?.split(' ')[0] || 'Student'}{user?.hostel ? ` (${user.hostel})` : ''}</span>
+      {/* PART 1.1: STICKY SEARCH CARD (MakeMyTrip / BlaBlaCar style) */}
+      <div className="sticky top-20 z-30 bg-white/95 backdrop-blur-md rounded-3xl border border-slate-200/90 shadow-xl p-5 sm:p-6 transition-all">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse" />
+            <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
+              Book a Scheduled Slot
+            </h2>
+            <span className="text-[11px] font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md border border-blue-200 hidden sm:inline-block">
+              10-Minute Departures
+            </span>
           </div>
-
-          <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-tight">
-            Where are you travelling?
-          </h1>
-
-          <p className="text-slate-200 text-sm sm:text-base mt-2 font-normal leading-relaxed">
-            Choose your transit destination or connect with your hometown city community to coordinate weekend carpools and train companions.
-          </p>
-
-          <div className="mt-5 flex flex-wrap gap-3">
-            <button
-              onClick={() => onNavigateToCommunities && onNavigateToCommunities()}
-              className="px-4 py-2 bg-white text-blue-900 hover:bg-blue-50 font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5 transition-all"
-            >
-              <Users className="w-4 h-4 text-blue-600" />
-              <span>Explore City Communities</span>
-              <ArrowRight className="w-3.5 h-3.5 ml-1" />
-            </button>
-          </div>
+          <span className="text-xs font-semibold text-slate-500">
+            {currentDestination.name} • {currentDestination.distance}
+          </span>
         </div>
+
+        <form onSubmit={handleSearchSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            
+            {/* 1. FROM: Fixed Thapar Campus */}
+            <div className="bg-slate-50/80 rounded-2xl p-3 border border-slate-200/80 flex flex-col justify-between">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                <MapPin className="w-3 h-3 text-blue-600" />
+                <span>From (Fixed Origin)</span>
+              </span>
+              <div className="font-extrabold text-slate-800 text-sm mt-1 truncate">
+                Thapar Institute, Patiala
+              </div>
+              <span className="text-[10px] text-slate-400">Campus Main Gate</span>
+            </div>
+
+            {/* 2. TO: Searchable Dropdown with Type-Ahead */}
+            <div className="relative bg-slate-50/80 rounded-2xl p-3 border border-slate-200/80 flex flex-col justify-between">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                <MapPin className="w-3 h-3 text-indigo-600" />
+                <span>To (Destination)</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsDestDropdownOpen((prev) => !prev)}
+                className="w-full text-left font-extrabold text-slate-900 text-sm mt-1 flex items-center justify-between gap-1 cursor-pointer truncate"
+              >
+                <span className="truncate">{currentDestination.name}</span>
+                <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+              </button>
+              <span className="text-[10px] text-slate-400 truncate">
+                {currentDestination.avgCabFare}
+              </span>
+
+              {/* Dropdown Menu */}
+              {isDestDropdownOpen && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-slate-200 shadow-2xl z-50 p-2 space-y-1.5 max-h-72 overflow-y-auto animate-in fade-in duration-150">
+                  <div className="relative px-1 pt-1 pb-2">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3.5" />
+                    <input
+                      type="text"
+                      placeholder="Type destination name..."
+                      value={destSearchQuery}
+                      onChange={(e) => setDestSearchQuery(e.target.value)}
+                      className="w-full pl-7 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      autoFocus
+                    />
+                  </div>
+
+                  {filteredDestinations.map((dest) => (
+                    <button
+                      key={dest.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedDestId(dest.id);
+                        setIsDestDropdownOpen(false);
+                        setDestSearchQuery('');
+                      }}
+                      className={`w-full text-left p-2.5 rounded-xl text-xs transition-colors flex items-center justify-between ${
+                        selectedDestId === dest.id
+                          ? 'bg-blue-50 text-blue-900 font-bold border border-blue-200'
+                          : 'hover:bg-slate-100 text-slate-700'
+                      }`}
+                    >
+                      <div>
+                        <div className="font-bold flex items-center gap-1.5">
+                          <span>{dest.icon}</span>
+                          <span>{dest.name}</span>
+                        </div>
+                        <div className="text-[10px] text-slate-400">{dest.distance}</div>
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-500">{dest.avgCabFare}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 3. DATE: Picker (Today to +30 Days) */}
+            <div className="bg-slate-50/80 rounded-2xl p-3 border border-slate-200/80 flex flex-col justify-between">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                <Calendar className="w-3 h-3 text-blue-600" />
+                <span>Travel Date</span>
+              </span>
+              <label htmlFor="travel-date-select" className="sr-only">Select Travel Date</label>
+              <select
+                id="travel-date-select"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full bg-transparent font-extrabold text-slate-900 text-sm mt-1 focus:outline-none cursor-pointer"
+              >
+                {dateOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <span className="text-[10px] text-slate-400">Up to 30 days ahead</span>
+            </div>
+
+            {/* 4. VEHICLE TYPE */}
+            <div className="bg-slate-50/80 rounded-2xl p-3 border border-slate-200/80 flex flex-col justify-between">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                <Car className="w-3 h-3 text-indigo-600" />
+                <span>Vehicle Type</span>
+              </span>
+              <label htmlFor="vehicle-type-select" className="sr-only">Select Vehicle Type</label>
+              <select
+                id="vehicle-type-select"
+                value={selectedVehicle}
+                onChange={(e) => setSelectedVehicle(e.target.value)}
+                className="w-full bg-transparent font-extrabold text-slate-900 text-sm mt-1 focus:outline-none cursor-pointer"
+              >
+                <option value="Shared Cab">Shared Cab (Max 4)</option>
+                <option value="Shared Auto">Shared Auto (Max 3)</option>
+                <option value="Either">Either Vehicle</option>
+              </select>
+              <span className="text-[10px] text-slate-400">Split fare equally</span>
+            </div>
+
+            {/* 5. SEARCH BUTTON & HOSTEL QUICK OVERRIDE */}
+            <div className="flex flex-col justify-between gap-1">
+              <div className="flex items-center justify-between text-[11px] text-slate-500 px-1">
+                <span className="flex items-center gap-1">
+                  <Home className="w-3 h-3 text-blue-600" />
+                  <span className="font-semibold">{selectedHostel.split(' ')[0]}</span>
+                </span>
+                <label htmlFor="hostel-quick-override" className="sr-only">Change hostel pickup</label>
+                <select
+                  id="hostel-quick-override"
+                  value={selectedHostel}
+                  onChange={(e) => setSelectedHostel(e.target.value)}
+                  className="text-[10px] bg-transparent text-blue-700 font-bold focus:outline-none cursor-pointer"
+                  title="Change hostel pickup"
+                >
+                  {HOSTELS.map((h) => (
+                    <option key={h.id} value={h.name}>
+                      {h.id}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-sm rounded-2xl shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-[0.98]"
+              >
+                <Search className="w-4 h-4" />
+                <span>Search Slots</span>
+              </button>
+            </div>
+
+          </div>
+        </form>
       </div>
-
-      {/* Community Quick Highlight Card */}
-      {userCommunity ? (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/80 rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-white border border-blue-200 flex items-center justify-center text-2xl shadow-xs shrink-0">
-              {userCommunity.icon}
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md">
-                  Your Hometown Community
-                </span>
-                <span className="text-xs text-slate-500 font-semibold">
-                  👥 {userCommunity.membersCount} TIET Members
-                </span>
-              </div>
-              <h4 className="font-extrabold text-slate-900 text-base mt-0.5">
-                {userCommunity.name} ({userCommunity.state})
-              </h4>
-              <p className="text-xs text-slate-600 mt-0.5">
-                {userCommunity.description}
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={() => onNavigateToCommunities && onNavigateToCommunities()}
-            className="w-full sm:w-auto px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-colors shrink-0"
-          >
-            <span>Open Notice Board</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
-      ) : (
-        <div className="bg-gradient-to-r from-slate-50 to-blue-50/50 border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-2xl shadow-xs shrink-0">
-              📍
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider bg-slate-200 text-slate-700 px-2 py-0.5 rounded-md">
-                  Hometown Hub
-                </span>
-                <span className="text-xs text-amber-600 font-semibold">
-                  Not Enrolled Yet
-                </span>
-              </div>
-              <h4 className="font-extrabold text-slate-900 text-base mt-0.5">
-                Join Your City Community
-              </h4>
-              <p className="text-xs text-slate-600 mt-0.5">
-                Connect with students heading home to Delhi NCR, Tri-City, Ludhiana, etc. for festival breaks.
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={() => onNavigateToCommunities && onNavigateToCommunities()}
-            className="w-full sm:w-auto px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-colors shrink-0"
-          >
-            <span>Explore Communities</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
-      )}
 
       {/* Active Trip Quick Banner (If user belongs to a group) */}
       {activeUserGroup && (
-        <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="bg-indigo-50 border border-indigo-200 rounded-3xl p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white font-extrabold flex items-center justify-center text-base shadow-md">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white font-extrabold flex items-center justify-center text-base shadow-md shrink-0">
               #{activeUserGroup.id}
             </div>
             <div>
@@ -138,7 +384,7 @@ export default function DashboardPage({
                   Active Joined Group
                 </span>
                 <span className="text-xs text-slate-500 font-medium">
-                  {activeUserGroup.members.length}/{activeUserGroup.maxMembers} Members
+                  {activeUserGroup.members?.length || 1}/{activeUserGroup.maxMembers || 4} Members
                 </span>
               </div>
               <h4 className="font-bold text-slate-900 text-base mt-0.5">
@@ -153,8 +399,8 @@ export default function DashboardPage({
           </div>
 
           <button
-            onClick={() => onViewGroupDetails(activeUserGroup.id)}
-            className="w-full sm:w-auto px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-colors"
+            onClick={() => onViewGroupDetails && onViewGroupDetails(activeUserGroup.id)}
+            className="w-full sm:w-auto px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer shrink-0"
           >
             <span>Open Group & Chat</span>
             <ArrowRight className="w-4 h-4" />
@@ -162,198 +408,129 @@ export default function DashboardPage({
         </div>
       )}
 
-      {/* Live Campus Travel Groups Section */}
+      {/* PART 2.1: PROMINENT "SEND LUGGAGE" CARD (Porter / Rapido style) */}
+      <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-slate-900 rounded-3xl p-6 sm:p-7 text-white shadow-xl flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5 relative overflow-hidden">
+        <div className="space-y-2 max-w-2xl relative z-10">
+          <div className="inline-flex items-center gap-1.5 px-3 py-0.5 bg-white/15 backdrop-blur-md rounded-full text-emerald-200 text-xs font-extrabold border border-white/10">
+            <Package className="w-3.5 h-3.5" />
+            <span>Campus Luggage Transport (Vendor-Based)</span>
+          </div>
+          <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+            Sending Bags or Trunks Home?
+          </h3>
+          <p className="text-emerald-100 text-xs sm:text-sm font-normal leading-relaxed">
+            Book verified local tempo, auto, or bike couriers to deliver heavy luggage to the station or home.
+            <strong className="text-white ml-1">Pool with hostel peers to slash delivery fares up to 50%!</strong>
+          </p>
+        </div>
+
+        <button
+          onClick={() => onNavigateToSendLuggage && onNavigateToSendLuggage()}
+          className="w-full sm:w-auto px-6 py-3.5 bg-white text-emerald-900 hover:bg-emerald-50 font-black text-xs sm:text-sm rounded-2xl shadow-xl flex items-center justify-center gap-2 transition-all cursor-pointer shrink-0"
+        >
+          <Package className="w-4 h-4 text-emerald-600" />
+          <span>Book Luggage Transport</span>
+          <ArrowRight className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* PART 1.2: 10-MINUTE SLOTS (BlaBlaCar-style slot cards) */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-              <Users className="w-6 h-6 text-blue-600" />
-              <span>Live Ride Groups on Campus</span>
+              <Clock className="w-6 h-6 text-blue-600" />
+              <span>Available Time Slots ({currentDestination.name})</span>
             </h2>
             <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
-              Active student travel groups departing from TIET. Join an open ride or start a new group below!
+              10-minute departures for {selectedDate}. Join an active group with peers or start a fresh slot!
             </p>
           </div>
-          <span className="text-xs font-bold px-3 py-1 bg-blue-50 text-blue-700 rounded-full border border-blue-200">
-            {openGroups.length} Active {openGroups.length === 1 ? 'Group' : 'Groups'}
-          </span>
         </div>
 
-        {openGroups.length === 0 ? (
-          <div className="bg-white rounded-3xl border border-dashed border-slate-300 p-8 text-center space-y-2 shadow-xs">
-            <Users className="w-8 h-8 text-slate-400 mx-auto" />
-            <h3 className="font-bold text-slate-700 text-sm">No Active Ride Groups Formed Yet</h3>
-            <p className="text-xs text-slate-400 max-w-sm mx-auto">
-              Be the first to create a travel group for your upcoming trip! Pick a destination below to get matched.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {openGroups.map((group) => {
-              const isFull = (group.members || []).length >= (group.maxMembers || 4);
-              const isUserMember = group.members && group.members.some(m => 
-                (m.id && m.id === user?.id) || 
-                (m.user_id && m.user_id === user?.id) ||
-                (user?.name && m.name === user.name)
-              );
-
-              return (
-                <div 
-                  key={group.id}
-                  className="bg-white rounded-3xl border border-slate-200/90 p-5 shadow-xs hover:shadow-md hover:border-blue-300 transition-all flex flex-col justify-between"
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-black text-xs shadow-sm">
-                          #{group.id}
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-slate-900 text-sm">
-                            {group.destinationName}
-                          </h4>
-                          <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
-                            group.status === 'Confirmed' ? 'bg-emerald-100 text-emerald-800' : isFull ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
-                          }`}>
-                            {group.status === 'Confirmed' ? 'Confirmed' : isFull ? 'Full (4/4)' : 'Open For Riders'}
-                          </span>
-                        </div>
-                      </div>
-
-                      <span className="text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg">
-                        {group.members.length}/{group.maxMembers || 4}
-                      </span>
-                    </div>
-
-                    <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100 text-xs text-slate-600 space-y-1">
-                      <div className="flex items-center gap-1.5 font-semibold text-slate-800">
-                        <Clock className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                        <span>Departure: {formatTime24to12(group.departureTime)} ({group.date || 'Today'})</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-slate-500">
-                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span className="truncate">Pickup: {group.pickupPoint}</span>
-                      </div>
-                    </div>
-
-                    {/* Members Avatars preview */}
-                    <div className="flex items-center gap-1.5 pt-1">
-                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">Riders:</span>
-                      <div className="flex -space-x-1.5 overflow-hidden">
-                        {(group.members || []).map((m, idx) => (
-                          <Avatar
-                            key={idx}
-                            src={m.avatar}
-                            name={m.name}
-                            size="w-6 h-6"
-                            textSize="text-[10px]"
-                            rounded="rounded-full"
-                            bg="bg-slate-800"
-                          />
-                        ))}
-                      </div>
-                      <span className="text-[11px] text-slate-500 font-medium ml-1 truncate">
-                        ({group.members.map(m => m.name.split(' ')[0]).join(', ')})
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 pt-3 border-t border-slate-100">
-                    {isUserMember ? (
-                      <button
-                        onClick={() => onViewGroupDetails(group.id)}
-                        className="w-full py-2.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                      >
-                        <Users className="w-3.5 h-3.5" />
-                        <span>Open My Group & Chat</span>
-                      </button>
-                    ) : isFull ? (
-                      <div className="w-full py-2 bg-slate-100 text-slate-500 font-bold rounded-xl text-xs text-center border border-slate-200">
-                        Group Full (4/4 Members)
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => onJoinGroup ? onJoinGroup(group.id) : onViewGroupDetails(group.id)}
-                        className="w-full py-2.5 px-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
-                      >
-                        <UserPlus className="w-3.5 h-3.5" />
-                        <span>Join Group #{group.id} ({group.members.length}/4)</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+        {slotsError && (
+          <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 text-xs font-semibold text-rose-800">
+            Error loading slots: {slotsError}
           </div>
         )}
+
+        {/* Slot Picker Component */}
+        <SlotPicker
+          slots={slots}
+          loading={slotsLoading}
+          onJoinSlot={handleJoinSlot}
+          onViewGroup={onViewGroupDetails}
+          joiningSlotKey={joiningSlotKey}
+          activeGroupId={activeUserGroup?.id}
+        />
       </div>
 
-      {/* Destination Grid Title */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
-              Select Destination
-            </h2>
-            <p className="text-slate-500 text-xs sm:text-sm">
-              Click any destination to start matching with TIET students.
-            </p>
-          </div>
-          <span className="hidden sm:inline-block text-xs font-semibold px-3 py-1 bg-slate-100 text-slate-700 rounded-full border border-slate-200">
-            4 Core Transit Hubs
-          </span>
-        </div>
-
-        {/* 4 Destination Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {DESTINATIONS.map((dest) => (
-            <DestinationCard
-              key={dest.id}
-              destination={dest}
-              onSelect={onSelectDestination}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Informational Feature Section */}
-      <div className="bg-white rounded-3xl border border-slate-200/80 p-8 shadow-sm">
-        <h3 className="font-bold text-lg text-slate-900 mb-6 text-center">
-          How Thapar Journey Connect Works
-        </h3>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-            <div className="w-10 h-10 rounded-2xl bg-blue-100 text-blue-700 font-extrabold flex items-center justify-center mx-auto mb-3">
-              1
+      {/* Community Quick Highlight Card */}
+      {userCommunity ? (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/80 rounded-3xl p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-white border border-blue-200 flex items-center justify-center text-3xl shadow-xs shrink-0">
+              {userCommunity.icon}
             </div>
-            <h4 className="font-bold text-slate-900 text-sm">Submit Journey Window</h4>
-            <p className="text-slate-500 text-xs mt-1">
-              Select destination, date, departure time, flexibility range, and your hostel.
-            </p>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md">
+                  Your Hometown Community
+                </span>
+                <span className="text-xs text-slate-500 font-semibold">
+                  👥 {userCommunity.membersCount} TIET Members
+                </span>
+              </div>
+              <h4 className="font-extrabold text-slate-900 text-lg mt-0.5">
+                {userCommunity.name} ({userCommunity.state})
+              </h4>
+              <p className="text-xs text-slate-600 mt-0.5">
+                {userCommunity.description}
+              </p>
+            </div>
           </div>
 
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-700 font-extrabold flex items-center justify-center mx-auto mb-3">
-              2
-            </div>
-            <h4 className="font-bold text-slate-900 text-sm">Smart Match Ranking</h4>
-            <p className="text-slate-500 text-xs mt-1">
-              Engine calculates time overlap & hostel proximity to pair compatible students.
-            </p>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 font-extrabold flex items-center justify-center mx-auto mb-3">
-              3
-            </div>
-            <h4 className="font-bold text-slate-900 text-sm">Group & Coordinate</h4>
-            <p className="text-slate-500 text-xs mt-1">
-              Form 2-4 student groups, pick up at Main Gate, and chat to coordinate.
-            </p>
-          </div>
+          <button
+            onClick={() => onNavigateToCommunities && onNavigateToCommunities()}
+            className="w-full sm:w-auto px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-colors shrink-0 cursor-pointer"
+          >
+            <span>Open Notice Board</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
         </div>
-      </div>
+      ) : (
+        <div className="bg-gradient-to-r from-slate-50 to-blue-50/50 border border-slate-200 rounded-3xl p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-3xl shadow-xs shrink-0">
+              📍
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider bg-slate-200 text-slate-700 px-2 py-0.5 rounded-md">
+                  Hometown Hub
+                </span>
+                <span className="text-xs text-amber-600 font-semibold">
+                  Not Enrolled Yet
+                </span>
+              </div>
+              <h4 className="font-extrabold text-slate-900 text-lg mt-0.5">
+                Join Your City Community
+              </h4>
+              <p className="text-xs text-slate-600 mt-0.5">
+                Connect with students heading home to Delhi NCR, Tri-City, Ludhiana, etc. for festival breaks.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => onNavigateToCommunities && onNavigateToCommunities()}
+            className="w-full sm:w-auto px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-colors shrink-0 cursor-pointer"
+          >
+            <span>Explore Communities</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
     </div>
   );

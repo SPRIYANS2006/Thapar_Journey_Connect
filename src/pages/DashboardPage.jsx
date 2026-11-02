@@ -24,6 +24,17 @@ function makeToastId(prefix) {
   return `${prefix}_${toastSeq}`;
 }
 
+function getCurrentSlotTime() {
+  const now = new Date();
+  let minutes = Math.ceil(now.getMinutes() / 15) * 15;
+  let hours = now.getHours();
+  if (minutes >= 60) {
+    minutes = 0;
+    hours = (hours + 1) % 24;
+  }
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
 export default function DashboardPage({ 
   user, 
   onSelectDestination: _onSelectDestination, 
@@ -61,7 +72,7 @@ export default function DashboardPage({
   }, []);
 
   const [selectedDate, setSelectedDate] = useState(dateOptions[0].value);
-  const [selectedTime, setSelectedTime] = useState('');
+  const [selectedTime, setSelectedTime] = useState(() => getCurrentSlotTime());
   const [selectedVehicle, setSelectedVehicle] = useState('Shared Cab');
   const [selectedHostel, setSelectedHostel] = useState(user?.hostel || HOSTELS[0].name);
 
@@ -365,15 +376,25 @@ export default function DashboardPage({
                   <Clock className="w-3 h-3 text-blue-600" />
                   <span>Departure Time</span>
                 </span>
-                {selectedTime && (
+                <div className="flex items-center gap-1">
                   <button
                     type="button"
-                    onClick={() => setSelectedTime('')}
-                    className="text-[10px] text-blue-600 hover:text-blue-800 font-bold cursor-pointer"
+                    onClick={() => setSelectedTime(getCurrentSlotTime())}
+                    className="text-[10px] font-extrabold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-1.5 py-0.5 rounded cursor-pointer transition-colors"
+                    title="Set to current upcoming slot"
                   >
-                    Clear
+                    Now
                   </button>
-                )}
+                  {selectedTime && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTime('')}
+                      className="text-[10px] text-slate-400 hover:text-slate-600 font-bold cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
               </div>
               <label htmlFor="dashboard-departure-time" className="sr-only">Select Departure Time</label>
               <input
@@ -385,7 +406,7 @@ export default function DashboardPage({
                 title="Select preferred departure time"
               />
               <span className="text-[10px] text-slate-400 truncate">
-                {selectedTime ? `${formatTime24to12(selectedTime)} IST` : 'Any departure time'}
+                {selectedTime ? `${formatTime24to12(selectedTime)} IST (Real-time)` : 'Any departure time'}
               </span>
             </div>
 
@@ -447,28 +468,28 @@ export default function DashboardPage({
 
       {/* Active Trip Quick Banner (If user belongs to a group) */}
       {activeUserGroup && (
-        <div className="bg-indigo-50 border border-indigo-200 rounded-3xl p-5 shadow-xs space-y-4">
+        <div className="bg-white border border-blue-200/90 rounded-3xl p-5 sm:p-6 shadow-sm space-y-4 ring-1 ring-blue-500/10">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white font-extrabold flex items-center justify-center text-base shadow-md shrink-0">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white font-black flex items-center justify-center text-sm shadow-md shadow-blue-500/20 shrink-0">
                 #{activeUserGroup.id}
               </div>
-              <div>
+              <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold uppercase tracking-wider bg-indigo-200 text-indigo-800 px-2 py-0.5 rounded-md">
-                    Active Joined Group
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider bg-blue-100 text-blue-800 px-2 py-0.5 rounded-md">
+                    Active Travel Group
                   </span>
                   <span className="text-xs text-slate-500 font-medium">
-                    {activeUserGroup.members?.length || 1}/{activeUserGroup.maxMembers || 4} Members
+                    {activeUserGroup.members?.length || 1}/{activeUserGroup.maxMembers || 4} Riders
                   </span>
                 </div>
-                <h4 className="font-bold text-slate-900 text-base mt-0.5">
-                  TIET → {activeUserGroup.destinationName}
+                <h4 className="font-extrabold text-slate-900 text-base">
+                  TIET ➔ {activeUserGroup.destinationName}
                 </h4>
-                <p className="text-xs text-slate-600 flex items-center gap-2 mt-0.5">
-                  <span>⏰ Departure: {activeUserGroup.departureTime}</span>
+                <p className="text-xs text-slate-500 flex items-center gap-2">
+                  <span>⏰ Departure: <strong className="text-slate-700">{activeUserGroup.departureTime}</strong></span>
                   <span>•</span>
-                  <span>📍 Pickup: {activeUserGroup.pickupPoint}</span>
+                  <span>📍 Pickup: <strong className="text-slate-700">{activeUserGroup.pickupPoint}</strong></span>
                 </p>
               </div>
             </div>
@@ -488,7 +509,7 @@ export default function DashboardPage({
               <button
                 type="button"
                 onClick={() => onViewGroupDetails && onViewGroupDetails(activeUserGroup.id)}
-                className="w-full sm:w-auto px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer shrink-0"
+                className="w-full sm:w-auto px-5 py-2.5 bg-slate-900 hover:bg-black text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer shrink-0"
               >
                 <span>Open Group & Chat</span>
                 <ArrowRight className="w-4 h-4" />
@@ -497,8 +518,8 @@ export default function DashboardPage({
           </div>
 
           {/* Members & Companions in Active Group */}
-          <div className="pt-3 border-t border-indigo-100 flex flex-wrap items-center gap-2">
-            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mr-1">Riders:</span>
+          <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">Riders:</span>
             {(activeUserGroup.members || []).map((m) => {
               const isCompanion = Boolean(m.isCompanion);
               const isMyCompanion = isCompanion && (m.addedBy === user?.id || activeUserGroup.adminId === user?.id);
@@ -506,15 +527,15 @@ export default function DashboardPage({
               return (
                 <div
                   key={memberId}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold ${
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold ${
                     isCompanion
-                      ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                      : 'bg-white text-slate-800 border border-slate-200'
+                      ? 'bg-amber-50 text-amber-900 border border-amber-200'
+                      : 'bg-slate-50 text-slate-700 border border-slate-200'
                   }`}
                 >
                   <span>{m.name}</span>
                   {isCompanion && (
-                    <span className="text-[10px] bg-amber-200/80 px-1 py-0.2 rounded font-bold text-amber-800">
+                    <span className="text-[10px] bg-amber-200/70 px-1.5 py-0.2 rounded font-bold text-amber-800">
                       Friend
                     </span>
                   )}
@@ -524,7 +545,7 @@ export default function DashboardPage({
                       onClick={() => handleRemoveFriend(memberId, m.name)}
                       disabled={friendActionLoading}
                       title="Remove friend from slot"
-                      className="ml-1 text-rose-600 hover:text-rose-800 hover:bg-rose-100 rounded-full p-0.5 transition-colors cursor-pointer"
+                      className="ml-1 text-rose-500 hover:text-rose-700 hover:bg-rose-100/60 rounded-full p-0.5 transition-colors cursor-pointer"
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -536,29 +557,29 @@ export default function DashboardPage({
         </div>
       )}
 
-      {/* PART 1.2: 15-MINUTE SLOTS (BlaBlaCar-style slot cards, available only after Search) */}
+      {/* Clean Pre-Search Hero */}
       {!hasSearched ? (
-        <div className="bg-white rounded-3xl border border-slate-200/90 p-8 sm:p-12 text-center space-y-4 shadow-xs">
-          <div className="w-16 h-16 rounded-3xl bg-blue-50 text-blue-600 border border-blue-200 mx-auto flex items-center justify-center">
-            <Search className="w-8 h-8" />
+        <div className="bg-gradient-to-b from-white to-slate-50/70 rounded-3xl border border-slate-200/80 p-8 sm:p-12 text-center space-y-5 shadow-xs">
+          <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 border border-blue-100 mx-auto flex items-center justify-center shadow-xs">
+            <Search className="w-7 h-7" />
           </div>
-          <div className="space-y-1.5 max-w-md mx-auto">
-            <h3 className="text-xl font-bold text-slate-900">
-              Find Scheduled Travel Departures
+          <div className="space-y-2 max-w-lg mx-auto">
+            <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+              Where are you traveling today?
             </h3>
             <p className="text-sm text-slate-500 leading-relaxed">
-              Choose your destination, travel date, preferred departure time, and vehicle above, then click <strong>"Search Slots"</strong> to view available 15-minute departures with verified TIET students.
+              Select your destination, travel date, and departure time above, then tap <strong className="text-slate-800">"Search Slots"</strong> to explore 15-minute scheduled cab departures with fellow TIET students.
             </p>
           </div>
-          <div className="pt-2 flex flex-wrap items-center justify-center gap-3 text-xs text-slate-500">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 font-semibold">
-              ⏱️ 15-minute slot intervals
+          <div className="pt-2 flex flex-wrap items-center justify-center gap-2.5 text-xs text-slate-600">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 shadow-2xs font-semibold">
+              ⏱️ 15-Min Departure Slots
             </span>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 font-semibold">
-              🚗 Split cab fare up to 4-ways
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 shadow-2xs font-semibold">
+              🚗 4-Way Cab Fare Split
             </span>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 font-semibold">
-              🛡️ Campus-verified co-riders
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 shadow-2xs font-semibold">
+              🛡️ Verified Campus Profiles
             </span>
           </div>
         </div>

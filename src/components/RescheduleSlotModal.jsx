@@ -161,7 +161,7 @@ export default function RescheduleSlotModal({
               Change Travel Date & Time
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Atomic switch to any 10-minute slot for {group.destinationName}.
+              Atomic switch to any 15-minute slot for {group.destinationName}.
             </p>
           </div>
 

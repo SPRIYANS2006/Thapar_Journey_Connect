@@ -33,6 +33,17 @@ function makeCityToastId(prefix) {
   return `${prefix}_${cityToastSeq}`;
 }
 
+function getCurrentSlotTime() {
+  const now = new Date();
+  let minutes = Math.ceil(now.getMinutes() / 15) * 15;
+  let hours = now.getHours();
+  if (minutes >= 60) {
+    minutes = 0;
+    hours = (hours + 1) % 24;
+  }
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
 export default function CityCommunityHubPage({
   community,
   user,
@@ -88,7 +99,7 @@ export default function CityCommunityHubPage({
   const [destSearchQuery, setDestSearchQuery] = useState('');
   const [isDestDropdownOpen, setIsDestDropdownOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(() => dateOptions[0]?.value || 'Today');
-  const [selectedTime, setSelectedTime] = useState('');
+  const [selectedTime, setSelectedTime] = useState(() => getCurrentSlotTime());
   const selectedMode = 'Shared Cab';
   const [selectedHostel, setSelectedHostel] = useState(() => user?.hostel || HOSTELS[0].name);
   const [isHostelDropdownOpen, setIsHostelDropdownOpen] = useState(false);
@@ -829,15 +840,25 @@ export default function CityCommunityHubPage({
                       <Clock className="w-3 h-3 text-blue-600" />
                       <span>Departure Time</span>
                     </span>
-                    {selectedTime && (
+                    <div className="flex items-center gap-1">
                       <button
                         type="button"
-                        onClick={() => setSelectedTime('')}
-                        className="text-[10px] text-blue-600 hover:text-blue-800 font-bold cursor-pointer"
+                        onClick={() => setSelectedTime(getCurrentSlotTime())}
+                        className="text-[10px] font-extrabold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-1.5 py-0.5 rounded cursor-pointer transition-colors"
+                        title="Set to current upcoming slot"
                       >
-                        Clear
+                        Now
                       </button>
-                    )}
+                      {selectedTime && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedTime('')}
+                          className="text-[10px] text-slate-400 hover:text-slate-600 font-bold cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <label htmlFor="city-departure-time" className="sr-only">Select Departure Time</label>
                   <input
@@ -849,7 +870,7 @@ export default function CityCommunityHubPage({
                     title="Select preferred departure time"
                   />
                   <span className="text-[10px] text-slate-500 mt-0.5 truncate">
-                    {selectedTime ? `${formatTime24to12(selectedTime)} IST` : 'Any departure time'}
+                    {selectedTime ? `${formatTime24to12(selectedTime)} IST (Real-time)` : 'Any departure time'}
                   </span>
                 </div>
 

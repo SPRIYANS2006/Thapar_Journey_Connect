@@ -281,7 +281,7 @@ export default function GroupDetailsPage({
                   <button
                     onClick={() => setShowRescheduleModal(true)}
                     className="px-4 py-3 bg-indigo-600/90 hover:bg-indigo-600 text-white font-bold text-xs rounded-2xl border border-indigo-400/40 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md"
-                    title="Move to another 10-minute time slot"
+                    title="Move to another 15-minute time slot"
                   >
                     <Clock className="w-4 h-4" />
                     <span>Change date/time</span>

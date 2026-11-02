@@ -45,7 +45,7 @@ export default function EmergencySOSModal({ onClose }) {
             </div>
             <div>
               <h3 className="font-extrabold text-lg text-white">Campus Safety & SOS</h3>
-              <p className="text-xs text-red-100">Official TIET Emergency Contacts & Guidelines</p>
+              <p className="text-xs text-red-100">TIET emergency contacts and guidelines</p>
             </div>
           </div>
           <button

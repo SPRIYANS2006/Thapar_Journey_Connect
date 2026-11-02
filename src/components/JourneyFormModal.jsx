@@ -103,8 +103,8 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
               {selectedDestObj.icon}
             </span>
             <div>
-              <span className="text-xs uppercase tracking-wider font-semibold text-blue-200">
-                New Journey Request
+              <span className="text-xs font-semibold text-blue-200">
+                Find a ride
               </span>
               <h2 className="text-xl font-bold text-white leading-tight">
                 {selectedDestObj.name}
@@ -112,7 +112,7 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
             </div>
           </div>
           <p className="text-xs text-slate-200">
-            Find fellow Thapar students departing around your schedule.
+            Find students departing around your schedule.
           </p>
         </div>
 
@@ -121,7 +121,7 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
           
           {/* Destination Selector */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+            <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
               <MapPin className="w-4 h-4 text-blue-600" />
               <span>Destination</span>
             </label>
@@ -140,12 +140,12 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
 
           {/* From Location */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-              Pickup Point / Origin
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              From
             </label>
             <input
               type="text"
-              value="TIET Campus (Main Gate / Hostel Block)"
+              value="Thapar Institute"
               disabled
               className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-600 cursor-not-allowed"
             />
@@ -154,7 +154,7 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
           {/* Date & Departure Time */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+              <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
                 <Calendar className="w-4 h-4 text-blue-600" />
                 <span>Date</span>
               </label>
@@ -172,9 +172,9 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+              <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
                 <Clock className="w-4 h-4 text-blue-600" />
-                <span>Departure Time</span>
+                <span>Time (optional)</span>
               </label>
               <input
                 type="time"
@@ -188,12 +188,12 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
           {/* Time Flexibility Pills */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+              <label className="block text-xs font-bold text-slate-700 flex items-center gap-1.5">
                 <Sliders className="w-4 h-4 text-blue-600" />
-                <span>Time Flexibility</span>
+                <span>Time window</span>
               </label>
               <span className="text-xs text-blue-600 font-semibold">
-                ±{flexibility} Minutes Window
+                ±{flexibility} min
               </span>
             </div>
             
@@ -209,7 +209,7 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
                       : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                   }`}
                 >
-                  ±{mins} mins
+                  ±{mins} min
                 </button>
               ))}
             </div>
@@ -217,16 +217,16 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
             <div className="mt-2 bg-blue-50/70 border border-blue-100 rounded-xl p-2.5 text-xs text-blue-900 flex items-start gap-2">
               <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
               <span>
-                <strong>Smart Matching Note:</strong> You don't need to leave at the exact same minute! Students departing within your ±{flexibility}m window will be matched.
+                Students departing within your ±{flexibility} min window will be matched.
               </span>
             </div>
           </div>
 
           {/* Hostel Selection */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+            <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
               <Home className="w-4 h-4 text-blue-600" />
-              <span>Your TIET Hostel</span>
+              <span>Hostel</span>
             </label>
             <select
               value={hostel}
@@ -234,12 +234,12 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
               className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
             >
               <option value="">-- Choose Your Hostel / Hall --</option>
-              <optgroup label="Boys Hostels (Official TIET)">
+              <optgroup label="Boys Hostels">
                 {HOSTELS.filter(h => h.gender === 'Boys').map(h => (
                   <option key={h.id} value={h.name}>{h.name}</option>
                 ))}
               </optgroup>
-              <optgroup label="Girls Hostels (Official TIET Halls)">
+              <optgroup label="Girls Hostels">
                 {HOSTELS.filter(h => h.gender === 'Girls').map(h => (
                   <option key={h.id} value={h.name}>{h.name}</option>
                 ))}
@@ -254,23 +254,27 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
 
           {/* Transport Preference */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+            <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
               <Car className="w-4 h-4 text-blue-600" />
-              <span>Transport Preference</span>
+              <span>Vehicle</span>
             </label>
             <div className="grid grid-cols-3 gap-2">
-              {['Shared Cab', 'Shared Auto', 'Either'].map((pref) => (
+              {[
+                { id: 'Shared Cab', label: 'Cab' },
+                { id: 'Shared Auto', label: 'Auto' },
+                { id: 'Either', label: 'Either' }
+              ].map((pref) => (
                 <button
                   type="button"
-                  key={pref}
-                  onClick={() => setTransport(pref)}
+                  key={pref.id}
+                  onClick={() => setTransport(pref.id)}
                   className={`py-2.5 px-3 rounded-xl text-xs font-bold border transition-all ${
-                    transport === pref
+                    transport === pref.id
                       ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
                       : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                   }`}
                 >
-                  {pref}
+                  {pref.label}
                 </button>
               ))}
             </div>
@@ -279,10 +283,10 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
           {/* Submit Button */}
           <button
             type="submit"
-            className="w-full py-3.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-base rounded-2xl shadow-lg shadow-blue-500/25 hover:from-blue-700 hover:to-indigo-700 transition-all flex items-center justify-center gap-2 mt-4"
+            className="w-full py-3.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-base rounded-2xl shadow-lg shadow-blue-500/25 hover:from-blue-700 hover:to-indigo-700 transition-all flex items-center justify-center gap-2 mt-4 cursor-pointer"
           >
             <CheckCircle2 className="w-5 h-5" />
-            <span>Find Travel Partners</span>
+            <span>Find rides</span>
           </button>
         </form>
 

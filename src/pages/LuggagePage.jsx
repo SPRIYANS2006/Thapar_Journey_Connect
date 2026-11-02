@@ -250,7 +250,7 @@ export default function LuggagePage({
   // Submit Booking
   const handleBookLuggage = async () => {
     if (formattedItems.length === 0) {
-      if (triggerToast) triggerToast('Please add at least 1 bag or trunk.', 'error');
+      if (triggerToast) triggerToast('Add at least 1 bag or trunk.', 'error');
       return;
     }
     setIsSubmitting(true);
@@ -268,7 +268,7 @@ export default function LuggagePage({
       });
 
       if (triggerToast) {
-        triggerToast('Luggage request booked successfully! Check timeline.', 'success');
+        triggerToast('Luggage request booked. Check timeline.', 'success');
       }
       setBookedRequest(res.luggage);
       setCurrentStep(5); // Success confirmation step
@@ -329,7 +329,7 @@ export default function LuggagePage({
                 <span>Vendor Parcel Logistics</span>
               </span>
               <span className="text-xs bg-emerald-500/20 text-emerald-300 px-3 py-0.5 rounded-full border border-emerald-400/30">
-                Official Campus Partner
+                Campus partner
               </span>
             </div>
 
@@ -717,7 +717,7 @@ export default function LuggagePage({
                   type="button"
                   onClick={() => {
                     if (formattedItems.length === 0) {
-                      if (triggerToast) triggerToast('Please add at least 1 item.', 'error');
+                      if (triggerToast) triggerToast('Add at least 1 item.', 'error');
                       return;
                     }
                     setCurrentStep(4);

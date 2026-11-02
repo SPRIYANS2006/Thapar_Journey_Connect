@@ -20,7 +20,8 @@ export default function MyJourneysPage({
   onViewGroupDetails,
   onOpenChat,
   onRefresh,
-  triggerToast
+  triggerToast,
+  onFindRide
 }) {
   const [activeTab, setActiveTab] = useState('upcoming');
   const [fetchedJourneys, setFetchedJourneys] = useState(null);
@@ -73,14 +74,11 @@ export default function MyJourneysPage({
       {/* Header */}
       <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <span className="text-xs font-bold uppercase tracking-wider bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-md">
-            Journey History
-          </span>
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 mt-1">
-            My Student Journeys
+            My journeys
           </h1>
           <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
-            Manage your upcoming TIET transit groups and past completed journeys.
+            Your upcoming and past rides.
           </p>
         </div>
 
@@ -94,7 +92,7 @@ export default function MyJourneysPage({
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Upcoming ({upcomingJourneys.length})
+            Upcoming{upcomingJourneys.length > 0 ? ` (${upcomingJourneys.length})` : ''}
           </button>
           <button
             onClick={() => setActiveTab('completed')}
@@ -104,7 +102,7 @@ export default function MyJourneysPage({
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Completed ({completedJourneys.length})
+            Past{completedJourneys.length > 0 ? ` (${completedJourneys.length})` : ''}
           </button>
         </div>
       </div>
@@ -113,12 +111,23 @@ export default function MyJourneysPage({
       {activeTab === 'upcoming' && (
         <div className="space-y-4">
           {upcomingJourneys.length === 0 ? (
-            <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center space-y-3">
+            <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center space-y-4">
               <Calendar className="w-12 h-12 text-slate-400 mx-auto" />
-              <h3 className="font-bold text-slate-900 text-base">No Upcoming Journeys</h3>
-              <p className="text-slate-500 text-xs max-w-sm mx-auto">
-                You have no active travel requests. Select a destination from the Dashboard to find travel partners!
-              </p>
+              <div className="space-y-1">
+                <h3 className="font-bold text-slate-900 text-base">No rides planned</h3>
+                <p className="text-slate-500 text-xs max-w-sm mx-auto">
+                  Find a ride from the dashboard.
+                </p>
+              </div>
+              {onFindRide && (
+                <button
+                  type="button"
+                  onClick={onFindRide}
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
+                >
+                  Find a ride
+                </button>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -164,19 +173,19 @@ export default function MyJourneysPage({
                       <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-2 text-xs text-slate-600 mb-6">
                         <div className="flex items-center gap-2">
                           <Clock className="w-4 h-4 text-blue-600" />
-                          <span>Departure Time: <strong className="text-slate-900 font-bold">{formatTime24to12(group.departureTime)}</strong> ({group.date})</span>
+                          <span>Departure: <strong className="text-slate-900 font-bold">{formatTime24to12(group.departureTime)}</strong> ({group.date})</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <MapPin className="w-4 h-4 text-indigo-600" />
-                          <span>Pickup Point: <strong className="text-slate-900 font-semibold">{group.pickupPoint}</strong></span>
+                          <span>Pickup: <strong className="text-slate-900 font-semibold">{group.pickupPoint}</strong></span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Users className="w-4 h-4 text-emerald-600" />
-                          <span>Members: <strong className="text-slate-900 font-semibold">{group.members?.length || 0} / {group.maxMembers} Students</strong></span>
+                          <span>Riders: <strong className="text-slate-900 font-semibold">{group.members?.length || 0} / {group.maxMembers}</strong></span>
                         </div>
                         {group.isCommunityRide && group.farePerPerson > 0 && (
                           <div className="flex items-center gap-2 pt-1 border-t border-slate-200/60 text-blue-700 font-semibold text-[11px]">
-                            <span>💰 Cab Fare Split: <strong>₹{group.farePerPerson}</strong> / student</span>
+                            <span>Fare split: <strong>₹{group.farePerPerson}</strong> / rider</span>
                           </div>
                         )}
                       </div>
@@ -252,9 +261,9 @@ export default function MyJourneysPage({
                 <Calendar className="w-8 h-8 text-blue-600" />
               </div>
               <div className="space-y-1">
-                <h3 className="font-bold text-slate-900 text-lg">No Completed Journeys Yet</h3>
+                <h3 className="font-bold text-slate-900 text-lg">No past rides</h3>
                 <p className="text-slate-500 text-xs max-w-md mx-auto">
-                  Your past shared rides and student reviews will be archived here once you finish your upcoming journeys.
+                  Your completed rides will appear here.
                 </p>
               </div>
             </div>

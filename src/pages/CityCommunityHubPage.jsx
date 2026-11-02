@@ -24,7 +24,6 @@ import SlotPicker from '../components/SlotPicker';
 import AddFriendModal from '../components/AddFriendModal';
 import { getPresetDestinationsForCommunity } from '../data/cityDestinations';
 import { HOSTELS } from '../data/mockData';
-import { formatTime24to12 } from '../utils/matchingEngine';
 import { api } from '../services/api';
 
 let cityToastSeq = 0;
@@ -143,8 +142,8 @@ export default function CityCommunityHubPage({
         triggerToast({
           id: makeCityToastId('city_friend_add'),
           type: 'success',
-          title: 'Friend Added!',
-          message: res.message || `Added ${friendData.name} to Group #${rideId}!`
+          title: 'Friend added',
+          message: res.message || `Added ${friendData.name} to Group #${rideId}`
         });
       }
       if (onRefreshGroups) await onRefreshGroups().catch(() => {});
@@ -154,8 +153,8 @@ export default function CityCommunityHubPage({
         triggerToast({
           id: makeCityToastId('city_friend_err'),
           type: 'error',
-          title: 'Could Not Add Friend',
-          message: err.message || 'Failed to add friend to ride.'
+          title: 'Could not add friend',
+          message: err.message || 'Failed to add friend.'
         });
       }
       throw err;
@@ -174,7 +173,7 @@ export default function CityCommunityHubPage({
         triggerToast({
           id: makeCityToastId('city_friend_rm'),
           type: 'info',
-          title: 'Friend Removed',
+          title: 'Friend removed',
           message: res.message || `Removed ${friendName || 'friend'} from Group #${rideId}.`
         });
       }
@@ -185,7 +184,7 @@ export default function CityCommunityHubPage({
         triggerToast({
           id: makeCityToastId('city_friend_rm_err'),
           type: 'error',
-          title: 'Could Not Remove Friend',
+          title: 'Could not remove friend',
           message: err.message || 'Failed to remove friend.'
         });
       }
@@ -258,7 +257,7 @@ export default function CityCommunityHubPage({
         triggerToast({
           id: makeCityToastId('ride_active_err'),
           type: 'error',
-          title: 'Single-Ride Policy Active',
+          title: 'Already in a ride',
           message: `You already belong to an active ride (${userActiveRide.destinationName || userActiveRide.destination || 'Group #' + userActiveRide.id}). Leave that ride before joining another.`
         });
       }
@@ -279,11 +278,11 @@ export default function CityCommunityHubPage({
         triggerToast({
           id: makeCityToastId('slot_joined'),
           type: 'success',
-          title: res?.created ? 'New Group Formed! 🎉' : 'Joined Ride Group! 🚗',
+          title: res?.created ? 'Group created' : 'Joined ride',
           message:
             res?.message ||
             `You joined Group #${res?.ride?.id || ''} to ${community.name} at ${slot.time}.`,
-          actionLabel: 'Open Chat',
+          actionLabel: 'Open chat',
           onAction: () => {
             if (onOpenChat && res?.ride?.id) {
               onOpenChat(res.ride.id);
@@ -301,7 +300,7 @@ export default function CityCommunityHubPage({
         triggerToast({
           id: makeCityToastId('slot_join_err'),
           type: 'error',
-          title: 'Could Not Join Slot',
+          title: 'Could not join slot',
           message: err.message || 'Unable to join slot'
         });
       }
@@ -326,8 +325,8 @@ export default function CityCommunityHubPage({
         triggerToast({
           id: makeCityToastId('ride_left'),
           type: 'info',
-          title: 'Left Ride',
-          message: `You left Group #${rideId}. Seat reopened for fellow students.`
+          title: 'Left ride',
+          message: `You left Group #${rideId}.`
         });
       }
 
@@ -341,7 +340,7 @@ export default function CityCommunityHubPage({
         triggerToast({
           id: makeCityToastId('ride_leave_err'),
           type: 'error',
-          title: 'Could Not Leave Ride',
+          title: 'Could not leave ride',
           message: err.message || 'Error leaving ride'
         });
       }
@@ -354,7 +353,7 @@ export default function CityCommunityHubPage({
   const handlePostSubmit = async (e) => {
     e.preventDefault();
     if (!postTitle.trim() || !postContent.trim()) {
-      setPostError('Please enter both a title and details for the notice.');
+      setPostError('Enter both a title and details for the notice.');
       return;
     }
     try {
@@ -437,7 +436,7 @@ export default function CityCommunityHubPage({
               <span className="text-4xl sm:text-5xl">{community?.icon || '🏙️'}</span>
               <div>
                 <h1 className="text-2xl sm:text-4xl font-black tracking-tight">
-                  {community?.name} Travel Hub
+                  {community?.name} hub
                 </h1>
                 <p className="text-xs sm:text-sm text-slate-300 mt-1 leading-relaxed">
                   {community?.description ||
@@ -453,14 +452,14 @@ export default function CityCommunityHubPage({
               <div className="space-y-2 text-center md:text-right">
                 <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-2xl text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                   <CheckCircle2 className="w-4 h-4" />
-                  Your Official Hometown Hub
+                  Your hometown hub
                 </span>
                 <div>
                   <button
                     onClick={() => onLeaveCommunity && onLeaveCommunity(community.id)}
                     className="text-[11px] text-slate-400 hover:text-rose-300 underline transition-colors cursor-pointer"
                   >
-                    Leave Hometown Hub
+                    Leave hub
                   </button>
                 </div>
               </div>
@@ -470,7 +469,7 @@ export default function CityCommunityHubPage({
                 className="px-5 py-3 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
-                <span>Join {community?.name} Hub</span>
+                <span>Join {community?.name} hub</span>
               </button>
             )}
           </div>
@@ -479,7 +478,7 @@ export default function CityCommunityHubPage({
         {/* Quick Route Benchmarks */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-white/10 text-xs relative z-10">
           <div className="bg-white/5 rounded-2xl p-3 border border-white/10">
-            <span className="text-slate-400 font-semibold block text-[10px] uppercase tracking-wider">
+            <span className="text-slate-400 font-semibold block text-[10px]">
               Distance
             </span>
             <span className="text-slate-100 font-bold text-sm mt-0.5 block">
@@ -487,27 +486,27 @@ export default function CityCommunityHubPage({
             </span>
           </div>
           <div className="bg-white/5 rounded-2xl p-3 border border-white/10">
-            <span className="text-slate-400 font-semibold block text-[10px] uppercase tracking-wider">
-              Cab Fare Split
+            <span className="text-slate-400 font-semibold block text-[10px]">
+              Fare split
             </span>
             <span className="text-slate-100 font-bold text-sm mt-0.5 block">
-              Split 4-ways (Save 75%)
+              Split 4 ways
             </span>
           </div>
           <div className="bg-white/5 rounded-2xl p-3 border border-white/10">
-            <span className="text-slate-400 font-semibold block text-[10px] uppercase tracking-wider">
-              Travel Slots
+            <span className="text-slate-400 font-semibold block text-[10px]">
+              Departures
             </span>
             <span className="text-slate-100 font-bold text-sm mt-0.5 block">
-              15-Min Intervals
+              Every 15 min
             </span>
           </div>
           <div className="bg-white/5 rounded-2xl p-3 border border-white/10">
-            <span className="text-slate-400 font-semibold block text-[10px] uppercase tracking-wider">
-              Enrolled Students
+            <span className="text-slate-400 font-semibold block text-[10px]">
+              Students
             </span>
             <span className="text-slate-100 font-bold text-sm mt-0.5 block">
-              {community?.membersCount || 0} Students
+              {community?.membersCount || 0}
             </span>
           </div>
         </div>
@@ -528,7 +527,7 @@ export default function CityCommunityHubPage({
           }`}
         >
           <Car className="w-4 h-4" />
-          <span>Thapar ➔ {community?.name} Ride Booking (Shared Cab)</span>
+          <span>Book a ride</span>
         </button>
 
         <button
@@ -540,7 +539,7 @@ export default function CityCommunityHubPage({
           }`}
         >
           <MessageSquare className="w-4 h-4" />
-          <span>Notice Board & Carpool Requests</span>
+          <span>Notice board</span>
           <span className="bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded-full font-semibold">
             {filteredPosts.length}
           </span>
@@ -555,10 +554,10 @@ export default function CityCommunityHubPage({
           </div>
           <div className="space-y-2">
             <h3 className="text-xl font-black text-slate-900">
-              {community?.name} Travel Hub Rides Restricted
+              {community?.name} hub is restricted
             </h3>
             <p className="text-sm text-slate-600 leading-relaxed">
-              To view 15-minute scheduled departures and divide cab fares for {community?.name}, you must be an enrolled member of this hometown hub.
+              Join this hometown hub to view departures and split cab fares with fellow students.
             </p>
             {user?.joinedCommunity && (
               <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mt-2">
@@ -571,7 +570,7 @@ export default function CityCommunityHubPage({
             className="px-6 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-lg shadow-blue-500/25 transition-all cursor-pointer inline-flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
-            <span>Join {community?.name} Hometown Hub</span>
+            <span>Join {community?.name} hub</span>
           </button>
         </div>
       )}
@@ -590,8 +589,8 @@ export default function CityCommunityHubPage({
                   </div>
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md border border-emerald-300">
-                        Your Active Booked Ride
+                      <span className="text-[11px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md border border-emerald-300">
+                        Active ride
                       </span>
                       <span className="text-xs text-slate-500 font-semibold">
                         Status: {userActiveRide.status || 'Confirmed'}
@@ -606,7 +605,7 @@ export default function CityCommunityHubPage({
                       </span>
                       <span>•</span>
                       <span>
-                        {userActiveRide.members?.length || userActiveRide.currentMembersCount || 1}/4 student(s) booked
+                        {userActiveRide.members?.length || userActiveRide.currentMembersCount || 1}/4 riders
                       </span>
                     </div>
                   </div>
@@ -621,7 +620,7 @@ export default function CityCommunityHubPage({
                       className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
                     >
                       <UserPlus className="w-3.5 h-3.5" />
-                      <span>+ Add Friend</span>
+                      <span>Add friend</span>
                     </button>
                   )}
 
@@ -630,7 +629,7 @@ export default function CityCommunityHubPage({
                     className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
                   >
                     <MessageSquare className="w-3.5 h-3.5" />
-                    <span>Open Chat</span>
+                    <span>Open chat</span>
                   </button>
 
                   {onViewGroupDetails && (
@@ -638,7 +637,7 @@ export default function CityCommunityHubPage({
                       onClick={() => onViewGroupDetails(userActiveRide.id || userActiveRide.groupId || userActiveRide.rideId)}
                       className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 shadow-2xs transition-colors cursor-pointer"
                     >
-                      View Details
+                      View details
                     </button>
                   )}
 
@@ -646,7 +645,7 @@ export default function CityCommunityHubPage({
                     onClick={() => setRideToLeave(userActiveRide)}
                     className="px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 transition-colors cursor-pointer"
                   >
-                    Leave Ride
+                    Leave ride
                   </button>
                 </div>
               </div>
@@ -654,7 +653,7 @@ export default function CityCommunityHubPage({
               {/* Members / Companions List in Active City Ride */}
               {userActiveRide.members && userActiveRide.members.length > 0 && (
                 <div className="pt-3 border-t border-emerald-100 flex flex-wrap items-center gap-2">
-                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mr-1">Riders:</span>
+                  <span className="text-[11px] font-bold text-slate-500 mr-1">Riders:</span>
                   {userActiveRide.members.map((m) => {
                     const isCompanion = Boolean(m.isCompanion);
                     const isMyCompanion = isCompanion && (m.addedBy === user?.id || userActiveRide.creatorId === user?.id || userActiveRide.adminId === user?.id);
@@ -699,14 +698,14 @@ export default function CityCommunityHubPage({
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse" />
                 <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
-                  Book a Scheduled Travel Slot to {community?.name}
+                  Rides to {community?.name}
                 </h2>
                 <span className="text-[11px] font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md border border-blue-200 hidden sm:inline-block">
-                  15-Minute Departures
+                  Every 15 min
                 </span>
               </div>
               <span className="text-xs font-semibold text-slate-500">
-                {community?.distanceFromThapar || '200 km'} • Verified TIET Students
+                {community?.distanceFromThapar || '200 km'} • Verified students
               </span>
             </div>
 
@@ -715,23 +714,20 @@ export default function CityCommunityHubPage({
 
                 {/* 1. FROM: Fixed Thapar Campus */}
                 <div className="bg-slate-50/80 rounded-2xl p-3 border border-slate-200/80 flex flex-col justify-between">
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                  <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
                     <MapPin className="w-3 h-3 text-blue-600" />
-                    <span>From (Fixed Origin)</span>
+                    <span>From</span>
                   </span>
-                  <div className="font-extrabold text-slate-800 text-sm mt-1 truncate">
-                    Thapar Institute, Patiala
+                  <div className="font-extrabold text-slate-800 text-sm mt-1">
+                    Thapar Institute
                   </div>
-                  <span className="text-[10px] text-slate-500 mt-0.5 truncate">
-                    Pickup: {selectedHostel.split(' ')[0]}
-                  </span>
                 </div>
 
                 {/* 2. TO: Drop Destination in City (Searchable Dropdown) */}
                 <div className="relative bg-slate-50/80 rounded-2xl p-3 border border-slate-200/80 flex flex-col justify-between">
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                  <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
                     <MapPin className="w-3 h-3 text-indigo-600" />
-                    <span>To ({community?.name} Hub)</span>
+                    <span>Drop point</span>
                   </span>
 
                   <button
@@ -742,10 +738,6 @@ export default function CityCommunityHubPage({
                     <span className="truncate">{effectiveDest}</span>
                     <ChevronDown className="w-4 h-4 text-slate-400 shrink-0 ml-1" />
                   </button>
-
-                  <span className="text-[10px] text-slate-500 mt-0.5 truncate">
-                    Preset or Custom Drop Hub
-                  </span>
 
                   {isDestDropdownOpen && (
                     <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-slate-200 shadow-xl p-3 z-50 space-y-2 max-h-72 overflow-y-auto">
@@ -761,7 +753,7 @@ export default function CityCommunityHubPage({
                       </div>
 
                       <div className="space-y-1">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2">
+                        <span className="text-[10px] font-bold text-slate-400 px-2">
                           Popular Drop Points
                         </span>
                         {filteredPresetDestinations.map((dest) => (
@@ -787,7 +779,7 @@ export default function CityCommunityHubPage({
                       </div>
 
                       <div className="pt-2 border-t border-slate-100 space-y-1.5">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1">
+                        <span className="text-[10px] font-bold text-slate-400 px-1">
                           Or Type Custom Landmark / Address
                         </span>
                         <div className="flex gap-1.5">
@@ -813,9 +805,9 @@ export default function CityCommunityHubPage({
 
                 {/* 3. DATE: Picker (Today to +30 Days) */}
                 <div className="bg-slate-50/80 rounded-2xl p-3 border border-slate-200/80 flex flex-col justify-between">
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                  <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
                     <Calendar className="w-3 h-3 text-blue-600" />
-                    <span>Travel Date</span>
+                    <span>Date</span>
                   </span>
                   <select
                     value={selectedDate}
@@ -828,17 +820,14 @@ export default function CityCommunityHubPage({
                       </option>
                     ))}
                   </select>
-                  <span className="text-[10px] text-slate-500 mt-0.5">
-                    IST Departure
-                  </span>
                 </div>
 
                 {/* 4. TIME: Departure Time */}
                 <div className="bg-slate-50/80 rounded-2xl p-3 border border-slate-200/80 flex flex-col justify-between">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                    <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
                       <Clock className="w-3 h-3 text-blue-600" />
-                      <span>Departure Time</span>
+                      <span>Time (optional)</span>
                     </span>
                     <div className="flex items-center gap-1">
                       <button
@@ -860,7 +849,7 @@ export default function CityCommunityHubPage({
                       )}
                     </div>
                   </div>
-                  <label htmlFor="city-departure-time" className="sr-only">Select Departure Time</label>
+                  <label htmlFor="city-departure-time" className="sr-only">Time</label>
                   <input
                     id="city-departure-time"
                     type="time"
@@ -869,23 +858,17 @@ export default function CityCommunityHubPage({
                     className="w-full bg-transparent font-extrabold text-slate-900 text-sm mt-1 focus:outline-hidden cursor-pointer"
                     title="Select preferred departure time"
                   />
-                  <span className="text-[10px] text-slate-500 mt-0.5 truncate">
-                    {selectedTime ? `${formatTime24to12(selectedTime)} IST (Real-time)` : 'Any departure time'}
-                  </span>
                 </div>
 
                 {/* 5. MODE: Shared Cab Only */}
                 <div className="bg-slate-50/80 rounded-2xl p-3 border border-slate-200/80 flex flex-col justify-between">
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                  <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
                     <Car className="w-3 h-3 text-blue-600" />
-                    <span>Transport Mode</span>
+                    <span>Vehicle</span>
                   </span>
                   <div className="font-extrabold text-slate-800 text-sm mt-1 truncate">
-                    Shared Cab (4 Seats)
+                    Cab
                   </div>
-                  <span className="text-[10px] text-slate-500 mt-0.5">
-                    Split Cab Fare 4-Ways
-                  </span>
                 </div>
 
                 {/* 6. SEARCH BUTTON & HOSTEL SELECTION */}
@@ -895,7 +878,7 @@ export default function CityCommunityHubPage({
                     className="w-full h-full min-h-[46px] rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-sm shadow-md shadow-blue-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
                   >
                     <Search className="w-4 h-4 stroke-[2.5]" />
-                    <span>Search Slots</span>
+                    <span>Find rides</span>
                   </button>
 
                   <div className="relative text-center">
@@ -904,12 +887,12 @@ export default function CityCommunityHubPage({
                       onClick={() => setIsHostelDropdownOpen(!isHostelDropdownOpen)}
                       className="text-[10px] font-bold text-slate-500 hover:text-blue-600 underline cursor-pointer truncate max-w-full block"
                     >
-                      Pickup: {selectedHostel.split(' ')[0]} ▾
+                      Pickup from {selectedHostel.split(' ')[0]} ▾
                     </button>
 
                     {isHostelDropdownOpen && (
                       <div className="absolute bottom-full right-0 mb-2 w-64 bg-white rounded-2xl border border-slate-200 shadow-xl p-2 z-50 max-h-60 overflow-y-auto space-y-1 text-left">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2">
+                        <span className="text-[10px] font-bold text-slate-400 px-2">
                           Campus Pickup Hostel
                         </span>
                         {HOSTELS.map((h) => (
@@ -945,21 +928,21 @@ export default function CityCommunityHubPage({
               </div>
               <div className="space-y-1.5 max-w-md mx-auto">
                 <h3 className="text-xl font-bold text-slate-900">
-                  Find Scheduled Departures to {community?.name}
+                  Rides to {community?.name}
                 </h3>
                 <p className="text-sm text-slate-500 leading-relaxed">
-                  Select your drop landmark, travel date, and departure time above, then click <strong>"Search Slots"</strong> to view all 15-minute departure groups with fellow students.
+                  Pick a drop point and date, then tap Find rides.
                 </p>
               </div>
               <div className="pt-2 flex flex-wrap items-center justify-center gap-3 text-xs text-slate-500">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 font-semibold">
-                  ⏱️ 96 slots in 15-min steps
+                  ⏱️ 96 departures a day
                 </span>
                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 font-semibold">
-                  🚕 Split cab fare 4-ways
+                  🚕 Split the fare
                 </span>
                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 font-semibold">
-                  🛡️ Verified campus co-riders
+                  🛡️ Verified students
                 </span>
               </div>
             </div>
@@ -968,10 +951,10 @@ export default function CityCommunityHubPage({
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-base font-black text-slate-900">
-                    Available Departures for {selectedDate}
+                    Available departures ({community?.name})
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    From Thapar Campus to {effectiveDest} • {selectedMode}{selectedTime ? ` around ${formatTime24to12(selectedTime)}` : ''}
+                    15-minute departures for {selectedDate}. Join an active group or start a new one.
                   </p>
                 </div>
               </div>
@@ -979,7 +962,7 @@ export default function CityCommunityHubPage({
               {slotsError && (
                 <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-rose-700 text-xs flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{slotsError}</span>
+                  <span>Could not load slots: {slotsError}</span>
                 </div>
               )}
 
@@ -1007,10 +990,10 @@ export default function CityCommunityHubPage({
           <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h2 className="text-lg font-black text-slate-900">
-                {community?.name} Discussion & Carpool Notice Board
+                {community?.name} notice board
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Post travel inquiries, holiday plans, or general student questions for fellow hometown students.
+                Ask questions, coordinate trips, or post updates for students from your hometown.
               </p>
             </div>
 
@@ -1024,7 +1007,7 @@ export default function CityCommunityHubPage({
                   className="px-4 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer inline-flex items-center gap-1.5 shrink-0"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>Post Notice</span>
+                  <span>New post</span>
                 </button>
               )
             ) : (
@@ -1039,7 +1022,7 @@ export default function CityCommunityHubPage({
             <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4 animate-in fade-in">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-slate-900 text-sm">
-                  Create New Notice / Carpool Request
+                  New notice
                 </h3>
                 <button
                   onClick={() => {
@@ -1062,7 +1045,7 @@ export default function CityCommunityHubPage({
               <form onSubmit={handlePostSubmit} className="space-y-3">
                 <div className="flex items-center gap-2">
                   <label className="text-xs font-bold text-slate-700 shrink-0">
-                    Notice Category:
+                    Category:
                   </label>
                   <select
                     value={postCategory}
@@ -1079,7 +1062,7 @@ export default function CityCommunityHubPage({
                   type="text"
                   value={postTitle}
                   onChange={(e) => setPostTitle(e.target.value)}
-                  placeholder="Notice Title (e.g. Taking Friday Train at 6 PM, looking for company)..."
+                  placeholder="Notice title"
                   maxLength={120}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm focus:border-blue-500 focus:outline-hidden"
                   required
@@ -1087,7 +1070,7 @@ export default function CityCommunityHubPage({
                 <textarea
                   value={postContent}
                   onChange={(e) => setPostContent(e.target.value)}
-                  placeholder="Detailed notes, departure timing, or co-traveler requests..."
+                  placeholder="Details or departure plans..."
                   rows={3}
                   maxLength={2000}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm focus:border-blue-500 focus:outline-hidden"
@@ -1109,7 +1092,7 @@ export default function CityCommunityHubPage({
                     disabled={isSubmittingPost}
                     className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 shadow-xs cursor-pointer"
                   >
-                    {isSubmittingPost ? 'Publishing...' : 'Publish Notice'}
+                    {isSubmittingPost ? 'Posting...' : 'Post'}
                   </button>
                 </div>
               </form>
@@ -1121,10 +1104,10 @@ export default function CityCommunityHubPage({
             <div className="bg-white rounded-3xl border border-slate-200 p-10 text-center space-y-2 text-slate-500">
               <MessageSquare className="w-8 h-8 mx-auto text-slate-300" />
               <p className="text-sm font-bold text-slate-700">
-                No notices posted for {community?.name} yet.
+                No notices for {community?.name} yet.
               </p>
               <p className="text-xs text-slate-400">
-                Join this community hub to post the first update!
+                Join this community hub to post the first update.
               </p>
             </div>
           ) : (

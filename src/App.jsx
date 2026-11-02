@@ -121,9 +121,9 @@ function AppContent() {
       triggerToast({
         id: `found_${Date.now()}_${Math.random().toString(36).substring(7)}`,
         type: 'match',
-        title: '🎉 Travel Group Found!',
+        title: 'Group found',
         message: `Group #${data.groupId} for ${data.destinationName} matches your departure.`,
-        actionLabel: 'View Group',
+        actionLabel: 'View group',
         onAction: () => {
           setSelectedGroupId(data.groupId);
           setActivePage('group-details');
@@ -138,9 +138,9 @@ function AppContent() {
       triggerToast({
         id: `join_${Date.now()}_${Math.random().toString(36).substring(7)}`,
         type: 'success',
-        title: `👤 New Member Joined Group #${data.groupId}!`,
-        message: `${data.joinerName} (${data.joinerHostel}) just joined your ride to ${data.destinationName}. (${data.membersCount}/${data.maxMembers} seats filled)`,
-        actionLabel: 'Open Chat',
+        title: 'New rider joined',
+        message: `${data.joinerName} (${data.joinerHostel}) joined your ride to ${data.destinationName}. (${data.membersCount}/${data.maxMembers} seats filled)`,
+        actionLabel: 'Open chat',
         onAction: () => {
           setChatGroupId(data.groupId);
           setIsChatOpen(true);
@@ -156,9 +156,9 @@ function AppContent() {
       triggerToast({
         id: `leave_${Date.now()}_${Math.random().toString(36).substring(7)}`,
         type: 'warning',
-        title: `⚠️ Member Left Group #${data.groupId}`,
+        title: 'Rider left',
         message: `${data.leaverName} left your ride to ${data.destinationName}. (${data.remainingMembersCount}/${data.maxMembers} seats filled)`,
-        actionLabel: 'Open Chat',
+        actionLabel: 'Open chat',
         onAction: () => {
           setChatGroupId(data.groupId);
           setIsChatOpen(true);
@@ -172,9 +172,9 @@ function AppContent() {
       triggerToast({
         id: `confirmed_${Date.now()}_${Math.random().toString(36).substring(7)}`,
         type: 'success',
-        title: `🎉 Group #${data.groupId} Confirmed!`,
-        message: `The admin confirmed your journey to ${data.destinationName}. Member contact phone numbers are now visible!`,
-        actionLabel: 'View Details',
+        title: 'Group confirmed',
+        message: `Your journey to ${data.destinationName} was confirmed. Contact numbers are now visible.`,
+        actionLabel: 'View details',
         onAction: () => {
           setSelectedGroupId(data.groupId);
           setActivePage('group-details');
@@ -214,7 +214,7 @@ function AppContent() {
         triggerToast({
           id: `match_${Date.now()}`,
           type: 'match',
-          title: '🎉 Matching Groups Found!',
+          title: 'Matching groups found',
           message: `Active Group #${topMatch.group.id} for ${topMatch.group.destinationName} has open seats.`,
           actionLabel: `View Group #${topMatch.group.id}`,
           onAction: () => {
@@ -226,7 +226,7 @@ function AppContent() {
         triggerToast({
           id: `students_${Date.now()}`,
           type: 'success',
-          title: 'Matching Co-Riders Found!',
+          title: 'Matching co-riders found',
           message: `Found ${res.matchedStudents.length} co-passengers departing around ${journeyData.departureTime}. Form a new group!`,
           actionLabel: 'View Matches',
           onAction: () => {
@@ -240,7 +240,7 @@ function AppContent() {
       triggerToast({
         id: `err_${Date.now()}`,
         type: 'error',
-        title: 'Journey Request Failed',
+        title: 'Request failed',
         message: err.message || 'Could not record journey'
       });
     }
@@ -289,8 +289,8 @@ function AppContent() {
       triggerToast({
         id: `joined_${Date.now()}`,
         type: 'success',
-        title: 'Joined Group!',
-        message: `You have successfully joined Group #${groupId}.`
+        title: 'Joined group',
+        message: `You joined Group #${groupId}.`
       });
       setSelectedGroupId(groupId);
       setActivePage('group-details');
@@ -298,7 +298,7 @@ function AppContent() {
       triggerToast({
         id: `join_err_${Date.now()}`,
         type: 'error',
-        title: 'Could Not Join Group',
+        title: 'Could not join group',
         message: err.message || 'Unable to join group'
       });
     }
@@ -580,6 +580,7 @@ function AppContent() {
               activeGroups={groups}
               currentUser={user}
               onRefresh={fetchGroups}
+              onFindRide={() => setActivePage('dashboard')}
               onViewGroupDetails={(gId) => {
                 setSelectedGroupId(gId);
                 setActivePage('group-details');
@@ -822,12 +823,10 @@ function AppContent() {
           <div className="flex items-center gap-2">
             <span className="font-bold text-slate-800">Thapar Journey Connect</span>
             <span>•</span>
-            <span className="text-blue-600 font-semibold">MongoDB Atlas Cloud Edition</span>
-            <span>•</span>
-            <span>Node 22 + Express 5</span>
+            <span>Made for TIET students</span>
           </div>
           <p className="text-slate-400">
-            Designed exclusively for Thapar Institute of Engineering & Technology (TIET) students.
+            Campus ride sharing for Thapar students.
           </p>
         </div>
       </footer>

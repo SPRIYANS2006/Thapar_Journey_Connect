@@ -60,7 +60,7 @@ export default function GroupDetailsPage({
     try {
       const res = await api.addFriendToGroup(group.id, friendData);
       if (triggerToast) {
-        triggerToast(res.message || `Added ${friendData.name} to Group #${group.id}!`, 'success');
+        triggerToast(res.message || `Added ${friendData.name} to Group #${group.id}.`, 'success');
       }
       if (onRescheduleSuccess && res.group) {
         onRescheduleSuccess(res.group);
@@ -98,14 +98,14 @@ export default function GroupDetailsPage({
   if (!group) {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center space-y-4 animate-in fade-in duration-300">
-        <h2 className="text-xl font-bold text-slate-800">No Group Selected</h2>
-        <p className="text-sm text-slate-500">Please choose or form a group from the dashboard.</p>
+        <h2 className="text-xl font-bold text-slate-800">No group selected</h2>
+        <p className="text-sm text-slate-500">Choose or form a group from the dashboard.</p>
         <button
           onClick={onBack}
-          className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition-colors shadow-sm inline-flex items-center gap-2"
+          className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition-colors shadow-sm inline-flex items-center gap-2 cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Back to Dashboard</span>
+          <span>Back to dashboard</span>
         </button>
       </div>
     );
@@ -221,7 +221,7 @@ export default function GroupDetailsPage({
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
           <div className="space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs uppercase font-extrabold bg-blue-500/30 text-blue-200 border border-blue-400/30 px-3 py-0.5 rounded-full">
+              <span className="text-xs font-bold bg-blue-500/30 text-blue-200 border border-blue-400/30 px-3 py-0.5 rounded-full">
                 Group #{group.id}
               </span>
 
@@ -235,16 +235,16 @@ export default function GroupDetailsPage({
                 }`}
               >
                 {isConfirmed
-                  ? '✓ Journey Confirmed'
+                  ? 'Confirmed'
                   : isCompleted
-                  ? '✓ Completed'
+                  ? 'Completed'
                   : isFull
                   ? `Full (${group.members?.length || 0}/${group.capacity || 4})`
-                  : 'Status: Open'}
+                  : 'Open'}
               </span>
 
               <span className="text-xs bg-slate-800 text-slate-300 px-3 py-0.5 rounded-full border border-slate-700">
-                Transport: {group.transport || 'Shared Cab'}
+                Vehicle: {group.transport || 'Shared Cab'}
               </span>
             </div>
 
@@ -393,12 +393,12 @@ export default function GroupDetailsPage({
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-blue-600">
-                Coordinated Pickup Point
+              <span className="text-xs font-bold text-blue-600">
+                Pickup point
               </span>
               {isAdmin && (
-                <span className="text-[10px] font-extrabold uppercase bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
-                  Admin Editable
+                <span className="text-[10px] font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
+                  Admin editable
                 </span>
               )}
             </div>

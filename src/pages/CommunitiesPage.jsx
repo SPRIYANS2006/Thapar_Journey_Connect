@@ -196,7 +196,7 @@ export default function CommunitiesPage({
           if (details.distance !== undefined) setNewDistance(String(details.distance));
           if (details.transport) setNewTransport(details.transport);
           if (details.icon) setNewIcon(details.icon);
-          setNewDesc(`Official student community for Thapar students hailing from ${details.name}, ${matchedState}. Coordinate holiday cab rides, train batches, and campus meetups!`);
+          setNewDesc(`Student community for Thapar students from ${details.name}, ${matchedState}. Coordinate rides and campus meetups.`);
         }
       } else {
         setSelectedCity('');
@@ -241,7 +241,7 @@ export default function CommunitiesPage({
         if (details.distance !== undefined) setNewDistance(String(details.distance));
         if (details.transport) setNewTransport(details.transport);
         if (details.icon) setNewIcon(details.icon);
-        setNewDesc(`Official student community for Thapar students hailing from ${details.name}, ${newState}. Coordinate holiday cab rides, train batches, and campus meetups!`);
+        setNewDesc(`Student community for Thapar students from ${details.name}, ${newState}. Coordinate rides and campus meetups.`);
       }
     }
   };
@@ -252,13 +252,13 @@ export default function CommunitiesPage({
     setCreateCommunitySuccess('');
 
     if (!newState.trim()) {
-      setCreateCommunityError('Please select a valid State / Province from the dropdown.');
+      setCreateCommunityError('Select a valid state or province.');
       return;
     }
 
     const finalCityName = selectedCity === '__custom__' ? customCityName.trim() : selectedCity.trim();
     if (!finalCityName) {
-      setCreateCommunityError(selectedCity === '__custom__' ? 'Please enter your custom city or town name.' : 'Please select a City or Region from the dropdown.');
+      setCreateCommunityError(selectedCity === '__custom__' ? 'Enter your custom city or town name.' : 'Select a city or region.');
       return;
     }
 
@@ -270,11 +270,11 @@ export default function CommunitiesPage({
         icon: newIcon.trim() || '🏙️',
         distanceFromThapar: newDistance.trim() ? `${newDistance.trim()} km` : '250 km',
         popularTransport: newTransport.trim() || 'Trains, Shared Cabs, Express Buses',
-        description: newDesc.trim() || `Official student community for Thapar students hailing from ${finalCityName}, ${newState.trim()}. Coordinate rides and campus meetups!`,
+        description: newDesc.trim() || `Student community for Thapar students from ${finalCityName}, ${newState.trim()}. Coordinate rides and campus meetups.`,
         tags: [finalCityName, newState.trim(), 'Campus Carpool', 'Weekend Trip']
       });
 
-      setCreateCommunitySuccess(`Community "${created.name}" (${newState}) created successfully!`);
+      setCreateCommunitySuccess(`Community "${created.name}" (${newState}) created.`);
       if (created?.id) {
         setSelectedCommunityId(created.id);
       }
@@ -289,7 +289,7 @@ export default function CommunitiesPage({
         setCreateCommunityError('');
       }, 1000);
     } catch (err) {
-      setCreateCommunityError(err.message || 'Failed to create community. Please try again.');
+      setCreateCommunityError(err.message || 'Failed to create community. Try again.');
     } finally {
       setIsSubmittingCommunity(false);
     }
@@ -532,7 +532,7 @@ export default function CommunitiesPage({
             {/* One-Click City Travel Page & Rides Button */}
             <div className="mt-4 pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <p className="text-xs text-slate-500">
-                Single-Community Rule: Students can belong to 1 official hometown hub at a time.
+                Single-community rule: students can belong to 1 hometown hub at a time.
               </p>
               <button
                 onClick={() => onOpenCityHub ? onOpenCityHub(activeCommunity) : onSelectCommunityTravel(activeCommunity)}
@@ -661,7 +661,7 @@ export default function CommunitiesPage({
                       You are currently enrolled in the <strong>{communities.find(c => c.id === user.joinedCommunity)?.name || 'another'} Community</strong>.
                     </p>
                     <p className="text-[11px] text-amber-300 font-medium">
-                      Single-Community Policy: You can belong to 1 official hometown hub at a time. Leave your current community if you wish to switch here.
+                      Single-community policy: you can belong to 1 hometown hub at a time. Leave your current hub if you wish to switch here.
                     </p>
                     <button
                       type="button"
@@ -863,7 +863,7 @@ export default function CommunitiesPage({
                   Add Hometown Community Hub
                 </h3>
                 <p className="text-xs text-slate-500 mt-1">
-                  Start an official hub for students traveling between Thapar & your hometown.
+                  Start a hub for students traveling between Thapar and your hometown.
                 </p>
               </div>
               <button
@@ -881,7 +881,7 @@ export default function CommunitiesPage({
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
                   <span>State / Province <span className="text-red-500">*</span></span>
-                  <span className="text-[10px] font-normal text-slate-400">Official States & UTs only</span>
+                  <span className="text-[10px] font-normal text-slate-400">States and union territories</span>
                 </label>
                 <select
                   required
@@ -889,15 +889,15 @@ export default function CommunitiesPage({
                   onChange={(e) => handleStateChange(e.target.value)}
                   className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-slate-800 cursor-pointer"
                 >
-                  <option value="">-- Choose Official State / Province --</option>
-                  <optgroup label="Popular Northern States (TIET Network)">
+                  <option value="">-- Choose state or province --</option>
+                  <optgroup label="Popular northern states">
                     {POPULAR_STATES.map((st) => (
                       <option key={st} value={st}>
                         {st}
                       </option>
                     ))}
                   </optgroup>
-                  <optgroup label="All Indian States & Union Territories">
+                  <optgroup label="All states and union territories">
                     {ALL_INDIAN_STATES.filter((st) => !POPULAR_STATES.includes(st)).map((st) => (
                       <option key={st} value={st}>
                         {st}

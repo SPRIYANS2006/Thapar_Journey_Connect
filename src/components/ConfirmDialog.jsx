@@ -3,7 +3,7 @@ import { AlertTriangle, X } from 'lucide-react';
 
 export default function ConfirmDialog({
   isOpen,
-  title = 'Please Confirm',
+  title = 'Confirm',
   message,
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',

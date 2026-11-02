@@ -15,7 +15,7 @@ export default function DestinationCard({ destination, onSelect }) {
           </div>
           <span className="text-xs font-semibold px-2.5 py-1 bg-slate-100 text-slate-600 rounded-full border border-slate-200 flex items-center gap-1">
             <Users className="w-3 h-3 text-blue-600" />
-            <span>Active Matches</span>
+            <span>Active rides</span>
           </span>
         </div>
 
@@ -43,9 +43,9 @@ export default function DestinationCard({ destination, onSelect }) {
       {/* Button */}
       <button
         onClick={() => onSelect(destination)}
-        className="mt-6 w-full py-3 px-4 bg-slate-900 text-white hover:bg-blue-600 font-semibold rounded-xl text-sm flex items-center justify-center gap-2 shadow-sm transition-all group-hover:shadow-md"
+        className="mt-6 w-full py-3 px-4 bg-slate-900 text-white hover:bg-blue-600 font-semibold rounded-xl text-sm flex items-center justify-center gap-2 shadow-sm transition-all group-hover:shadow-md cursor-pointer"
       >
-        <span>Find Travel Partners</span>
+        <span>Find rides</span>
         <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
       </button>
     </div>

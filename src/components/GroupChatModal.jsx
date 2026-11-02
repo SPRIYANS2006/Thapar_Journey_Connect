@@ -263,7 +263,7 @@ export default function GroupChatModal({ group, currentUser, onClose, onSendMess
                     {msg.failed && (
                       <div className="text-[10px] text-rose-500 font-medium flex items-center gap-1 mt-1 justify-end">
                         <AlertCircle className="w-3 h-3" />
-                        <span>Failed to send. Please check your connection.</span>
+                        <span>Failed to send. Check your connection.</span>
                       </div>
                     )}
                   </div>

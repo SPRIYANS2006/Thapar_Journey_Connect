@@ -20,7 +20,7 @@ export default function AddFriendModal({
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!friendName.trim()) {
-      setError("Please enter your friend's name.");
+      setError("Enter your friend's name.");
       return;
     }
 
@@ -59,7 +59,7 @@ export default function AddFriendModal({
               <UserPlus className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="font-extrabold text-lg text-white">Add Friend to Ride</h3>
+              <h3 className="font-extrabold text-lg text-white">Add a friend</h3>
               <p className="text-blue-100 text-xs">Reserve a seat for your friend</p>
             </div>
           </div>
@@ -76,7 +76,7 @@ export default function AddFriendModal({
           <div className="bg-blue-50 border border-blue-200/80 rounded-2xl p-3.5 flex items-center justify-between text-xs">
             <span className="font-bold text-blue-900">{groupDestination}</span>
             <span className="font-extrabold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
-              {seatsLeft} {seatsLeft === 1 ? 'seat' : 'seats'} remaining
+              {seatsLeft} {seatsLeft === 1 ? 'seat' : 'seats'} left
             </span>
           </div>
 
@@ -88,7 +88,7 @@ export default function AddFriendModal({
           )}
 
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-700">Friend's Full Name *</label>
+            <label className="text-xs font-bold text-slate-700">Name</label>
             <input
               type="text"
               required
@@ -100,10 +100,10 @@ export default function AddFriendModal({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-700">Friend's Hostel / Location</label>
+            <label className="text-xs font-bold text-slate-700">Hostel or location</label>
             <input
               type="text"
-              placeholder="e.g. Hostel J / Hostel M / Day Scholar"
+              placeholder="e.g. Hostel J / Day Scholar"
               value={friendHostel}
               onChange={(e) => setFriendHostel(e.target.value)}
               className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
@@ -111,7 +111,7 @@ export default function AddFriendModal({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-700">Phone Number (Optional)</label>
+            <label className="text-xs font-bold text-slate-700">Phone (optional)</label>
             <input
               type="tel"
               placeholder="e.g. 9876543210"
@@ -124,12 +124,12 @@ export default function AddFriendModal({
           <div className="bg-slate-50 rounded-2xl p-3 text-[11px] text-slate-600 space-y-1 border border-slate-200/60">
             <div className="flex items-center gap-1.5 font-bold text-slate-700">
               <Users className="w-3.5 h-3.5 text-blue-600" />
-              <span>How friend booking works:</span>
+              <span>How it works:</span>
             </div>
             <ul className="list-disc list-inside space-y-0.5 text-slate-500 pl-1">
-              <li>Reserves +1 seat instantly in your slot.</li>
-              <li>Fare split automatically recalculates to lower per-person cost.</li>
-              <li>You can remove your friend anytime before departure.</li>
+              <li>Reserves a seat in your slot.</li>
+              <li>Fare splits equally among all riders.</li>
+              <li>You can remove your friend anytime.</li>
             </ul>
           </div>
 
@@ -153,7 +153,7 @@ export default function AddFriendModal({
               ) : (
                 <>
                   <Check className="w-4 h-4" />
-                  <span>Confirm +1 Seat</span>
+                  <span>Add friend</span>
                 </>
               )}
             </button>

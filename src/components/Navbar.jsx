@@ -44,12 +44,9 @@ export default function Navbar({ activePage, setActivePage, user, onLogout, _myG
                 <span className="font-extrabold text-lg text-slate-900 tracking-tight">
                   Thapar Journey Connect
                 </span>
-                <span className="bg-blue-100 text-blue-800 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-blue-200">
-                  TIET
-                </span>
               </div>
               <p className="text-xs text-slate-500 hidden sm:block">
-                Verified Student Travel Matching
+                Shared rides for TIET students
               </p>
             </div>
           </div>
@@ -95,9 +92,8 @@ export default function Navbar({ activePage, setActivePage, user, onLogout, _myG
                 rounded="rounded-full"
               />
               <div className="text-left leading-tight">
-                <div className="text-xs font-bold text-slate-800">{user?.name || 'TIET Student'}</div>
-                <div className="text-[11px] text-slate-500 max-w-[130px] truncate">
-                  {user?.hostel || 'Campus'} • {user?.role === 'vendor' ? 'Vendor' : user?.role === 'admin' ? 'Admin' : 'Student'}
+                <div className="text-xs font-bold text-slate-800">
+                  {user?.name ? user.name.split(' ')[0] : 'Student'}
                 </div>
               </div>
             </div>
@@ -105,7 +101,7 @@ export default function Navbar({ activePage, setActivePage, user, onLogout, _myG
             <button
               onClick={onLogout}
               className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
-              title="Logout"
+              title="Log out"
             >
               <LogOut className="w-5 h-5" />
             </button>
@@ -136,7 +132,7 @@ export default function Navbar({ activePage, setActivePage, user, onLogout, _myG
               rounded="rounded-full"
             />
             <div>
-              <div className="font-bold text-slate-900 text-sm">{user?.name || 'TIET Student'}</div>
+              <div className="font-bold text-slate-900 text-sm">{user?.name ? user.name.split(' ')[0] : 'Student'}</div>
               <div className="text-xs text-slate-500">{user?.email || 'student@thapar.edu'}</div>
             </div>
           </div>
@@ -175,7 +171,7 @@ export default function Navbar({ activePage, setActivePage, user, onLogout, _myG
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-red-600 hover:bg-red-50"
           >
             <LogOut className="w-5 h-5" />
-            <span>Log Out</span>
+            <span>Log out</span>
           </button>
         </div>
       )}

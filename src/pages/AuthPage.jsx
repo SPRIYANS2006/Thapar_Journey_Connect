@@ -43,7 +43,7 @@ export default function AuthPage({ onLoginSuccess }) {
   const handleCredentialResponse = useCallback(
     async (response) => {
       if (!response?.credential) {
-        setError('No credential received from Google. Please try again.');
+        setError('No credential received from Google. Try again.');
         return;
       }
       setLoading(true);
@@ -56,7 +56,7 @@ export default function AuthPage({ onLoginSuccess }) {
       } catch (err) {
         setError(
           err.message ||
-            'Access Denied: Only official @thapar.edu Google accounts are permitted.'
+            'Access denied: Only @thapar.edu Google accounts are permitted.'
         );
       } finally {
         setLoading(false);
@@ -115,12 +115,12 @@ export default function AuthPage({ onLoginSuccess }) {
 
     const trimmedEmail = email.trim().toLowerCase();
     if (!trimmedEmail.endsWith('@thapar.edu')) {
-      setError('Only official @thapar.edu email addresses are allowed.');
+      setError('Only @thapar.edu email addresses are allowed.');
       return;
     }
 
     if (!password.trim()) {
-      setError('Please enter your password.');
+      setError('Enter your password.');
       return;
     }
 
@@ -155,14 +155,14 @@ export default function AuthPage({ onLoginSuccess }) {
               Thapar Journey Connect
             </div>
             <span className="text-xs text-blue-300 font-medium">
-              TIET Campus Transit Platform
+              Shared rides for TIET students
             </span>
           </div>
         </div>
 
         <div className="hidden sm:flex items-center gap-2 bg-slate-800/80 px-3.5 py-1.5 rounded-full border border-slate-700 text-xs text-slate-300">
           <ShieldCheck className="w-4 h-4 text-emerald-400" />
-          <span>Exclusive for TIET Students & Scholars (@thapar.edu)</span>
+          <span>Verified students only</span>
         </div>
       </header>
 
@@ -170,9 +170,9 @@ export default function AuthPage({ onLoginSuccess }) {
       <main className="max-w-7xl mx-auto w-full px-6 py-12 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center z-10 flex-1">
         {/* Left Hero Section */}
         <div className="lg:col-span-7 space-y-6 text-left">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-300 text-xs font-semibold uppercase tracking-wider">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-300 text-xs font-semibold">
             <ShieldCheck className="w-4 h-4 text-blue-400" />
-            Verified Student Journey Matching
+            <span>Student ride sharing</span>
           </div>
 
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-[1.1]">
@@ -183,7 +183,7 @@ export default function AuthPage({ onLoginSuccess }) {
           </h1>
 
           <p className="text-lg text-slate-300 max-w-xl font-normal leading-relaxed">
-            A verified journey-matching platform exclusively for Thapar students. Coordinate shared rides to Patiala Railway Station, Bus Stand, and Chandigarh & Delhi Airports with fellow students from your hostel.
+            Shared rides for Thapar students. Coordinate cabs to Patiala station, bus stand, and Chandigarh or Delhi airports with peers from your campus.
           </p>
 
           {/* Feature Bullets */}
@@ -193,9 +193,9 @@ export default function AuthPage({ onLoginSuccess }) {
                 <CheckCircle2 className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="font-bold text-white text-sm">Hostel Proximity Matching</h4>
+                <h4 className="font-bold text-white text-sm">Hostel matching</h4>
                 <p className="text-slate-400 text-xs mt-0.5">
-                  Prioritizes students from your residence hall or quad.
+                  Find students leaving from your hostel.
                 </p>
               </div>
             </div>
@@ -205,9 +205,9 @@ export default function AuthPage({ onLoginSuccess }) {
                 <CheckCircle2 className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="font-bold text-white text-sm">Official Google Workspace SSO</h4>
+                <h4 className="font-bold text-white text-sm">Google sign-in</h4>
                 <p className="text-slate-400 text-xs mt-0.5">
-                  Verified with your @thapar.edu Google ID token.
+                  Sign in with your @thapar.edu email.
                 </p>
               </div>
             </div>
@@ -224,12 +224,12 @@ export default function AuthPage({ onLoginSuccess }) {
               </div>
             )}
 
-            {/* Official Google Sign-In Container */}
+            {/* Google Sign-In Container */}
             <div className="space-y-3">
               <div className="text-center space-y-1 mb-2">
-                <h3 className="font-bold text-white text-base">Sign In with TIET Account</h3>
+                <h3 className="font-bold text-white text-base">Sign in with your Thapar account</h3>
                 <p className="text-xs text-slate-400">
-                  New and returning students authenticate with official Google SSO
+                  Use your @thapar.edu Google account to continue.
                 </p>
               </div>
 
@@ -238,30 +238,30 @@ export default function AuthPage({ onLoginSuccess }) {
                 {!gisLoaded && (
                   <div className="flex items-center gap-2 text-xs text-slate-400 py-2">
                     <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
-                    <span>Loading Google Sign-In...</span>
+                    <span>Loading Google sign-in...</span>
                   </div>
                 )}
               </div>
 
               <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 font-medium pt-2">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Verified with Google Workspace (@thapar.edu)</span>
+                <span>Verified with @thapar.edu</span>
               </div>
             </div>
 
             {/* Divider */}
             <div className="relative my-6 flex items-center justify-center">
               <div className="border-t border-slate-700/80 w-full" />
-              <span className="bg-slate-800 px-3 text-[11px] uppercase tracking-wider text-slate-400 font-bold absolute">
-                or with campus password
+              <span className="bg-slate-800 px-3 text-[11px] text-slate-400 font-bold absolute">
+                or use password
               </span>
             </div>
 
             {/* Password Login Form */}
             <form onSubmit={handlePasswordSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1 flex items-center justify-between">
-                  <span>Thapar Email</span>
+                <label className="block text-xs font-bold text-slate-300 mb-1 flex items-center justify-between">
+                  <span>Thapar email</span>
                   <span className="text-[10px] text-blue-400 font-semibold">@thapar.edu only</span>
                 </label>
                 <div className="relative">
@@ -278,7 +278,7 @@ export default function AuthPage({ onLoginSuccess }) {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-bold text-slate-300 mb-1">
                   Password
                 </label>
                 <div className="relative">
@@ -293,7 +293,7 @@ export default function AuthPage({ onLoginSuccess }) {
                   />
                 </div>
                 <p className="text-[11px] text-slate-400 mt-1">
-                  Passwords can only be set from your profile after Google verification.
+                  Set a password in your profile after signing in with Google.
                 </p>
               </div>
 
@@ -309,7 +309,7 @@ export default function AuthPage({ onLoginSuccess }) {
                   </>
                 ) : (
                   <>
-                    <span>Sign In</span>
+                    <span>Sign in</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
@@ -321,7 +321,7 @@ export default function AuthPage({ onLoginSuccess }) {
 
       {/* Footer */}
       <footer className="max-w-7xl mx-auto w-full px-6 py-4 text-center text-xs text-slate-500 z-10">
-        Thapar Journey Connect • Official TIET Student Transit Platform
+        Thapar Journey Connect • Made for TIET students
       </footer>
     </div>
   );

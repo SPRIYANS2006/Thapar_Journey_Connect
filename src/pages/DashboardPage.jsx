@@ -3,7 +3,6 @@ import DisclaimerBanner from '../components/DisclaimerBanner';
 import SlotPicker from '../components/SlotPicker';
 import AddFriendModal from '../components/AddFriendModal';
 import { DESTINATIONS, HOSTELS } from '../data/mockData';
-import { formatTime24to12 } from '../utils/matchingEngine';
 import { 
   ArrowRight, 
   Clock, 
@@ -144,8 +143,8 @@ export default function DashboardPage({
         triggerToast({
           id: makeToastId('join_slot'),
           type: 'success',
-          title: res.created ? '🎉 Group Created!' : '🎉 Joined Group!',
-          message: res.message || `Successfully joined Group #${res.group.id} for ${slot.time}!`,
+          title: res.created ? 'Group created' : 'Joined group',
+          message: res.message || `Joined Group #${res.group.id} for ${slot.time}`,
           actionLabel: `View Group #${res.group.id}`,
           onAction: () => onViewGroupDetails && onViewGroupDetails(res.group.id)
         });
@@ -164,8 +163,8 @@ export default function DashboardPage({
         triggerToast({
           id: makeToastId('slot_err'),
           type: 'error',
-          title: 'Could Not Book Slot',
-          message: err.message || 'Unable to join slot. Please check single-ride policy or capacity.'
+          title: 'Could not book slot',
+          message: err.message || 'Unable to join slot. Check single-ride policy or capacity.'
         });
       }
     } finally {
@@ -186,8 +185,8 @@ export default function DashboardPage({
         triggerToast({
           id: makeToastId('friend_add'),
           type: 'success',
-          title: 'Friend Added!',
-          message: res.message || `Added ${friendData.name} to Group #${activeUserGroup.id}!`
+          title: 'Friend added',
+          message: res.message || `Added ${friendData.name} to Group #${activeUserGroup.id}`
         });
       }
       if (onRefreshGroups) await onRefreshGroups().catch(() => {});
@@ -197,7 +196,7 @@ export default function DashboardPage({
         triggerToast({
           id: makeToastId('friend_err'),
           type: 'error',
-          title: 'Could Not Add Friend',
+          title: 'Could not add friend',
           message: err.message || 'Failed to add friend.'
         });
       }
@@ -216,7 +215,7 @@ export default function DashboardPage({
         triggerToast({
           id: makeToastId('friend_rm'),
           type: 'info',
-          title: 'Friend Removed',
+          title: 'Friend removed',
           message: res.message || `Removed ${friendName || 'friend'} from Group #${activeUserGroup.id}.`
         });
       }
@@ -227,7 +226,7 @@ export default function DashboardPage({
         triggerToast({
           id: makeToastId('friend_rm_err'),
           type: 'error',
-          title: 'Could Not Remove Friend',
+          title: 'Could not remove friend',
           message: err.message || 'Failed to remove friend.'
         });
       }
@@ -259,10 +258,10 @@ export default function DashboardPage({
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse" />
             <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
-              Book a Scheduled Slot
+              Find a ride
             </h2>
             <span className="text-[11px] font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md border border-blue-200 hidden sm:inline-block">
-              15-Minute Departures
+              Every 15 min
             </span>
           </div>
           <span className="text-xs font-semibold text-slate-500">
@@ -275,21 +274,20 @@ export default function DashboardPage({
             
             {/* 1. FROM: Fixed Thapar Campus */}
             <div className="bg-slate-50/80 rounded-2xl p-3 border border-slate-200/80 flex flex-col justify-between">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+              <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
                 <MapPin className="w-3 h-3 text-blue-600" />
-                <span>From (Fixed Origin)</span>
+                <span>From</span>
               </span>
-              <div className="font-extrabold text-slate-800 text-sm mt-1 truncate">
-                Thapar Institute, Patiala
+              <div className="font-extrabold text-slate-800 text-sm mt-1">
+                Thapar Institute
               </div>
-              <span className="text-[10px] text-slate-400">Campus Main Gate</span>
             </div>
 
             {/* 2. TO: Searchable Dropdown with Type-Ahead */}
             <div className="relative bg-slate-50/80 rounded-2xl p-3 border border-slate-200/80 flex flex-col justify-between">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+              <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
                 <MapPin className="w-3 h-3 text-indigo-600" />
-                <span>To (Destination)</span>
+                <span>To</span>
               </span>
               <button
                 type="button"
@@ -299,9 +297,6 @@ export default function DashboardPage({
                 <span className="truncate">{currentDestination.name}</span>
                 <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
               </button>
-              <span className="text-[10px] text-slate-400 truncate">
-                {currentDestination.avgCabFare}
-              </span>
 
               {/* Dropdown Menu */}
               {isDestDropdownOpen && (
@@ -349,11 +344,11 @@ export default function DashboardPage({
 
             {/* 3. DATE: Picker (Today to +30 Days) */}
             <div className="bg-slate-50/80 rounded-2xl p-3 border border-slate-200/80 flex flex-col justify-between">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+              <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
                 <Calendar className="w-3 h-3 text-blue-600" />
-                <span>Travel Date</span>
+                <span>Date</span>
               </span>
-              <label htmlFor="travel-date-select" className="sr-only">Select Travel Date</label>
+              <label htmlFor="travel-date-select" className="sr-only">Date</label>
               <select
                 id="travel-date-select"
                 value={selectedDate}
@@ -366,15 +361,14 @@ export default function DashboardPage({
                   </option>
                 ))}
               </select>
-              <span className="text-[10px] text-slate-400">Up to 30 days ahead</span>
             </div>
 
             {/* 4. DEPARTURE TIME */}
             <div className="bg-slate-50/80 rounded-2xl p-3 border border-slate-200/80 flex flex-col justify-between">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
                   <Clock className="w-3 h-3 text-blue-600" />
-                  <span>Departure Time</span>
+                  <span>Time (optional)</span>
                 </span>
                 <div className="flex items-center gap-1">
                   <button
@@ -396,7 +390,7 @@ export default function DashboardPage({
                   )}
                 </div>
               </div>
-              <label htmlFor="dashboard-departure-time" className="sr-only">Select Departure Time</label>
+              <label htmlFor="dashboard-departure-time" className="sr-only">Time</label>
               <input
                 id="dashboard-departure-time"
                 type="time"
@@ -405,29 +399,25 @@ export default function DashboardPage({
                 className="w-full bg-transparent font-extrabold text-slate-900 text-sm mt-1 focus:outline-none cursor-pointer"
                 title="Select preferred departure time"
               />
-              <span className="text-[10px] text-slate-400 truncate">
-                {selectedTime ? `${formatTime24to12(selectedTime)} IST (Real-time)` : 'Any departure time'}
-              </span>
             </div>
 
             {/* 5. VEHICLE TYPE */}
             <div className="bg-slate-50/80 rounded-2xl p-3 border border-slate-200/80 flex flex-col justify-between">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+              <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
                 <Car className="w-3 h-3 text-indigo-600" />
-                <span>Vehicle Type</span>
+                <span>Vehicle</span>
               </span>
-              <label htmlFor="vehicle-type-select" className="sr-only">Select Vehicle Type</label>
+              <label htmlFor="vehicle-type-select" className="sr-only">Vehicle</label>
               <select
                 id="vehicle-type-select"
                 value={selectedVehicle}
                 onChange={(e) => setSelectedVehicle(e.target.value)}
                 className="w-full bg-transparent font-extrabold text-slate-900 text-sm mt-1 focus:outline-none cursor-pointer"
               >
-                <option value="Shared Cab">Shared Cab (Max 4)</option>
-                <option value="Shared Auto">Shared Auto (Max 3)</option>
-                <option value="Either">Either Vehicle</option>
+                <option value="Shared Cab">Cab</option>
+                <option value="Shared Auto">Auto</option>
+                <option value="Either">Either</option>
               </select>
-              <span className="text-[10px] text-slate-400">Split fare equally</span>
             </div>
 
             {/* 6. SEARCH BUTTON & HOSTEL QUICK OVERRIDE */}
@@ -435,7 +425,7 @@ export default function DashboardPage({
               <div className="flex items-center justify-between text-[11px] text-slate-500 px-1">
                 <span className="flex items-center gap-1">
                   <Home className="w-3 h-3 text-blue-600" />
-                  <span className="font-semibold">{selectedHostel.split(' ')[0]}</span>
+                  <span className="font-semibold">Pickup from {selectedHostel.split(' ')[0]}</span>
                 </span>
                 <label htmlFor="hostel-quick-override" className="sr-only">Change hostel pickup</label>
                 <select
@@ -458,7 +448,7 @@ export default function DashboardPage({
                 className="w-full py-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-sm rounded-2xl shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-[0.98]"
               >
                 <Search className="w-4 h-4" />
-                <span>Search Slots</span>
+                <span>Find rides</span>
               </button>
             </div>
 
@@ -476,20 +466,20 @@ export default function DashboardPage({
               </div>
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider bg-blue-100 text-blue-800 px-2 py-0.5 rounded-md">
-                    Active Travel Group
+                  <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-md">
+                    Active ride
                   </span>
                   <span className="text-xs text-slate-500 font-medium">
-                    {activeUserGroup.members?.length || 1}/{activeUserGroup.maxMembers || 4} Riders
+                    {activeUserGroup.members?.length || 1}/{activeUserGroup.maxMembers || 4} riders
                   </span>
                 </div>
                 <h4 className="font-extrabold text-slate-900 text-base">
                   TIET ➔ {activeUserGroup.destinationName}
                 </h4>
                 <p className="text-xs text-slate-500 flex items-center gap-2">
-                  <span>⏰ Departure: <strong className="text-slate-700">{activeUserGroup.departureTime}</strong></span>
+                  <span>Departure: <strong className="text-slate-700">{activeUserGroup.departureTime}</strong></span>
                   <span>•</span>
-                  <span>📍 Pickup: <strong className="text-slate-700">{activeUserGroup.pickupPoint}</strong></span>
+                  <span>Pickup: <strong className="text-slate-700">{activeUserGroup.pickupPoint}</strong></span>
                 </p>
               </div>
             </div>
@@ -503,7 +493,7 @@ export default function DashboardPage({
                   className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer shrink-0"
                 >
                   <UserPlus className="w-4 h-4" />
-                  <span>+ Add Friend</span>
+                  <span>Add friend</span>
                 </button>
               )}
               <button
@@ -511,7 +501,7 @@ export default function DashboardPage({
                 onClick={() => onViewGroupDetails && onViewGroupDetails(activeUserGroup.id)}
                 className="w-full sm:w-auto px-5 py-2.5 bg-slate-900 hover:bg-black text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer shrink-0"
               >
-                <span>Open Group & Chat</span>
+                <span>Open group chat</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
@@ -519,7 +509,7 @@ export default function DashboardPage({
 
           {/* Members & Companions in Active Group */}
           <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">Riders:</span>
+            <span className="text-[11px] font-bold text-slate-400 mr-1">Riders:</span>
             {(activeUserGroup.members || []).map((m) => {
               const isCompanion = Boolean(m.isCompanion);
               const isMyCompanion = isCompanion && (m.addedBy === user?.id || activeUserGroup.adminId === user?.id);
@@ -565,21 +555,21 @@ export default function DashboardPage({
           </div>
           <div className="space-y-2 max-w-lg mx-auto">
             <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-              Where are you traveling today?
+              Where to today?
             </h3>
             <p className="text-sm text-slate-500 leading-relaxed">
-              Select your destination, travel date, and departure time above, then tap <strong className="text-slate-800">"Search Slots"</strong> to explore 15-minute scheduled cab departures with fellow TIET students.
+              Pick a destination and date, then tap Find rides.
             </p>
           </div>
           <div className="pt-2 flex flex-wrap items-center justify-center gap-2.5 text-xs text-slate-600">
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 shadow-2xs font-semibold">
-              ⏱️ 15-Min Departure Slots
+              Every 15 min
             </span>
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 shadow-2xs font-semibold">
-              🚗 4-Way Cab Fare Split
+              Split the fare
             </span>
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 shadow-2xs font-semibold">
-              🛡️ Verified Campus Profiles
+              Verified students
             </span>
           </div>
         </div>
@@ -589,17 +579,17 @@ export default function DashboardPage({
             <div>
               <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
                 <Clock className="w-6 h-6 text-blue-600" />
-                <span>Available Time Slots ({currentDestination.name})</span>
+                <span>Available departures ({currentDestination.name})</span>
               </h2>
               <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
-                15-minute departures for {selectedDate}{selectedTime ? ` around ${formatTime24to12(selectedTime)}` : ''}. Join an active group with peers or start a fresh slot!
+                15-minute departures for {selectedDate}. Join an active group or start a new one.
               </p>
             </div>
           </div>
 
           {slotsError && (
             <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 text-xs font-semibold text-rose-800">
-              Error loading slots: {slotsError}
+              Could not load slots: {slotsError}
             </div>
           )}
 

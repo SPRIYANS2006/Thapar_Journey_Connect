@@ -11,22 +11,22 @@ export default function DisclaimerBanner() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black uppercase tracking-wider text-blue-300 bg-blue-500/20 px-2 py-0.5 rounded-md">
-                Official TIET Student Transit Network
+              <span className="text-[10px] font-bold text-blue-300 bg-blue-500/20 px-2 py-0.5 rounded-md">
+                Made for TIET students
               </span>
             </div>
             <h3 className="font-bold text-sm sm:text-base text-white mt-0.5">
-              Find verified travel partners & split cab fares up to 75%
+              Share a cab, save up to 75%
             </h3>
             <p className="text-slate-300 text-xs mt-0.5">
-              Campus-only travel matching for TIET students heading to airports and stations. <span className="text-slate-400">Students coordinate directly; no commercial taxi operations.</span>
+              Verified Thapar students only. We don't run or book cabs. You coordinate directly.
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 bg-white/10 px-3.5 py-2 rounded-2xl border border-white/10 text-xs text-slate-200 shrink-0 w-full md:w-auto justify-center">
           <Info className="w-3.5 h-3.5 text-blue-300 shrink-0" />
-          <span className="font-semibold">Max 4 Riders per Cab</span>
+          <span className="font-semibold">Up to 4 per cab</span>
         </div>
       </div>
     </div>

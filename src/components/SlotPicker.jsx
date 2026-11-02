@@ -34,11 +34,14 @@ export default function SlotPicker({
   onViewGroup,
   joiningSlotKey = null,
   actionLabel = null,
+  initialJumpTime = '',
   _activeGroupId = null
 }) {
   const [activeFilter, setActiveFilter] = useState('all');
-  const [jumpTime, setJumpTime] = useState('');
+  const [jumpTimeInput, setJumpTimeInput] = useState(null);
   const [onlyAvailable, setOnlyAvailable] = useState(false);
+
+  const jumpTime = jumpTimeInput !== null ? jumpTimeInput : (initialJumpTime || '');
 
   const filteredSlots = useMemo(() => {
     return slots.filter((slot) => {
@@ -127,13 +130,13 @@ export default function SlotPicker({
                 id="jump-time-input"
                 type="time"
                 value={jumpTime}
-                onChange={(e) => setJumpTime(e.target.value)}
+                onChange={(e) => setJumpTimeInput(e.target.value)}
                 className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 title="Jump to time slot"
               />
               {jumpTime && (
                 <button
-                  onClick={() => setJumpTime('')}
+                  onClick={() => setJumpTimeInput('')}
                   className="text-xs text-blue-600 hover:text-blue-800 font-bold"
                 >
                   Clear
@@ -185,7 +188,7 @@ export default function SlotPicker({
           <button
             onClick={() => {
               setActiveFilter('all');
-              setJumpTime('');
+              setJumpTimeInput('');
               setOnlyAvailable(false);
             }}
             className="px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold text-xs rounded-xl transition-colors cursor-pointer"

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Car,
+  Clock,
   MapPin,
   Calendar,
   ArrowLeft,
@@ -21,6 +22,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import SlotPicker from '../components/SlotPicker';
 import { getPresetDestinationsForCommunity } from '../data/cityDestinations';
 import { HOSTELS } from '../data/mockData';
+import { formatTime24to12 } from '../utils/matchingEngine';
 import { api } from '../services/api';
 
 export default function CityCommunityHubPage({
@@ -78,6 +80,7 @@ export default function CityCommunityHubPage({
   const [destSearchQuery, setDestSearchQuery] = useState('');
   const [isDestDropdownOpen, setIsDestDropdownOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(() => dateOptions[0]?.value || 'Today');
+  const [selectedTime, setSelectedTime] = useState('');
   const [selectedMode, setSelectedMode] = useState('Shared Cab'); // 'Shared Cab' | 'Train Cohort' | 'Either'
   const [selectedHostel, setSelectedHostel] = useState(() => user?.hostel || HOSTELS[0].name);
   const [isHostelDropdownOpen, setIsHostelDropdownOpen] = useState(false);
@@ -91,9 +94,10 @@ export default function CityCommunityHubPage({
 
   const effectiveDest = customDestInput.trim() || selectedDest;
 
-  // 4. Slots State (BlaBlaCar style 10-minute departures)
+  // 4. Slots State (Only loaded when student presses Search)
+  const [hasSearched, setHasSearched] = useState(false);
   const [slots, setSlots] = useState([]);
-  const [slotsLoading, setSlotsLoading] = useState(true);
+  const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsError, setSlotsError] = useState(null);
   const [joiningSlotKey, setJoiningSlotKey] = useState(null);
 
@@ -150,39 +154,6 @@ export default function CityCommunityHubPage({
     [community, isUserEnrolledInCity]
   );
 
-  // Fetch slots on criteria change
-  useEffect(() => {
-    if (!community?.id || !isUserEnrolledInCity) {
-      return;
-    }
-    let active = true;
-
-    const modeParam =
-      selectedMode === 'Train Cohort' ? 'Train' : selectedMode === 'Shared Cab' ? 'Cab' : 'All';
-
-    api.getCityCommunitySlots(community.id, {
-      destination: effectiveDest,
-      date: selectedDate,
-      mode: modeParam
-    })
-      .then((res) => {
-        if (!active) return;
-        setSlots(res?.slots || []);
-        setSlotsError(null);
-      })
-      .catch((err) => {
-        if (!active) return;
-        setSlotsError(err.message || 'Unable to load slots');
-      })
-      .finally(() => {
-        if (active) setSlotsLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [community, isUserEnrolledInCity, effectiveDest, selectedDate, selectedMode]);
-
   // Refresh notice board posts on mount or community change
   useEffect(() => {
     if (community?.id && onRefreshPosts) {
@@ -194,6 +165,7 @@ export default function CityCommunityHubPage({
   const handleSearchSubmit = (e) => {
     if (e) e.preventDefault();
     setIsDestDropdownOpen(false);
+    setHasSearched(true);
     fetchCommunitySlots(effectiveDest, selectedDate, selectedMode);
   };
 
@@ -604,7 +576,7 @@ export default function CityCommunityHubPage({
             </div>
 
             <form onSubmit={handleSearchSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
 
                 {/* 1. FROM: Fixed Thapar Campus */}
                 <div className="bg-slate-50/80 rounded-2xl p-3 border border-slate-200/80 flex flex-col justify-between">
@@ -726,7 +698,38 @@ export default function CityCommunityHubPage({
                   </span>
                 </div>
 
-                {/* 4. MODE: Shared Cab / Train Cohort */}
+                {/* 4. TIME: Departure Time */}
+                <div className="bg-slate-50/80 rounded-2xl p-3 border border-slate-200/80 flex flex-col justify-between">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-blue-600" />
+                      <span>Departure Time</span>
+                    </span>
+                    {selectedTime && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedTime('')}
+                        className="text-[10px] text-blue-600 hover:text-blue-800 font-bold cursor-pointer"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  <label htmlFor="city-departure-time" className="sr-only">Select Departure Time</label>
+                  <input
+                    id="city-departure-time"
+                    type="time"
+                    value={selectedTime}
+                    onChange={(e) => setSelectedTime(e.target.value)}
+                    className="w-full bg-transparent font-extrabold text-slate-900 text-sm mt-1 focus:outline-hidden cursor-pointer"
+                    title="Select preferred departure time"
+                  />
+                  <span className="text-[10px] text-slate-500 mt-0.5 truncate">
+                    {selectedTime ? `${formatTime24to12(selectedTime)} IST` : 'Any departure time'}
+                  </span>
+                </div>
+
+                {/* 5. MODE: Shared Cab / Train Cohort */}
                 <div className="bg-slate-50/80 rounded-2xl p-3 border border-slate-200/80 flex flex-col justify-between">
                   <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
                     <Car className="w-3 h-3 text-blue-600" />
@@ -746,7 +749,7 @@ export default function CityCommunityHubPage({
                   </span>
                 </div>
 
-                {/* 5. SEARCH BUTTON & HOSTEL SELECTION */}
+                {/* 6. SEARCH BUTTON & HOSTEL SELECTION */}
                 <div className="flex flex-col justify-between gap-1">
                   <button
                     type="submit"
@@ -795,38 +798,66 @@ export default function CityCommunityHubPage({
             </form>
           </div>
 
-          {/* 10-MINUTE SLOTS (BlaBlaCar style) */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-black text-slate-900">
-                  Available Departures for {selectedDate}
+          {/* 10-MINUTE SLOTS (BlaBlaCar style, only shown when student presses Search) */}
+          {!hasSearched ? (
+            <div className="bg-white rounded-3xl border border-slate-200/90 p-8 sm:p-12 text-center space-y-4 shadow-xs">
+              <div className="w-16 h-16 rounded-3xl bg-blue-50 text-blue-600 border border-blue-200 mx-auto flex items-center justify-center">
+                <Search className="w-8 h-8" />
+              </div>
+              <div className="space-y-1.5 max-w-md mx-auto">
+                <h3 className="text-xl font-bold text-slate-900">
+                  Find Scheduled Departures to {community?.name}
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  From Thapar Campus to {effectiveDest} • {selectedMode}
+                <p className="text-sm text-slate-500 leading-relaxed">
+                  Select your drop landmark, travel date, departure time, and transport mode above, then click <strong>"Search Slots"</strong> to view all 10-minute departure groups with fellow students.
                 </p>
               </div>
-            </div>
-
-            {slotsError && (
-              <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-rose-700 text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{slotsError}</span>
+              <div className="pt-2 flex flex-wrap items-center justify-center gap-3 text-xs text-slate-500">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 font-semibold">
+                  ⏱️ 144 slots in 10-min steps
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 font-semibold">
+                  🚕 Split cab fare 4-ways
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 font-semibold">
+                  🚆 Train cohort travel company
+                </span>
               </div>
-            )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-black text-slate-900">
+                    Available Departures for {selectedDate}
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    From Thapar Campus to {effectiveDest} • {selectedMode}{selectedTime ? ` around ${formatTime24to12(selectedTime)}` : ''}
+                  </p>
+                </div>
+              </div>
 
-            <SlotPicker
-              slots={slots}
-              loading={slotsLoading}
-              onJoinSlot={handleJoinSlot}
-              onViewGroup={(groupId) => {
-                if (onViewGroupDetails) {
-                  onViewGroupDetails(groupId);
-                }
-              }}
-              joiningSlotKey={joiningSlotKey}
-            />
-          </div>
+              {slotsError && (
+                <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-rose-700 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{slotsError}</span>
+                </div>
+              )}
+
+              <SlotPicker
+                slots={slots}
+                loading={slotsLoading}
+                onJoinSlot={handleJoinSlot}
+                onViewGroup={(groupId) => {
+                  if (onViewGroupDetails) {
+                    onViewGroupDetails(groupId);
+                  }
+                }}
+                joiningSlotKey={joiningSlotKey}
+                initialJumpTime={selectedTime}
+              />
+            </div>
+          )}
 
         </div>
       )}

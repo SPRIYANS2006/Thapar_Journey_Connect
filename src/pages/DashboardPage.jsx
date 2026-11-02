@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import DisclaimerBanner from '../components/DisclaimerBanner';
 import SlotPicker from '../components/SlotPicker';
 import { DESTINATIONS, HOSTELS } from '../data/mockData';
+import { formatTime24to12 } from '../utils/matchingEngine';
 import { 
   ArrowRight, 
   Clock, 
@@ -53,12 +54,14 @@ export default function DashboardPage({
   }, []);
 
   const [selectedDate, setSelectedDate] = useState(dateOptions[0].value);
+  const [selectedTime, setSelectedTime] = useState('');
   const [selectedVehicle, setSelectedVehicle] = useState('Shared Cab');
   const [selectedHostel, setSelectedHostel] = useState(user?.hostel || HOSTELS[0].name);
 
-  // Slots State
+  // Slots State (Only loaded when user presses Search)
+  const [hasSearched, setHasSearched] = useState(false);
   const [slots, setSlots] = useState([]);
-  const [slotsLoading, setSlotsLoading] = useState(true);
+  const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsError, setSlotsError] = useState(null);
   const [joiningSlotKey, setJoiningSlotKey] = useState(null);
 
@@ -100,37 +103,10 @@ export default function DashboardPage({
     }
   }, []);
 
-  // Initial & Search Handler
-  useEffect(() => {
-    let active = true;
-
-    api.getSlots({
-      destinationId: selectedDestId,
-      date: selectedDate,
-      vehicle: selectedVehicle
-    })
-      .then((res) => {
-        if (!active) return;
-        setSlots(res?.slots || []);
-        setSlotsError(null);
-      })
-      .catch((err) => {
-        if (!active) return;
-        console.warn('Failed to fetch slots:', err.message);
-        setSlotsError(err.message || 'Unable to load slots');
-      })
-      .finally(() => {
-        if (active) setSlotsLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [selectedDestId, selectedDate, selectedVehicle]);
-
   const handleSearchSubmit = (e) => {
     if (e) e.preventDefault();
     setIsDestDropdownOpen(false);
+    setHasSearched(true);
     fetchSlots(selectedDestId, selectedDate, selectedVehicle);
   };
 
@@ -217,7 +193,7 @@ export default function DashboardPage({
         </div>
 
         <form onSubmit={handleSearchSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             
             {/* 1. FROM: Fixed Thapar Campus */}
             <div className="bg-slate-50/80 rounded-2xl p-3 border border-slate-200/80 flex flex-col justify-between">
@@ -315,7 +291,38 @@ export default function DashboardPage({
               <span className="text-[10px] text-slate-400">Up to 30 days ahead</span>
             </div>
 
-            {/* 4. VEHICLE TYPE */}
+            {/* 4. DEPARTURE TIME */}
+            <div className="bg-slate-50/80 rounded-2xl p-3 border border-slate-200/80 flex flex-col justify-between">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                  <Clock className="w-3 h-3 text-blue-600" />
+                  <span>Departure Time</span>
+                </span>
+                {selectedTime && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTime('')}
+                    className="text-[10px] text-blue-600 hover:text-blue-800 font-bold cursor-pointer"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <label htmlFor="dashboard-departure-time" className="sr-only">Select Departure Time</label>
+              <input
+                id="dashboard-departure-time"
+                type="time"
+                value={selectedTime}
+                onChange={(e) => setSelectedTime(e.target.value)}
+                className="w-full bg-transparent font-extrabold text-slate-900 text-sm mt-1 focus:outline-none cursor-pointer"
+                title="Select preferred departure time"
+              />
+              <span className="text-[10px] text-slate-400 truncate">
+                {selectedTime ? `${formatTime24to12(selectedTime)} IST` : 'Any departure time'}
+              </span>
+            </div>
+
+            {/* 5. VEHICLE TYPE */}
             <div className="bg-slate-50/80 rounded-2xl p-3 border border-slate-200/80 flex flex-col justify-between">
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
                 <Car className="w-3 h-3 text-indigo-600" />
@@ -335,7 +342,7 @@ export default function DashboardPage({
               <span className="text-[10px] text-slate-400">Split fare equally</span>
             </div>
 
-            {/* 5. SEARCH BUTTON & HOSTEL QUICK OVERRIDE */}
+            {/* 6. SEARCH BUTTON & HOSTEL QUICK OVERRIDE */}
             <div className="flex flex-col justify-between gap-1">
               <div className="flex items-center justify-between text-[11px] text-slate-500 px-1">
                 <span className="flex items-center gap-1">
@@ -434,36 +441,64 @@ export default function DashboardPage({
         </button>
       </div>
 
-      {/* PART 1.2: 10-MINUTE SLOTS (BlaBlaCar-style slot cards) */}
-      <div className="space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div>
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-              <Clock className="w-6 h-6 text-blue-600" />
-              <span>Available Time Slots ({currentDestination.name})</span>
-            </h2>
-            <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
-              10-minute departures for {selectedDate}. Join an active group with peers or start a fresh slot!
+      {/* PART 1.2: 10-MINUTE SLOTS (BlaBlaCar-style slot cards, available only after Search) */}
+      {!hasSearched ? (
+        <div className="bg-white rounded-3xl border border-slate-200/90 p-8 sm:p-12 text-center space-y-4 shadow-xs">
+          <div className="w-16 h-16 rounded-3xl bg-blue-50 text-blue-600 border border-blue-200 mx-auto flex items-center justify-center">
+            <Search className="w-8 h-8" />
+          </div>
+          <div className="space-y-1.5 max-w-md mx-auto">
+            <h3 className="text-xl font-bold text-slate-900">
+              Find Scheduled Travel Departures
+            </h3>
+            <p className="text-sm text-slate-500 leading-relaxed">
+              Choose your destination, travel date, preferred departure time, and vehicle above, then click <strong>"Search Slots"</strong> to view available 10-minute departures with verified TIET students.
             </p>
           </div>
-        </div>
-
-        {slotsError && (
-          <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 text-xs font-semibold text-rose-800">
-            Error loading slots: {slotsError}
+          <div className="pt-2 flex flex-wrap items-center justify-center gap-3 text-xs text-slate-500">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 font-semibold">
+              ⏱️ 10-minute slot intervals
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 font-semibold">
+              🚗 Split cab fare up to 4-ways
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 font-semibold">
+              🛡️ Campus-verified co-riders
+            </span>
           </div>
-        )}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                <Clock className="w-6 h-6 text-blue-600" />
+                <span>Available Time Slots ({currentDestination.name})</span>
+              </h2>
+              <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
+                10-minute departures for {selectedDate}{selectedTime ? ` around ${formatTime24to12(selectedTime)}` : ''}. Join an active group with peers or start a fresh slot!
+              </p>
+            </div>
+          </div>
 
-        {/* Slot Picker Component */}
-        <SlotPicker
-          slots={slots}
-          loading={slotsLoading}
-          onJoinSlot={handleJoinSlot}
-          onViewGroup={onViewGroupDetails}
-          joiningSlotKey={joiningSlotKey}
-          activeGroupId={activeUserGroup?.id}
-        />
-      </div>
+          {slotsError && (
+            <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 text-xs font-semibold text-rose-800">
+              Error loading slots: {slotsError}
+            </div>
+          )}
+
+          {/* Slot Picker Component */}
+          <SlotPicker
+            slots={slots}
+            loading={slotsLoading}
+            onJoinSlot={handleJoinSlot}
+            onViewGroup={onViewGroupDetails}
+            joiningSlotKey={joiningSlotKey}
+            initialJumpTime={selectedTime}
+            activeGroupId={activeUserGroup?.id}
+          />
+        </div>
+      )}
 
       {/* Community Quick Highlight Card */}
       {userCommunity ? (

@@ -127,8 +127,18 @@ export function AuthProvider({ children }) {
     disconnectSocket();
   };
 
-  const setPassword = async (password) => {
-    return api.setPassword(password);
+  const setPassword = async (password, currentPassword) => {
+    const res = await api.setPassword(password, currentPassword);
+    if (res?.token) {
+      setToken(res.token);
+      setTokenState(res.token);
+    }
+    if (res?.user) {
+      setUser(res.user);
+    } else {
+      setUser((prev) => (prev ? { ...prev, hasPassword: true } : prev));
+    }
+    return res;
   };
 
   const updateProfile = async (profileData) => {

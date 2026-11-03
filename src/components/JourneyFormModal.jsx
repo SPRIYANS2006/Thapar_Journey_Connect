@@ -11,6 +11,7 @@ import {
   Info 
 } from 'lucide-react';
 import { DESTINATIONS, HOSTELS } from '../data/mockData';
+import { TIME_SLOT_OPTIONS_15MIN } from '../utils/matchingEngine';
 
 export default function JourneyFormModal({ destination, user, onClose, onSubmitJourney }) {
   const [selectedDestId, setSelectedDestId] = useState(destination?.id || 'railway');
@@ -176,12 +177,20 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
                 <Clock className="w-4 h-4 text-blue-600" />
                 <span>Time (optional)</span>
               </label>
-              <input
-                type="time"
+              <label htmlFor="modal-departure-time" className="sr-only">Time</label>
+              <select
+                id="modal-departure-time"
                 value={departureTime}
                 onChange={(e) => setDepartureTime(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              />
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer"
+              >
+                <option value="">Any time</option>
+                {TIME_SLOT_OPTIONS_15MIN.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 

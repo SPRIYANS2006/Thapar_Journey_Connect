@@ -33,3 +33,23 @@ export function formatTime24to12(time24) {
   const displayM = m < 10 ? `0${m}` : m;
   return `${displayH}:${displayM} ${ampm}`;
 }
+
+// Generate 96 15-minute slot options for selects (e.g. 5:00 AM, 5:15 AM, 5:30 AM...)
+export function generate15MinuteSlots() {
+  const slots = [];
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      const hh = String(h).padStart(2, '0');
+      const mm = String(m).padStart(2, '0');
+      const time24 = `${hh}:${mm}`;
+      const time12 = formatTime24to12(time24);
+      slots.push({
+        value: time24,
+        label: `${time12} (${time24})`
+      });
+    }
+  }
+  return slots;
+}
+
+export const TIME_SLOT_OPTIONS_15MIN = generate15MinuteSlots();

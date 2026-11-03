@@ -69,7 +69,8 @@ export function serializeUser(user) {
     reliability: typeof user.reliability === 'number' ? +(user.reliability.toFixed(1)) : 5.0,
     tripsCompleted: user.trips_completed || 0,
     role: user.role || 'student',
-    joinedCommunity: user.joined_community || null
+    joinedCommunity: user.joined_community || null,
+    hasPassword: Boolean(user.password_hash)
   };
 }
 

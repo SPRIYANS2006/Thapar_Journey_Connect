@@ -164,11 +164,20 @@ router.post('/login', authRateLimiter, async (req, res, next) => {
 // 3. Set or update password (authenticated users only)
 router.post('/password', requireAuth, async (req, res, next) => {
   try {
-    const { password } = req.body;
+    const { password, currentPassword } = req.body;
     if (!password || typeof password !== 'string' || password.trim().length < 8) {
       return res.status(400).json({
         error: 'Password must be at least 8 characters long.'
       });
+    }
+
+    if (req.user.password_hash && currentPassword) {
+      const isMatch = await bcrypt.compare(currentPassword, req.user.password_hash);
+      if (!isMatch) {
+        return res.status(400).json({
+          error: 'Current password is incorrect.'
+        });
+      }
     }
 
     const hash = await bcrypt.hash(password.trim(), 12);
@@ -179,8 +188,9 @@ router.post('/password', requireAuth, async (req, res, next) => {
     const freshToken = generateSessionToken(req.user);
     res.json({
       success: true,
-      message: 'Password set successfully. You can now login with either Google or password.',
-      token: freshToken
+      message: 'Password saved.',
+      token: freshToken,
+      user: serializeUser(req.user)
     });
   } catch (err) {
     next(err);

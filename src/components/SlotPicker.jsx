@@ -10,7 +10,7 @@ import {
   ChevronRight,
   Filter
 } from 'lucide-react';
-import { formatTime24to12 } from '../utils/matchingEngine';
+import { formatTime24to12, TIME_SLOT_OPTIONS_15MIN } from '../utils/matchingEngine';
 
 const TIME_FILTERS = [
   { id: 'all', label: 'All Slots' },
@@ -127,15 +127,21 @@ export default function SlotPicker({
             <div className="flex items-center gap-1.5 text-xs text-slate-600 bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200/80">
               <Clock className="w-3.5 h-3.5 text-slate-400" />
               <span className="font-semibold text-slate-500">Hour:</span>
-              <label htmlFor="jump-time-input" className="sr-only">Jump to hour</label>
-              <input
+              <label htmlFor="jump-time-input" className="sr-only">Jump to time</label>
+              <select
                 id="jump-time-input"
-                type="time"
                 value={jumpTime}
                 onChange={(e) => setJumpTimeInput(e.target.value)}
                 className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
                 title="Jump to time slot"
-              />
+              >
+                <option value="">All</option>
+                {TIME_SLOT_OPTIONS_15MIN.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
               {jumpTime && (
                 <button
                   type="button"

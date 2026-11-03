@@ -3,6 +3,7 @@ import DisclaimerBanner from '../components/DisclaimerBanner';
 import SlotPicker from '../components/SlotPicker';
 import AddFriendModal from '../components/AddFriendModal';
 import { DESTINATIONS, HOSTELS } from '../data/mockData';
+import { TIME_SLOT_OPTIONS_15MIN } from '../utils/matchingEngine';
 import { 
   ArrowRight, 
   Clock, 
@@ -391,14 +392,20 @@ export default function DashboardPage({
                 </div>
               </div>
               <label htmlFor="dashboard-departure-time" className="sr-only">Time</label>
-              <input
+              <select
                 id="dashboard-departure-time"
-                type="time"
                 value={selectedTime}
                 onChange={(e) => setSelectedTime(e.target.value)}
                 className="w-full bg-transparent font-extrabold text-slate-900 text-sm mt-1 focus:outline-none cursor-pointer"
                 title="Select preferred departure time"
-              />
+              >
+                <option value="">Any time</option>
+                {TIME_SLOT_OPTIONS_15MIN.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* 5. VEHICLE TYPE */}

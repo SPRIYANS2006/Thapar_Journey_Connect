@@ -121,10 +121,10 @@ export const api = {
       body: JSON.stringify({ email, password })
     }),
 
-  setPassword: (password) =>
+  setPassword: (password, currentPassword) =>
     request('/auth/password', {
       method: 'POST',
-      body: JSON.stringify({ password })
+      body: JSON.stringify(currentPassword ? { password, currentPassword } : { password })
     }),
 
   getMe: () => request('/auth/me'),

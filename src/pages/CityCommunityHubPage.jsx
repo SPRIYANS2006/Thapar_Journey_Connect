@@ -24,6 +24,7 @@ import SlotPicker from '../components/SlotPicker';
 import AddFriendModal from '../components/AddFriendModal';
 import { getPresetDestinationsForCommunity } from '../data/cityDestinations';
 import { HOSTELS } from '../data/mockData';
+import { TIME_SLOT_OPTIONS_15MIN } from '../utils/matchingEngine';
 import { api } from '../services/api';
 
 let cityToastSeq = 0;
@@ -850,14 +851,20 @@ export default function CityCommunityHubPage({
                     </div>
                   </div>
                   <label htmlFor="city-departure-time" className="sr-only">Time</label>
-                  <input
+                  <select
                     id="city-departure-time"
-                    type="time"
                     value={selectedTime}
                     onChange={(e) => setSelectedTime(e.target.value)}
                     className="w-full bg-transparent font-extrabold text-slate-900 text-sm mt-1 focus:outline-hidden cursor-pointer"
                     title="Select preferred departure time"
-                  />
+                  >
+                    <option value="">Any time</option>
+                    {TIME_SLOT_OPTIONS_15MIN.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* 5. MODE: Shared Cab Only */}

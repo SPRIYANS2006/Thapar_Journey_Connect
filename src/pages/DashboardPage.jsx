@@ -7,6 +7,7 @@ import { TIME_SLOT_OPTIONS_15MIN } from '../utils/matchingEngine';
 import { 
   ArrowRight, 
   ArrowLeft,
+  ArrowLeftRight,
   Clock, 
   MapPin, 
   Car, 
@@ -81,6 +82,7 @@ export default function DashboardPage({
   const [selectedTime, setSelectedTime] = useState(() => getCurrentSlotTime());
   const [selectedVehicle, setSelectedVehicle] = useState('Shared Cab');
   const [selectedHostel, setSelectedHostel] = useState(user?.hostel || HOSTELS[0].name);
+  const [direction, setDirection] = useState('departing'); // 'departing' (Going / Thapar -> Dest) or 'returning' (Coming back / Dest -> Thapar)
 
   // Slots State (Only loaded when user presses Search)
   const [hasSearched, setHasSearched] = useState(false);
@@ -104,14 +106,15 @@ export default function DashboardPage({
   }, [destSearchQuery]);
 
   // Fetch 15-minute slots
-  const fetchSlots = useCallback(async (destId, dateStr, vehicleType) => {
+  const fetchSlots = useCallback(async (destId, dateStr, vehicleType, tripDir = direction) => {
     setSlotsLoading(true);
     setSlotsError(null);
     try {
       const res = await api.getSlots({
         destinationId: destId,
         date: dateStr,
-        vehicle: vehicleType
+        vehicle: vehicleType,
+        direction: tripDir
       });
       if (res && res.slots) {
         setSlots(res.slots);
@@ -125,32 +128,46 @@ export default function DashboardPage({
     } finally {
       setSlotsLoading(false);
     }
-  }, []);
+  }, [direction]);
 
   const handleSearchSubmit = (e) => {
     if (e) e.preventDefault();
     setIsDestDropdownOpen(false);
     setHasSearched(true);
-    fetchSlots(selectedDestId, selectedDate, selectedVehicle);
+    fetchSlots(selectedDestId, selectedDate, selectedVehicle, direction);
   };
 
   const handleQuickDestinationSelect = (destId) => {
     setSelectedDestId(destId);
     setIsDestDropdownOpen(false);
     setHasSearched(true);
-    fetchSlots(destId, selectedDate, selectedVehicle);
+    fetchSlots(destId, selectedDate, selectedVehicle, direction);
+  };
+
+  const handleToggleDirection = () => {
+    const nextDir = direction === 'departing' ? 'returning' : 'departing';
+    setDirection(nextDir);
+    if (hasSearched) {
+      fetchSlots(selectedDestId, selectedDate, selectedVehicle, nextDir);
+    }
   };
 
   // Join Slot Handler (Atomic Join or Lazy Creation)
   const handleJoinSlot = async (slot) => {
     setJoiningSlotKey(slot.slotKey);
     try {
+      const isReturn = (slot.direction || direction) === 'returning';
+      const defaultPickup = isReturn
+        ? `${currentDestination.name} (Arrivals / Main Exit)`
+        : 'Main Gate (Near Executive Mess)';
+
       const res = await api.joinSlot({
         destinationId: slot.destinationId,
         date: slot.date,
         time: slot.time,
         vehicle: slot.vehicle,
-        pickupPoint: 'Main Gate (Near Executive Mess)'
+        pickupPoint: defaultPickup,
+        direction: slot.direction || direction
       });
 
       if (triggerToast) {
@@ -167,7 +184,7 @@ export default function DashboardPage({
       if (onRefreshGroups) {
         await onRefreshGroups().catch(() => {});
       }
-      await fetchSlots(selectedDestId, selectedDate, selectedVehicle);
+      await fetchSlots(selectedDestId, selectedDate, selectedVehicle, direction);
 
       if (onViewGroupDetails && res.group?.id) {
         onViewGroupDetails(res.group.id);
@@ -268,8 +285,8 @@ export default function DashboardPage({
 
       {/* PART 1: STICKY SEARCH CARD */}
       <div className="sticky top-20 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-xl dark:shadow-2xl dark:shadow-black/40 p-4 sm:p-6 transition-colors">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="w-2.5 h-2.5 rounded-full bg-blue-600 dark:bg-blue-400 animate-pulse" />
             <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">
               Find a ride
@@ -278,83 +295,250 @@ export default function DashboardPage({
               Every 15 min
             </span>
           </div>
-          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-            {currentDestination.name} • {currentDestination.distance}
-          </span>
+
+          {/* Direction Switcher & Swap Button */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="inline-flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700 text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  if (direction !== 'departing') {
+                    setDirection('departing');
+                    if (hasSearched) fetchSlots(selectedDestId, selectedDate, selectedVehicle, 'departing');
+                  }
+                }}
+                className={`px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  direction === 'departing'
+                    ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
+              >
+                <span>Depart campus</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (direction !== 'returning') {
+                    setDirection('returning');
+                    if (hasSearched) fetchSlots(selectedDestId, selectedDate, selectedVehicle, 'returning');
+                  }
+                }}
+                className={`px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  direction === 'returning'
+                    ? 'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
+              >
+                <span>Return to campus</span>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleToggleDirection}
+              className="p-2 bg-slate-100 hover:bg-blue-50 dark:bg-slate-800 dark:hover:bg-blue-950/60 text-slate-600 hover:text-blue-600 dark:text-slate-300 dark:hover:text-blue-400 rounded-2xl border border-slate-200/80 dark:border-slate-700 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+              title="Switch trip direction"
+              aria-label="Switch trip direction between departing and returning"
+            >
+              <ArrowLeftRight className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Switch</span>
+            </button>
+          </div>
         </div>
 
         <form onSubmit={handleSearchSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             
-            {/* 1. FROM: Fixed Thapar Campus */}
-            <div className="bg-slate-50/90 dark:bg-slate-800/60 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-700/80 flex flex-col justify-between">
-              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 flex items-center gap-1">
-                <MapPin className="w-3 h-3 text-blue-600 dark:text-blue-400" />
-                <span>From</span>
-              </span>
-              <div className="font-extrabold text-slate-800 dark:text-slate-100 text-sm mt-1">
-                Thapar Institute
-              </div>
-            </div>
-
-            {/* 2. TO: Searchable Dropdown with Type-Ahead */}
-            <div className="relative bg-slate-50/90 dark:bg-slate-800/60 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-700/80 flex flex-col justify-between">
-              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 flex items-center gap-1">
-                <MapPin className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
-                <span>To</span>
-              </span>
-              <button
-                type="button"
-                onClick={() => setIsDestDropdownOpen((prev) => !prev)}
-                className="w-full text-left font-extrabold text-slate-900 dark:text-slate-100 text-sm mt-1 flex items-center justify-between gap-1 cursor-pointer truncate"
-              >
-                <span className="truncate">{currentDestination.name}</span>
-                <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0" />
-              </button>
-
-              {/* Dropdown Menu */}
-              {isDestDropdownOpen && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl z-50 p-2 space-y-1.5 max-h-72 overflow-y-auto animate-in fade-in duration-150">
-                  <div className="relative px-1 pt-1 pb-2">
-                    <Search className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 absolute left-3 top-3.5" />
-                    <input
-                      type="text"
-                      placeholder="Type destination name..."
-                      value={destSearchQuery}
-                      onChange={(e) => setDestSearchQuery(e.target.value)}
-                      className="w-full pl-7 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      autoFocus
-                    />
-                  </div>
-
-                  {filteredDestinations.map((dest) => (
+            {/* 1 & 2. Dynamic From / To with Switch Support */}
+            {direction === 'departing' ? (
+              <>
+                {/* 1. FROM: Thapar Campus */}
+                <div className="bg-slate-50/90 dark:bg-slate-800/60 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-700/80 flex flex-col justify-between">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                      <MapPin className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                      <span>From</span>
+                    </span>
                     <button
-                      key={dest.id}
                       type="button"
-                      onClick={() => {
-                        setSelectedDestId(dest.id);
-                        setIsDestDropdownOpen(false);
-                        setDestSearchQuery('');
-                      }}
-                      className={`w-full text-left p-2.5 rounded-xl text-xs transition-colors flex items-center justify-between cursor-pointer ${
-                        selectedDestId === dest.id
-                          ? 'bg-blue-50 dark:bg-blue-950/70 text-blue-900 dark:text-blue-200 font-bold border border-blue-200 dark:border-blue-800'
-                          : 'hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-300'
-                      }`}
+                      onClick={handleToggleDirection}
+                      className="text-[10px] text-slate-400 hover:text-blue-600 dark:text-slate-500 dark:hover:text-blue-400 p-0.5 cursor-pointer"
+                      title="Switch direction"
+                      aria-label="Switch direction"
                     >
-                      <div>
-                        <div className="font-bold flex items-center gap-1.5">
-                          <span>{dest.icon}</span>
-                          <span>{dest.name}</span>
-                        </div>
-                        <div className="text-[10px] text-slate-400 dark:text-slate-500">{dest.distance}</div>
-                      </div>
-                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{dest.avgCabFare}</span>
+                      <ArrowLeftRight className="w-3 h-3" />
                     </button>
-                  ))}
+                  </div>
+                  <div className="font-extrabold text-slate-800 dark:text-slate-100 text-sm mt-1">
+                    Thapar Institute
+                  </div>
                 </div>
-              )}
-            </div>
+
+                {/* 2. TO: Searchable Destination Dropdown */}
+                <div className="relative bg-slate-50/90 dark:bg-slate-800/60 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-700/80 flex flex-col justify-between">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                      <MapPin className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+                      <span>To</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleToggleDirection}
+                      className="text-[10px] text-slate-400 hover:text-blue-600 dark:text-slate-500 dark:hover:text-blue-400 p-0.5 cursor-pointer"
+                      title="Switch direction"
+                      aria-label="Switch direction"
+                    >
+                      <ArrowLeftRight className="w-3 h-3" />
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsDestDropdownOpen((prev) => !prev)}
+                    className="w-full text-left font-extrabold text-slate-900 dark:text-slate-100 text-sm mt-1 flex items-center justify-between gap-1 cursor-pointer truncate"
+                  >
+                    <span className="truncate">{currentDestination.name}</span>
+                    <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0" />
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  {isDestDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl z-50 p-2 space-y-1.5 max-h-72 overflow-y-auto animate-in fade-in duration-150">
+                      <div className="relative px-1 pt-1 pb-2">
+                        <Search className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 absolute left-3 top-3.5" />
+                        <input
+                          type="text"
+                          placeholder="Type destination name..."
+                          value={destSearchQuery}
+                          onChange={(e) => setDestSearchQuery(e.target.value)}
+                          className="w-full pl-7 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          autoFocus
+                        />
+                      </div>
+
+                      {filteredDestinations.map((dest) => (
+                        <button
+                          key={dest.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedDestId(dest.id);
+                            setIsDestDropdownOpen(false);
+                            setDestSearchQuery('');
+                          }}
+                          className={`w-full text-left p-2.5 rounded-xl text-xs transition-colors flex items-center justify-between cursor-pointer ${
+                            selectedDestId === dest.id
+                              ? 'bg-blue-50 dark:bg-blue-950/70 text-blue-900 dark:text-blue-200 font-bold border border-blue-200 dark:border-blue-800'
+                              : 'hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-300'
+                          }`}
+                        >
+                          <div>
+                            <div className="font-bold flex items-center gap-1.5">
+                              <span>{dest.icon}</span>
+                              <span>{dest.name}</span>
+                            </div>
+                            <div className="text-[10px] text-slate-400 dark:text-slate-500">{dest.distance}</div>
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{dest.avgCabFare}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                {/* 1. FROM: Returning Pickup Destination */}
+                <div className="relative bg-slate-50/90 dark:bg-slate-800/60 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-700/80 flex flex-col justify-between">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                      <MapPin className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                      <span>From (Pickup)</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleToggleDirection}
+                      className="text-[10px] text-slate-400 hover:text-blue-600 dark:text-slate-500 dark:hover:text-blue-400 p-0.5 cursor-pointer"
+                      title="Switch direction"
+                      aria-label="Switch direction"
+                    >
+                      <ArrowLeftRight className="w-3 h-3" />
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsDestDropdownOpen((prev) => !prev)}
+                    className="w-full text-left font-extrabold text-slate-900 dark:text-slate-100 text-sm mt-1 flex items-center justify-between gap-1 cursor-pointer truncate"
+                  >
+                    <span className="truncate">{currentDestination.name}</span>
+                    <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0" />
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  {isDestDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl z-50 p-2 space-y-1.5 max-h-72 overflow-y-auto animate-in fade-in duration-150">
+                      <div className="relative px-1 pt-1 pb-2">
+                        <Search className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 absolute left-3 top-3.5" />
+                        <input
+                          type="text"
+                          placeholder="Type pickup point..."
+                          value={destSearchQuery}
+                          onChange={(e) => setDestSearchQuery(e.target.value)}
+                          className="w-full pl-7 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          autoFocus
+                        />
+                      </div>
+
+                      {filteredDestinations.map((dest) => (
+                        <button
+                          key={dest.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedDestId(dest.id);
+                            setIsDestDropdownOpen(false);
+                            setDestSearchQuery('');
+                          }}
+                          className={`w-full text-left p-2.5 rounded-xl text-xs transition-colors flex items-center justify-between cursor-pointer ${
+                            selectedDestId === dest.id
+                              ? 'bg-blue-50 dark:bg-blue-950/70 text-blue-900 dark:text-blue-200 font-bold border border-blue-200 dark:border-blue-800'
+                              : 'hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-300'
+                          }`}
+                        >
+                          <div>
+                            <div className="font-bold flex items-center gap-1.5">
+                              <span>{dest.icon}</span>
+                              <span>{dest.name}</span>
+                            </div>
+                            <div className="text-[10px] text-slate-400 dark:text-slate-500">{dest.distance}</div>
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{dest.avgCabFare}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. TO: Thapar Campus */}
+                <div className="bg-slate-50/90 dark:bg-slate-800/60 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-700/80 flex flex-col justify-between">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                      <MapPin className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                      <span>To (Campus)</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleToggleDirection}
+                      className="text-[10px] text-slate-400 hover:text-blue-600 dark:text-slate-500 dark:hover:text-blue-400 p-0.5 cursor-pointer"
+                      title="Switch direction"
+                      aria-label="Switch direction"
+                    >
+                      <ArrowLeftRight className="w-3 h-3" />
+                    </button>
+                  </div>
+                  <div className="font-extrabold text-slate-800 dark:text-slate-100 text-sm mt-1">
+                    Thapar Institute
+                  </div>
+                </div>
+              </>
+            )}
 
             {/* 3. DATE: Picker (Today to +30 Days) */}
             <div className="bg-slate-50/90 dark:bg-slate-800/60 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-700/80 flex flex-col justify-between">
@@ -445,7 +629,7 @@ export default function DashboardPage({
               <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 px-1">
                 <span className="flex items-center gap-1">
                   <Home className="w-3 h-3 text-blue-600 dark:text-blue-400" />
-                  <span className="font-semibold">Pickup from {selectedHostel.split(' ')[0]}</span>
+                  <span className="font-semibold">{direction === 'returning' ? 'Drop at' : 'Pickup from'} {selectedHostel.split(' ')[0]}</span>
                 </span>
                 <label htmlFor="hostel-quick-override" className="sr-only">Change hostel pickup</label>
                 <select
@@ -880,6 +1064,7 @@ export default function DashboardPage({
             joiningSlotKey={joiningSlotKey}
             initialJumpTime={selectedTime}
             activeGroupId={activeUserGroup?.id}
+            direction={direction}
           />
         </div>
       )}

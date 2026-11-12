@@ -701,15 +701,18 @@ router.get('/:id/slots', async (req, res, next) => {
       );
     }
 
-    const { date, destination } = req.query;
+    const { date, destination, direction } = req.query;
     const travelDate = normalizeDateStr(date || 'Today');
     const selectedMode = 'Cab';
+    const isReturn = direction === 'returning';
+    const tripDirection = isReturn ? 'returning' : 'departing';
 
     // Find active rides for this community on this date
     const rideQuery = {
       community_id: community.id,
       date: travelDate,
-      status: { $in: ['Open', 'Confirmed', 'Full'] }
+      status: { $in: ['Open', 'Confirmed', 'Full'] },
+      direction: isReturn ? 'returning' : { $in: ['departing', null] }
     };
 
     const existingRides = await CityRide.find(rideQuery).lean();
@@ -721,6 +724,8 @@ router.get('/:id/slots', async (req, res, next) => {
     // Default base fare calculation based on distance
     const distKm = parseInt(community.distance_from_thapar, 10) || 200;
     const defaultCabFare = Math.round(distKm * 12);
+
+    const defaultLandmark = (destination && destination.trim()) || `${community.name} (City Center)`;
 
     const slots = [];
     for (let h = 0; h < 24; h++) {
@@ -743,8 +748,16 @@ router.get('/:id/slots', async (req, res, next) => {
         const totalFareNum = ride ? ride.total_fare : defaultCabFare;
         const perPersonFare = seatsFilled > 0 ? Math.round(totalFareNum / seatsFilled) : Math.round(totalFareNum / maxSeats);
 
-        const slotDest = ride ? ride.destination : (destination || `${community.name} (City Center)`);
-        const slotKey = ride?.slot_key || `${community.id}_${travelDate}_${timeStr}_Cab`;
+        const slotDest = ride
+          ? ride.destination
+          : (isReturn ? 'Thapar Campus (Main Gate)' : defaultLandmark);
+        const slotOrigin = ride
+          ? (ride.origin || (isReturn ? defaultLandmark : 'Thapar Campus (Main Gate)'))
+          : (isReturn ? defaultLandmark : 'Thapar Campus (Main Gate)');
+        const defaultSlotKey = isReturn
+          ? `${community.id}_ret_${travelDate}_${timeStr}_Cab`
+          : `${community.id}_${travelDate}_${timeStr}_Cab`;
+        const slotKey = ride?.slot_key || defaultSlotKey;
 
         slots.push({
           slotKey,
@@ -752,7 +765,9 @@ router.get('/:id/slots', async (req, res, next) => {
           date: travelDate,
           communityId: community.id,
           communityName: community.name,
+          origin: slotOrigin,
           destination: slotDest,
+          direction: tripDirection,
           mode: rideMode,
           maxSeats,
           seatsFilled,
@@ -783,6 +798,9 @@ router.get('/:id/slots', async (req, res, next) => {
       success: true,
       community: serializeCommunity(community),
       date: travelDate,
+      direction: tripDirection,
+      origin: isReturn ? defaultLandmark : 'Thapar Campus (Main Gate)',
+      destination: isReturn ? 'Thapar Campus (Main Gate)' : defaultLandmark,
       mode: selectedMode,
       totalSlots: slots.length,
       availableSlotsCount: slots.filter((s) => !s.isPast && !s.isFull).length,
@@ -808,12 +826,14 @@ router.post('/:id/slots/join', async (req, res, next) => {
       );
     }
 
-    const { date, time, destination, pickupPoint } = req.body;
+    const { date, time, destination, pickupPoint, direction } = req.body;
     if (!time) {
       throw new HttpError(400, 'Departure time is required.');
     }
 
     const travelDate = normalizeDateStr(date || 'Today');
+    const isReturn = direction === 'returning';
+    const tripDirection = isReturn ? 'returning' : 'departing';
 
     // Departure time cannot be in past
     const hoursLeft = getHoursUntilDeparture(travelDate, time);
@@ -823,13 +843,20 @@ router.post('/:id/slots/join', async (req, res, next) => {
 
     const selectedMode = 'Cab';
     const maxCapacity = 4;
-    const resolvedDest = (destination && destination.trim()) || `${community.name} (City Center)`;
-    const resolvedPickup = (pickupPoint && pickupPoint.trim()) || 'Main Gate (Near Executive Mess)';
+    const cityLandmark = (destination && destination.trim()) || `${community.name} (City Center)`;
+    const resolvedOrigin = isReturn ? cityLandmark : 'Thapar Campus (Main Gate)';
+    const resolvedDest = isReturn ? 'Thapar Campus (Main Gate)' : cityLandmark;
+    const defaultPickup = isReturn
+      ? `${community.name} (Central Terminal / Station Exit)`
+      : 'Main Gate (Near Executive Mess)';
+    const resolvedPickup = (pickupPoint && pickupPoint.trim()) || defaultPickup;
 
     const distKm = parseInt(community.distance_from_thapar, 10) || 200;
     const defaultFare = Math.round(distKm * 12);
 
-    const slotKey = `${community.id}_${travelDate}_${time}_Cab`;
+    const slotKey = isReturn
+      ? `${community.id}_ret_${travelDate}_${time}_Cab`
+      : `${community.id}_${travelDate}_${time}_Cab`;
 
     // Single-Ride Policy check across regular Group & CityRide
     const activeGroup = await Group.findOne({
@@ -887,7 +914,13 @@ router.post('/:id/slots/join', async (req, res, next) => {
     let ride = await CityRide.findOne({
       $or: [
         { slot_key: slotKey },
-        { community_id: community.id, date: travelDate, time, mode: selectedMode }
+        {
+          community_id: community.id,
+          date: travelDate,
+          time,
+          mode: selectedMode,
+          direction: isReturn ? 'returning' : { $in: ['departing', null] }
+        }
       ]
     });
 
@@ -959,8 +992,9 @@ router.post('/:id/slots/join', async (req, res, next) => {
         community_name: community.name,
         creator_id: req.user.id,
         creator_name: req.user.name,
-        origin: 'Thapar Campus (Main Gate)',
+        origin: resolvedOrigin,
         destination: resolvedDest,
+        direction: tripDirection,
         date: travelDate,
         time,
         mode: selectedMode,

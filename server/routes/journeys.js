@@ -25,7 +25,8 @@ router.post('/', async (req, res, next) => {
       date,
       flexibility,
       transport,
-      notes
+      notes,
+      direction
     } = req.body;
 
     if (!destinationId || !departureTime) {
@@ -38,6 +39,10 @@ router.post('/', async (req, res, next) => {
       throw new HttpError(400, validation.error);
     }
     const travelDate = validation.normalizedDate;
+    const isReturn = direction === 'returning';
+    const tripDirection = isReturn ? 'returning' : 'departing';
+    const origin = isReturn ? (destinationName || destinationId) : 'Thapar Institute';
+    const destTitle = isReturn ? 'Thapar Institute' : (destinationName || destinationId);
 
     // Caller identity is derived exclusively from req.user
     const studentHostel = (hostel || req.user.hostel || 'Hostel').trim();
@@ -54,7 +59,9 @@ router.post('/', async (req, res, next) => {
       {
         $set: {
           destination_id: destinationId,
-          destination_name: destinationName || destinationId,
+          destination_name: destTitle,
+          origin,
+          direction: tripDirection,
           hostel: studentHostel,
           departure_time: departureTime,
           date: travelDate,
@@ -75,6 +82,7 @@ router.post('/', async (req, res, next) => {
       destination_id: destinationId,
       date: travelDate,
       status: 'Searching',
+      direction: isReturn ? 'returning' : { $in: ['departing', null] },
       user_id: { $ne: req.user.id }
     }).lean();
 
@@ -120,7 +128,8 @@ router.post('/', async (req, res, next) => {
     const openGroups = await Group.find({
       destination_id: destinationId,
       date: travelDate,
-      status: 'Open'
+      status: 'Open',
+      direction: isReturn ? 'returning' : { $in: ['departing', null] }
     }).lean();
 
     const matchingGroups = [];

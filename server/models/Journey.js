@@ -11,6 +11,8 @@ const journeySchema = new mongoose.Schema({
   flexibility: { type: Number, default: 15, enum: [10, 15, 20, 30] },
   transport: { type: String, default: 'Either', enum: ['Shared Cab', 'Shared Auto', 'Either'] },
   notes: { type: String, default: '', maxlength: 500 },
+  origin: { type: String, default: 'Thapar Institute' },
+  direction: { type: String, enum: ['departing', 'returning'], default: 'departing' },
   status: { type: String, default: 'Searching', enum: ['Searching', 'Grouped', 'Cancelled'] },
   created_at: { type: Date, default: Date.now }
 });

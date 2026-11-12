@@ -246,10 +246,22 @@ export default function GroupDetailsPage({
               <span className="text-xs bg-slate-800 text-slate-300 px-3 py-0.5 rounded-full border border-slate-700">
                 Vehicle: {group.transport || 'Shared Cab'}
               </span>
+
+              {group.direction === 'returning' ? (
+                <span className="text-xs font-bold bg-amber-500/20 text-amber-300 px-3 py-0.5 rounded-full border border-amber-500/30">
+                  ↩ Return to campus
+                </span>
+              ) : (
+                <span className="text-xs font-bold bg-blue-500/20 text-blue-300 px-3 py-0.5 rounded-full border border-blue-500/30">
+                  Depart campus
+                </span>
+              )}
             </div>
 
             <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-              TIET Campus → {group.destinationName}
+              {group.direction === 'returning'
+                ? `${group.origin || 'Pickup'} → Thapar Institute`
+                : `Thapar Institute → ${group.destinationName}`}
             </h1>
 
             <div className="flex items-center gap-4 text-xs text-slate-300 pt-1 flex-wrap">

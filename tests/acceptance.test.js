@@ -2442,4 +2442,66 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     const timestampDiff = getDepartureMinuteDiff('2026-11-12', '00:05', '2026-11-12', '23:55');
     assert.equal(timestampDiff, 1430);
   });
+
+  // 55. Two-Way Travel: Departing (Campus ➔ Destination) and Returning (Destination ➔ Campus) have distinct slot keys and cannot collide
+  it('55. Two-Way Travel: Departing (Campus ➔ Destination) and Returning (Destination ➔ Campus) have distinct slot keys and cannot collide', async () => {
+    const { token: tokenDepart } = await createTestStudent({ name: 'Departing Rider' });
+    const { token: tokenReturn } = await createTestStudent({ name: 'Returning Rider' });
+
+    // 1. Query slots for departing
+    const resDepartSlots = await request(app)
+      .get('/api/slots?destinationId=dest_chandigarh_airport&date=Tomorrow&direction=departing')
+      .set('Authorization', `Bearer ${tokenDepart}`);
+    assert.equal(resDepartSlots.status, 200);
+    assert.equal(resDepartSlots.body.direction, 'departing');
+    assert.equal(resDepartSlots.body.origin, 'Thapar Institute');
+    const departSlot14 = resDepartSlots.body.slots.find((s) => s.time === '14:00');
+    assert.ok(departSlot14);
+    assert.equal(departSlot14.direction, 'departing');
+    assert.equal(departSlot14.origin, 'Thapar Institute');
+    assert.ok(!departSlot14.slotKey.includes('_ret_'));
+
+    // 2. Query slots for returning
+    const resReturnSlots = await request(app)
+      .get('/api/slots?destinationId=dest_chandigarh_airport&date=Tomorrow&direction=returning')
+      .set('Authorization', `Bearer ${tokenReturn}`);
+    assert.equal(resReturnSlots.status, 200);
+    assert.equal(resReturnSlots.body.direction, 'returning');
+    const returnSlot14 = resReturnSlots.body.slots.find((s) => s.time === '14:00');
+    assert.ok(returnSlot14);
+    assert.equal(returnSlot14.direction, 'returning');
+    assert.equal(returnSlot14.destinationName, 'Thapar Institute');
+    assert.ok(returnSlot14.slotKey.includes('_ret_'));
+
+    // 3. Departing rider joins 14:00 departing slot
+    const resJoinDepart = await request(app)
+      .post('/api/slots/join')
+      .send({
+        destinationId: 'dest_chandigarh_airport',
+        date: 'Tomorrow',
+        time: '14:00',
+        vehicle: 'Shared Cab',
+        direction: 'departing'
+      })
+      .set('Authorization', `Bearer ${tokenDepart}`);
+    assert.equal(resJoinDepart.status, 201);
+    assert.equal(resJoinDepart.body.group.direction, 'departing');
+    assert.equal(resJoinDepart.body.group.origin, 'Thapar Institute');
+
+    // 4. Returning rider joins 14:00 returning slot -> must create a SEPARATE group (does not join the departing cab!)
+    const resJoinReturn = await request(app)
+      .post('/api/slots/join')
+      .send({
+        destinationId: 'dest_chandigarh_airport',
+        date: 'Tomorrow',
+        time: '14:00',
+        vehicle: 'Shared Cab',
+        direction: 'returning'
+      })
+      .set('Authorization', `Bearer ${tokenReturn}`);
+    assert.equal(resJoinReturn.status, 201);
+    assert.equal(resJoinReturn.body.group.direction, 'returning');
+    assert.equal(resJoinReturn.body.group.destinationName, 'Thapar Institute');
+    assert.notEqual(resJoinDepart.body.group.id, resJoinReturn.body.group.id, 'Departing and returning rides must not share the same cab group');
+  });
 });

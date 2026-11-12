@@ -46,6 +46,8 @@ function serializeCityRideAsGroup(ride, viewingUserId) {
     date: ride.date,
     status: ride.status || 'Open',
     transport: ride.mode === 'Cab' ? 'Shared Cab' : 'Train',
+    origin: ride.origin || 'Thapar Campus (Main Gate)',
+    direction: ride.direction || 'departing',
     maxMembers: ride.max_capacity || 4,
     pickupPoint: ride.pickup_point,
     adminId: ride.creator_id,

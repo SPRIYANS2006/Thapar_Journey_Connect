@@ -5,6 +5,7 @@ import {
   MapPin,
   Calendar,
   ArrowLeft,
+  ArrowLeftRight,
   Plus,
   CheckCircle2,
   AlertCircle,
@@ -101,6 +102,7 @@ export default function CityCommunityHubPage({
   const [selectedDate, setSelectedDate] = useState(() => dateOptions[0]?.value || 'Today');
   const [selectedTime, setSelectedTime] = useState(() => getCurrentSlotTime());
   const selectedMode = 'Shared Cab';
+  const [direction, setDirection] = useState('departing'); // 'departing' (Thapar -> City) or 'returning' (City -> Thapar)
   const [selectedHostel, setSelectedHostel] = useState(() => user?.hostel || HOSTELS[0].name);
   const [isHostelDropdownOpen, setIsHostelDropdownOpen] = useState(false);
 
@@ -210,7 +212,7 @@ export default function CityCommunityHubPage({
 
   // Fetch slots for this city community
   const fetchCommunitySlots = useCallback(
-    async (destName, dateVal, _modeVal) => {
+    async (destName, dateVal, _modeVal, tripDir = direction) => {
       if (!community?.id || !isUserEnrolledInCity) return;
       setSlotsLoading(true);
       setSlotsError(null);
@@ -218,7 +220,8 @@ export default function CityCommunityHubPage({
         const res = await api.getCityCommunitySlots(community.id, {
           destination: destName,
           date: dateVal,
-          mode: 'Cab'
+          mode: 'Cab',
+          direction: tripDir
         });
         if (res && res.slots) {
           setSlots(res.slots);
@@ -233,7 +236,7 @@ export default function CityCommunityHubPage({
         setSlotsLoading(false);
       }
     },
-    [community, isUserEnrolledInCity]
+    [community, isUserEnrolledInCity, direction]
   );
 
   // Refresh notice board posts on mount or community change
@@ -248,7 +251,15 @@ export default function CityCommunityHubPage({
     if (e) e.preventDefault();
     setIsDestDropdownOpen(false);
     setHasSearched(true);
-    fetchCommunitySlots(effectiveDest, selectedDate, 'Shared Cab');
+    fetchCommunitySlots(effectiveDest, selectedDate, 'Shared Cab', direction);
+  };
+
+  const handleToggleDirection = () => {
+    const nextDir = direction === 'departing' ? 'returning' : 'departing';
+    setDirection(nextDir);
+    if (hasSearched) {
+      fetchCommunitySlots(effectiveDest, selectedDate, 'Shared Cab', nextDir);
+    }
   };
 
   // Handle Join Slot (Atomic Join or Lazy Group Creation)
@@ -267,12 +278,18 @@ export default function CityCommunityHubPage({
 
     setJoiningSlotKey(slot.slotKey);
     try {
+      const isReturn = (slot.direction || direction) === 'returning';
+      const resolvedPickup = isReturn
+        ? (effectiveDest || `${community.name} (Central Terminal)`)
+        : selectedHostel;
+
       const res = await api.joinCityCommunitySlot(community.id, {
         date: slot.date,
         time: slot.time,
         mode: 'Cab',
         destination: slot.destination || effectiveDest,
-        pickupPoint: selectedHostel
+        pickupPoint: resolvedPickup,
+        direction: slot.direction || direction
       });
 
       if (triggerToast) {
@@ -292,7 +309,7 @@ export default function CityCommunityHubPage({
         });
       }
 
-      fetchCommunitySlots(effectiveDest, selectedDate, selectedMode);
+      fetchCommunitySlots(effectiveDest, selectedDate, selectedMode, direction);
       if (onRefreshGroups) {
         onRefreshGroups();
       }
@@ -695,114 +712,302 @@ export default function CityCommunityHubPage({
 
           {/* STICKY SEARCH CARD (MakeMyTrip style) */}
           <div className="sticky top-20 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-xl p-5 sm:p-6 transition-all">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse" />
                 <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">
-                  Rides to {community?.name}
+                  {direction === 'returning' ? `Rides from ${community?.name}` : `Rides to ${community?.name}`}
                 </h2>
                 <span className="text-[11px] font-bold bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-800 hidden sm:inline-block">
                   Every 15 min
                 </span>
               </div>
-              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                {community?.distanceFromThapar || '200 km'} • Verified students
-              </span>
+
+              {/* Direction Switcher & Swap Button */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="inline-flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (direction !== 'departing') {
+                        setDirection('departing');
+                        if (hasSearched) fetchCommunitySlots(effectiveDest, selectedDate, 'Shared Cab', 'departing');
+                      }
+                    }}
+                    className={`px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      direction === 'departing'
+                        ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    <span>Thapar ➔ {community?.name}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (direction !== 'returning') {
+                        setDirection('returning');
+                        if (hasSearched) fetchCommunitySlots(effectiveDest, selectedDate, 'Shared Cab', 'returning');
+                      }
+                    }}
+                    className={`px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      direction === 'returning'
+                        ? 'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    <span>{community?.name} ➔ Thapar</span>
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleToggleDirection}
+                  className="p-2 bg-slate-100 hover:bg-blue-50 dark:bg-slate-800 dark:hover:bg-blue-950/60 text-slate-600 hover:text-blue-600 dark:text-slate-300 dark:hover:text-blue-400 rounded-2xl border border-slate-200/80 dark:border-slate-700 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+                  title="Switch trip direction"
+                  aria-label="Switch trip direction between departing and returning"
+                >
+                  <ArrowLeftRight className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Switch</span>
+                </button>
+              </div>
             </div>
 
             <form onSubmit={handleSearchSubmit} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
 
-                {/* 1. FROM: Fixed Thapar Campus */}
-                <div className="bg-slate-50/90 dark:bg-slate-800/60 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-700/80 flex flex-col justify-between">
-                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 flex items-center gap-1">
-                    <MapPin className="w-3 h-3 text-blue-600 dark:text-blue-400" />
-                    <span>From</span>
-                  </span>
-                  <div className="font-extrabold text-slate-900 dark:text-slate-100 text-sm mt-1">
-                    Thapar Institute
-                  </div>
-                </div>
-
-                {/* 2. TO: Drop Destination in City (Searchable Dropdown) */}
-                <div className="relative bg-slate-50/90 dark:bg-slate-800/60 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-700/80 flex flex-col justify-between">
-                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 flex items-center gap-1">
-                    <MapPin className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
-                    <span>Drop point</span>
-                  </span>
-
-                  <button
-                    type="button"
-                    onClick={() => setIsDestDropdownOpen(!isDestDropdownOpen)}
-                    className="font-extrabold text-slate-900 dark:text-slate-100 text-sm mt-1 text-left flex items-center justify-between w-full truncate cursor-pointer"
-                  >
-                    <span className="truncate">{effectiveDest}</span>
-                    <ChevronDown className="w-4 h-4 text-slate-400 shrink-0 ml-1" />
-                  </button>
-
-                  {isDestDropdownOpen && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-750 shadow-xl p-3 z-50 space-y-2 max-h-72 overflow-y-auto">
-                      <div className="relative">
-                        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
-                        <input
-                          type="text"
-                          placeholder="Search drop landmark..."
-                          value={destSearchQuery}
-                          onChange={(e) => setDestSearchQuery(e.target.value)}
-                          className="w-full pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl text-xs font-semibold focus:outline-hidden focus:border-blue-500"
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 px-2">
-                          Popular Drop Points
+                {/* 1 & 2. Dynamic From / To with Switch Support */}
+                {direction === 'departing' ? (
+                  <>
+                    {/* 1. FROM: Fixed Thapar Campus */}
+                    <div className="bg-slate-50/90 dark:bg-slate-800/60 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-700/80 flex flex-col justify-between">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                          <MapPin className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                          <span>From</span>
                         </span>
-                        {filteredPresetDestinations.map((dest) => (
-                          <div
-                            key={dest}
-                            onClick={() => {
-                              setSelectedDest(dest);
-                              setCustomDestInput('');
-                              setIsDestDropdownOpen(false);
-                            }}
-                            className={`p-2 rounded-xl text-xs font-bold flex items-center justify-between cursor-pointer transition-colors ${
-                              effectiveDest === dest
-                                ? 'bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300'
-                                : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200'
-                            }`}
-                          >
-                            <span className="truncate">{dest}</span>
-                            {effectiveDest === dest && (
-                              <Check className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-                            )}
-                          </div>
-                        ))}
+                        <button
+                          type="button"
+                          onClick={handleToggleDirection}
+                          className="text-[10px] text-slate-400 hover:text-blue-600 dark:text-slate-500 dark:hover:text-blue-400 p-0.5 cursor-pointer"
+                          title="Switch direction"
+                          aria-label="Switch direction"
+                        >
+                          <ArrowLeftRight className="w-3 h-3" />
+                        </button>
                       </div>
-
-                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
-                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 px-1">
-                          Or Type Custom Landmark / Address
-                        </span>
-                        <div className="flex gap-1.5">
-                          <input
-                            type="text"
-                            placeholder="e.g. Rohini Sector 11, GTB Nagar..."
-                            value={customDestInput}
-                            onChange={(e) => setCustomDestInput(e.target.value)}
-                            className="flex-1 px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl text-xs font-semibold focus:outline-hidden focus:border-blue-500"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setIsDestDropdownOpen(false)}
-                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl cursor-pointer"
-                          >
-                            Set
-                          </button>
-                        </div>
+                      <div className="font-extrabold text-slate-900 dark:text-slate-100 text-sm mt-1">
+                        Thapar Institute
                       </div>
                     </div>
-                  )}
-                </div>
+
+                    {/* 2. TO: Drop Destination in City (Searchable Dropdown) */}
+                    <div className="relative bg-slate-50/90 dark:bg-slate-800/60 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-700/80 flex flex-col justify-between">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                          <MapPin className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+                          <span>Drop point</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleToggleDirection}
+                          className="text-[10px] text-slate-400 hover:text-blue-600 dark:text-slate-500 dark:hover:text-blue-400 p-0.5 cursor-pointer"
+                          title="Switch direction"
+                          aria-label="Switch direction"
+                        >
+                          <ArrowLeftRight className="w-3 h-3" />
+                        </button>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setIsDestDropdownOpen(!isDestDropdownOpen)}
+                        className="font-extrabold text-slate-900 dark:text-slate-100 text-sm mt-1 text-left flex items-center justify-between w-full truncate cursor-pointer"
+                      >
+                        <span className="truncate">{effectiveDest}</span>
+                        <ChevronDown className="w-4 h-4 text-slate-400 shrink-0 ml-1" />
+                      </button>
+
+                      {isDestDropdownOpen && (
+                        <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-750 shadow-xl p-3 z-50 space-y-2 max-h-72 overflow-y-auto">
+                          <div className="relative">
+                            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                            <input
+                              type="text"
+                              placeholder="Search drop landmark..."
+                              value={destSearchQuery}
+                              onChange={(e) => setDestSearchQuery(e.target.value)}
+                              className="w-full pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl text-xs font-semibold focus:outline-hidden focus:border-blue-500"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 px-2">
+                              Popular Drop Points
+                            </span>
+                            {filteredPresetDestinations.map((dest) => (
+                              <div
+                                key={dest}
+                                onClick={() => {
+                                  setSelectedDest(dest);
+                                  setCustomDestInput('');
+                                  setIsDestDropdownOpen(false);
+                                }}
+                                className={`p-2 rounded-xl text-xs font-bold flex items-center justify-between cursor-pointer transition-colors ${
+                                  effectiveDest === dest
+                                    ? 'bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300'
+                                    : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200'
+                                }`}
+                              >
+                                <span className="truncate">{dest}</span>
+                                {effectiveDest === dest && (
+                                  <Check className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                                )}
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
+                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 px-1">
+                              Or Type Custom Landmark / Address
+                            </span>
+                            <div className="flex gap-1.5">
+                              <input
+                                type="text"
+                                placeholder="e.g. Rohini Sector 11, GTB Nagar..."
+                                value={customDestInput}
+                                onChange={(e) => setCustomDestInput(e.target.value)}
+                                className="flex-1 px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl text-xs font-semibold focus:outline-hidden focus:border-blue-500"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setIsDestDropdownOpen(false)}
+                                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl cursor-pointer"
+                              >
+                                Set
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* 1. FROM: Returning Pickup Destination in City */}
+                    <div className="relative bg-slate-50/90 dark:bg-slate-800/60 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-700/80 flex flex-col justify-between">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                          <MapPin className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                          <span>From (Pickup point)</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleToggleDirection}
+                          className="text-[10px] text-slate-400 hover:text-blue-600 dark:text-slate-500 dark:hover:text-blue-400 p-0.5 cursor-pointer"
+                          title="Switch direction"
+                          aria-label="Switch direction"
+                        >
+                          <ArrowLeftRight className="w-3 h-3" />
+                        </button>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setIsDestDropdownOpen(!isDestDropdownOpen)}
+                        className="font-extrabold text-slate-900 dark:text-slate-100 text-sm mt-1 text-left flex items-center justify-between w-full truncate cursor-pointer"
+                      >
+                        <span className="truncate">{effectiveDest}</span>
+                        <ChevronDown className="w-4 h-4 text-slate-400 shrink-0 ml-1" />
+                      </button>
+
+                      {isDestDropdownOpen && (
+                        <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-750 shadow-xl p-3 z-50 space-y-2 max-h-72 overflow-y-auto">
+                          <div className="relative">
+                            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                            <input
+                              type="text"
+                              placeholder="Search pickup landmark..."
+                              value={destSearchQuery}
+                              onChange={(e) => setDestSearchQuery(e.target.value)}
+                              className="w-full pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl text-xs font-semibold focus:outline-hidden focus:border-blue-500"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 px-2">
+                              Popular Pickup Points
+                            </span>
+                            {filteredPresetDestinations.map((dest) => (
+                              <div
+                                key={dest}
+                                onClick={() => {
+                                  setSelectedDest(dest);
+                                  setCustomDestInput('');
+                                  setIsDestDropdownOpen(false);
+                                }}
+                                className={`p-2 rounded-xl text-xs font-bold flex items-center justify-between cursor-pointer transition-colors ${
+                                  effectiveDest === dest
+                                    ? 'bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300'
+                                    : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200'
+                                }`}
+                              >
+                                <span className="truncate">{dest}</span>
+                                {effectiveDest === dest && (
+                                  <Check className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                                )}
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
+                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 px-1">
+                              Or Type Custom Landmark / Address
+                            </span>
+                            <div className="flex gap-1.5">
+                              <input
+                                type="text"
+                                placeholder="e.g. Rohini Sector 11, GTB Nagar..."
+                                value={customDestInput}
+                                onChange={(e) => setCustomDestInput(e.target.value)}
+                                className="flex-1 px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl text-xs font-semibold focus:outline-hidden focus:border-blue-500"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setIsDestDropdownOpen(false)}
+                                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl cursor-pointer"
+                              >
+                                Set
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 2. TO: Campus Drop Point */}
+                    <div className="bg-slate-50/90 dark:bg-slate-800/60 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-700/80 flex flex-col justify-between">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                          <MapPin className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                          <span>To (Campus)</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleToggleDirection}
+                          className="text-[10px] text-slate-400 hover:text-blue-600 dark:text-slate-500 dark:hover:text-blue-400 p-0.5 cursor-pointer"
+                          title="Switch direction"
+                          aria-label="Switch direction"
+                        >
+                          <ArrowLeftRight className="w-3 h-3" />
+                        </button>
+                      </div>
+                      <div className="font-extrabold text-slate-900 dark:text-slate-100 text-sm mt-1">
+                        Thapar Institute
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 {/* 3. DATE: Picker (Today to +30 Days) */}
                 <div className="bg-slate-50/90 dark:bg-slate-800/60 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-700/80 flex flex-col justify-between">
@@ -894,13 +1099,13 @@ export default function CityCommunityHubPage({
                       onClick={() => setIsHostelDropdownOpen(!isHostelDropdownOpen)}
                       className="text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 underline cursor-pointer truncate max-w-full block"
                     >
-                      Pickup from {selectedHostel.split(' ')[0]} ▾
+                      {direction === 'returning' ? 'Drop at' : 'Pickup from'} {selectedHostel.split(' ')[0]} ▾
                     </button>
 
                     {isHostelDropdownOpen && (
                       <div className="absolute bottom-full right-0 mb-2 w-64 bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-750 shadow-xl p-2 z-50 max-h-60 overflow-y-auto space-y-1 text-left">
                         <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 px-2">
-                          Campus Pickup Hostel
+                          {direction === 'returning' ? 'Campus Drop Hostel' : 'Campus Pickup Hostel'}
                         </span>
                         {HOSTELS.map((h) => (
                           <div
@@ -984,6 +1189,7 @@ export default function CityCommunityHubPage({
                 }}
                 joiningSlotKey={joiningSlotKey}
                 initialJumpTime={selectedTime}
+                direction={direction}
               />
             </div>
           )}

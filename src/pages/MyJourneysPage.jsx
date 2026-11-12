@@ -153,8 +153,15 @@ export default function MyJourneysPage({
                           <div>
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="text-[10px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/70 px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-800">
-                                {group.isCommunityRide ? '📍 City Community' : 'TIET →'} {group.destinationName}
+                                {group.direction === 'returning'
+                                  ? `${group.origin || 'Pickup'} ➔ Thapar`
+                                  : `Thapar ➔ ${group.destinationName}`}
                               </span>
+                              {group.direction === 'returning' && (
+                                <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/70 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800">
+                                  ↩ Return
+                                </span>
+                              )}
                               {group.isCommunityRide && (
                                 <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/70 px-2 py-0.5 rounded-md border border-indigo-200 dark:border-indigo-800">
                                   {group.communityName} Hub
@@ -292,7 +299,9 @@ export default function MyJourneysPage({
                     </div>
 
                     <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
-                      {trip.isCommunityRide ? trip.destinationName : `TIET → ${trip.destinationName}`}
+                      {trip.direction === 'returning'
+                        ? `${trip.origin || 'Pickup'} ➔ Thapar Institute`
+                        : `Thapar Institute ➔ ${trip.destinationName}`}
                     </h3>
 
                     <div className="mt-3 space-y-1.5 text-xs text-slate-500 dark:text-slate-400">

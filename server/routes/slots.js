@@ -9,10 +9,11 @@ import { notifyUser, notifyGroupMembersUpdated } from '../services/notifications
 
 const router = express.Router();
 
-export function generateTenMinuteSlots(dateStr, destObj, vehicle, existingGroups = [], currentUserId = null) {
+export function generateTenMinuteSlots(dateStr, destObj, vehicle, existingGroups = [], currentUserId = null, direction = 'departing') {
   const slots = [];
   const normalizedDate = normalizeDateStr(dateStr);
   const groupsByTime = new Map();
+  const isReturn = direction === 'returning';
 
   for (const g of existingGroups) {
     if (g.departure_time) {
@@ -37,7 +38,10 @@ export function generateTenMinuteSlots(dateStr, destObj, vehicle, existingGroups
 
       const group = groupsByTime.get(timeStr);
       const slotVehicle = group ? group.transport : (vehicle === 'Either' || !vehicle ? 'Shared Cab' : vehicle);
-      const slotKey = group?.slot_key || `${destObj.id}_${normalizedDate}_${timeStr}_${slotVehicle}`;
+      const defaultSlotKey = isReturn
+        ? `${destObj.id}_ret_${normalizedDate}_${timeStr}_${slotVehicle}`
+        : `${destObj.id}_${normalizedDate}_${timeStr}_${slotVehicle}`;
+      const slotKey = group?.slot_key || defaultSlotKey;
 
       const maxSeats = group?.max_members || (slotVehicle === 'Shared Auto' ? 3 : 4);
       const seatsFilled = group?.members ? group.members.length : 0;
@@ -58,7 +62,9 @@ export function generateTenMinuteSlots(dateStr, destObj, vehicle, existingGroups
         time: timeStr,
         date: normalizedDate,
         destinationId: destObj.id,
-        destinationName: destObj.name,
+        destinationName: isReturn ? 'Thapar Institute' : destObj.name,
+        origin: isReturn ? destObj.name : 'Thapar Institute',
+        direction: isReturn ? 'returning' : 'departing',
         vehicle: slotVehicle,
         maxSeats,
         seatsFilled,
@@ -91,7 +97,7 @@ export function generateTenMinuteSlots(dateStr, destObj, vehicle, existingGroups
 // 1. GET /api/slots: Returns merged list of 10-minute slots (virtual and real)
 router.get('/', async (req, res, next) => {
   try {
-    const { destinationId, date, vehicle } = req.query;
+    const { destinationId, date, vehicle, direction } = req.query;
 
     if (!destinationId) {
       throw new HttpError(400, 'Destination ID is required.');
@@ -107,12 +113,15 @@ router.get('/', async (req, res, next) => {
     }
 
     const travelDate = normalizeDateStr(date || 'Today');
+    const isReturn = direction === 'returning';
+    const tripDirection = isReturn ? 'returning' : 'departing';
 
-    // Query active groups for this destination & date
+    // Query active groups for this destination & date & direction
     const groupQuery = {
       destination_id: destinationId,
       date: travelDate,
-      status: { $in: ['Open', 'Confirmed'] }
+      status: { $in: ['Open', 'Confirmed'] },
+      direction: isReturn ? 'returning' : { $in: ['departing', null] }
     };
     if (vehicle && vehicle !== 'Either') {
       groupQuery.transport = vehicle;
@@ -128,7 +137,8 @@ router.get('/', async (req, res, next) => {
       destination,
       vehicle || 'Shared Cab',
       existingGroups,
-      currentUserId
+      currentUserId,
+      tripDirection
     );
 
     res.json({
@@ -139,6 +149,8 @@ router.get('/', async (req, res, next) => {
         avgCabFare: destination.avg_cab_fare
       },
       date: travelDate,
+      direction: tripDirection,
+      origin: isReturn ? destination.name : 'Thapar Institute',
       vehicle: vehicle || 'Either',
       totalSlots: slots.length,
       availableSlotsCount: slots.filter((s) => !s.isPast && !s.isFull).length,
@@ -152,13 +164,15 @@ router.get('/', async (req, res, next) => {
 // 2. POST /api/slots/join: Atomic join or lazy group creation with strict capacity & single-ride enforcement
 router.post('/join', requireAuth, async (req, res, next) => {
   try {
-    const { destinationId, date, time, vehicle, pickupPoint } = req.body;
+    const { destinationId, date, time, vehicle, pickupPoint, direction } = req.body;
     if (!destinationId || !time) {
       throw new HttpError(400, 'Destination and departure time are required.');
     }
 
     const selectedVehicle = ['Shared Cab', 'Shared Auto'].includes(vehicle) ? vehicle : 'Shared Cab';
     const travelDate = normalizeDateStr(date || 'Today');
+    const isReturn = direction === 'returning';
+    const tripDirection = isReturn ? 'returning' : 'departing';
 
     // Departure time cannot be in the past
     const hoursLeft = getHoursUntilDeparture(travelDate, time);
@@ -175,9 +189,14 @@ router.post('/join', requireAuth, async (req, res, next) => {
       };
     }
 
-    const slotKey = `${destinationId}_${travelDate}_${time}_${selectedVehicle}`;
+    const defaultPickup = isReturn
+      ? `${destination.name} (Arrivals / Main Exit)`
+      : 'Main Gate (Near Executive Mess)';
+    const slotKey = isReturn
+      ? `${destinationId}_ret_${travelDate}_${time}_${selectedVehicle}`
+      : `${destinationId}_${travelDate}_${time}_${selectedVehicle}`;
     const maxCapacity = selectedVehicle === 'Shared Auto' ? 3 : 4;
-    const resolvedPickupPoint = pickupPoint || 'Main Gate (Near Executive Mess)';
+    const resolvedPickupPoint = pickupPoint || defaultPickup;
 
     // Single-Ride Policy check across regular Groups & City Community Rides
     const activeGroup = await Group.findOne({
@@ -243,7 +262,13 @@ router.post('/join', requireAuth, async (req, res, next) => {
     let group = await Group.findOne({
       $or: [
         { slot_key: slotKey },
-        { destination_id: destinationId, date: travelDate, departure_time: time, transport: selectedVehicle }
+        {
+          destination_id: destinationId,
+          date: travelDate,
+          departure_time: time,
+          transport: selectedVehicle,
+          direction: isReturn ? 'returning' : { $in: ['departing', null] }
+        }
       ]
     });
 
@@ -310,7 +335,9 @@ router.post('/join', requireAuth, async (req, res, next) => {
         id: groupId,
         slot_key: slotKey,
         destination_id: destinationId,
-        destination_name: destination.name || destinationId,
+        destination_name: isReturn ? 'Thapar Institute' : (destination.name || destinationId),
+        origin: isReturn ? (destination.name || destinationId) : 'Thapar Institute',
+        direction: tripDirection,
         departure_time: time,
         date: travelDate,
         status: 'Open',
@@ -417,7 +444,8 @@ export async function rescheduleGroupSlot({
   targetDate,
   targetTime,
   targetVehicle,
-  targetPickupPoint
+  targetPickupPoint,
+  targetDirection
 }) {
   if (!oldGroupId || !targetTime) {
     throw new HttpError(400, 'Current group ID and target departure time are required.');
@@ -445,7 +473,11 @@ export async function rescheduleGroupSlot({
     ? targetVehicle
     : (oldGroup.transport || 'Shared Cab');
 
-  const slotKey = `${destId}_${normalizedDate}_${targetTime}_${selectedVehicle}`;
+  const isTargetReturn = targetDirection === 'returning' || (!targetDirection && oldGroup.direction === 'returning');
+  const targetDir = isTargetReturn ? 'returning' : 'departing';
+  const slotKey = isTargetReturn
+    ? `${destId}_ret_${normalizedDate}_${targetTime}_${selectedVehicle}`
+    : `${destId}_${normalizedDate}_${targetTime}_${selectedVehicle}`;
 
   // Cannot reschedule to the exact same slot
   if (
@@ -453,7 +485,8 @@ export async function rescheduleGroupSlot({
     (oldGroup.destination_id === destId &&
       oldGroup.date === normalizedDate &&
       oldGroup.departure_time === targetTime &&
-      oldGroup.transport === selectedVehicle)
+      oldGroup.transport === selectedVehicle &&
+      (oldGroup.direction || 'departing') === targetDir)
   ) {
     throw new HttpError(400, 'You are already in this travel slot.');
   }
@@ -479,13 +512,22 @@ export async function rescheduleGroupSlot({
   }
 
   const maxCapacity = selectedVehicle === 'Shared Auto' ? 3 : 4;
-  const resolvedPickup = targetPickupPoint || oldGroup.pickup_point || 'Main Gate (Near Executive Mess)';
+  const defaultPickup = isTargetReturn
+    ? `${destName} (Arrivals / Main Exit)`
+    : 'Main Gate (Near Executive Mess)';
+  const resolvedPickup = targetPickupPoint || oldGroup.pickup_point || defaultPickup;
 
   // Step 1: Join or create target slot ATOMICALLY first
   let targetGroup = await Group.findOne({
     $or: [
       { slot_key: slotKey },
-      { destination_id: destId, date: normalizedDate, departure_time: targetTime, transport: selectedVehicle }
+      {
+        destination_id: destId,
+        date: normalizedDate,
+        departure_time: targetTime,
+        transport: selectedVehicle,
+        direction: isTargetReturn ? 'returning' : { $in: ['departing', null] }
+      }
     ]
   });
 
@@ -531,7 +573,9 @@ export async function rescheduleGroupSlot({
         id: newGroupId,
         slot_key: slotKey,
         destination_id: destId,
-        destination_name: destName,
+        destination_name: isTargetReturn ? 'Thapar Institute' : destName,
+        origin: isTargetReturn ? destName : 'Thapar Institute',
+        direction: targetDir,
         departure_time: targetTime,
         date: normalizedDate,
         status: 'Open',
@@ -688,7 +732,8 @@ router.post('/reschedule', requireAuth, async (req, res, next) => {
       targetDate,
       targetTime,
       targetVehicle,
-      targetPickupPoint
+      targetPickupPoint,
+      targetDirection
     } = req.body || {};
 
     const result = await rescheduleGroupSlot({
@@ -698,6 +743,7 @@ router.post('/reschedule', requireAuth, async (req, res, next) => {
       targetTime,
       targetVehicle,
       targetPickupPoint,
+      targetDirection,
       user: req.user
     });
     res.json(result);

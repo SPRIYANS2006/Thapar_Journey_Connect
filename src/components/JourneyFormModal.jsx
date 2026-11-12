@@ -8,13 +8,15 @@ import {
   Car, 
   Sliders, 
   CheckCircle2, 
-  Info 
+  Info,
+  ArrowLeftRight
 } from 'lucide-react';
 import { DESTINATIONS, HOSTELS } from '../data/mockData';
 import { TIME_SLOT_OPTIONS_15MIN } from '../utils/matchingEngine';
 
 export default function JourneyFormModal({ destination, user, onClose, onSubmitJourney }) {
   const [selectedDestId, setSelectedDestId] = useState(destination?.id || 'railway');
+  const [direction, setDirection] = useState('departing'); // 'departing' or 'returning'
   
   // Dynamically generate the next 15 days starting from the current date
   const availableDates = React.useMemo(() => {
@@ -73,10 +75,12 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const isReturn = direction === 'returning';
     const journeyData = {
       destinationId: selectedDestId,
-      destinationName: selectedDestObj.name,
-      origin: 'TIET Campus',
+      destinationName: isReturn ? 'Thapar Institute' : selectedDestObj.name,
+      origin: isReturn ? selectedDestObj.name : 'Thapar Institute',
+      direction,
       date,
       departureTime,
       flexibility,
@@ -105,52 +109,141 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
             </span>
             <div>
               <span className="text-xs font-semibold text-blue-200">
-                Find a ride
+                {direction === 'returning' ? 'Return to campus' : 'Find a ride'}
               </span>
               <h2 className="text-xl font-bold text-white leading-tight">
-                {selectedDestObj.name}
+                {direction === 'returning' ? `${selectedDestObj.name} → Thapar` : `Thapar → ${selectedDestObj.name}`}
               </h2>
             </div>
           </div>
           <p className="text-xs text-slate-200">
-            Find students departing around your schedule.
+            {direction === 'returning'
+              ? 'Find students returning back to Thapar campus.'
+              : 'Find students departing around your schedule.'}
           </p>
         </div>
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-4 sm:space-y-5">
           
-          {/* Destination Selector */}
+          {/* Trip Direction Segmented Switch */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-              <MapPin className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              <span>Destination</span>
-            </label>
-            <select
-              value={selectedDestId}
-              onChange={(e) => setSelectedDestId(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer"
-            >
-              {DESTINATIONS.map((d) => (
-                <option key={d.id} value={d.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-                  {d.icon} {d.name}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center justify-between p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700 text-xs">
+              <button
+                type="button"
+                onClick={() => setDirection('departing')}
+                className={`flex-1 py-1.5 rounded-xl font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  direction === 'departing'
+                    ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
+              >
+                <span>Depart campus</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setDirection('returning')}
+                className={`flex-1 py-1.5 rounded-xl font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  direction === 'returning'
+                    ? 'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
+              >
+                <span>Return to campus</span>
+              </button>
+            </div>
           </div>
 
-          {/* From Location */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-              From
-            </label>
-            <input
-              type="text"
-              value="Thapar Institute"
-              disabled
-              className="w-full bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 rounded-xl px-3.5 py-2.5 text-sm font-medium cursor-not-allowed"
-            />
-          </div>
+          {/* Dynamic Origin / Destination */}
+          {direction === 'departing' ? (
+            <>
+              {/* From Location */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                    From
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setDirection('returning')}
+                    className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <ArrowLeftRight className="w-3 h-3" />
+                    <span>Switch</span>
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value="Thapar Institute"
+                  disabled
+                  className="w-full bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 rounded-xl px-3.5 py-2.5 text-sm font-medium cursor-not-allowed"
+                />
+              </div>
+
+              {/* Destination Selector */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
+                  <MapPin className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <span>Destination</span>
+                </label>
+                <select
+                  value={selectedDestId}
+                  onChange={(e) => setSelectedDestId(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer"
+                >
+                  {DESTINATIONS.map((d) => (
+                    <option key={d.id} value={d.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+                      {d.icon} {d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Returning From Location (Pickup point) */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <MapPin className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    <span>From (Pickup point)</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setDirection('departing')}
+                    className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <ArrowLeftRight className="w-3 h-3" />
+                    <span>Switch</span>
+                  </button>
+                </div>
+                <select
+                  value={selectedDestId}
+                  onChange={(e) => setSelectedDestId(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer"
+                >
+                  {DESTINATIONS.map((d) => (
+                    <option key={d.id} value={d.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+                      {d.icon} {d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Returning To (Campus Drop) */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  To (Campus)
+                </label>
+                <input
+                  type="text"
+                  value="Thapar Institute"
+                  disabled
+                  className="w-full bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 rounded-xl px-3.5 py-2.5 text-sm font-medium cursor-not-allowed"
+                />
+              </div>
+            </>
+          )}
 
           {/* Date & Departure Time */}
           <div className="grid grid-cols-2 gap-4">

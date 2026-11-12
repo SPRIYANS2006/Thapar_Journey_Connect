@@ -53,6 +53,11 @@ const cityRideSchema = new mongoose.Schema({
     default: 'Open',
     enum: ['Open', 'Full', 'Confirmed', 'Completed', 'Cancelled']
   },
+  direction: {
+    type: String,
+    enum: ['departing', 'returning'],
+    default: 'departing'
+  },
   members: [cityRideMemberSchema],
   slot_key: { type: String },
   created_at: { type: Date, default: Date.now }

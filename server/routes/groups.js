@@ -793,10 +793,22 @@ router.get('/history/mine', async (req, res, next) => {
 // 14. Reschedule Group Slot: atomically change travel slot
 router.post('/:id/reschedule', requireAuth, async (req, res, next) => {
   try {
+    const {
+      targetDestinationId,
+      targetDate,
+      targetTime,
+      targetVehicle,
+      targetPickupPoint
+    } = req.body || {};
+
     const result = await rescheduleGroupSlot({
-      user: req.user,
       oldGroupId: req.params.id,
-      ...req.body
+      targetDestinationId,
+      targetDate,
+      targetTime,
+      targetVehicle,
+      targetPickupPoint,
+      user: req.user
     });
     res.json(result);
   } catch (err) {
@@ -847,28 +859,54 @@ router.post('/:id/friends', requireAuth, async (req, res, next) => {
       joined_at: new Date()
     };
 
-    target.members.push(companion);
-    if (cityRide) {
-      cityRide.current_members_count = cityRide.members.length;
-      if (cityRide.members.length >= maxMembers) {
-        cityRide.status = 'Full';
-      }
+    let updatedTarget;
+    if (group) {
+      updatedTarget = await Group.findOneAndUpdate(
+        {
+          id: group.id,
+          status: { $in: ['Open', 'Confirmed'] },
+          $expr: { $lt: [{ $size: '$members' }, maxMembers] }
+        },
+        { $push: { members: companion } },
+        { returnDocument: 'after' }
+      );
+    } else {
+      updatedTarget = await CityRide.findOneAndUpdate(
+        {
+          id: cityRide.id,
+          status: { $in: ['Open', 'Confirmed'] },
+          $expr: { $lt: [{ $size: '$members' }, maxMembers] }
+        },
+        {
+          $push: { members: companion },
+          $inc: { current_members_count: 1 }
+        },
+        { returnDocument: 'after' }
+      );
     }
-    await target.save();
 
-    const serialized = group ? serializeGroup(group, req.user.id) : serializeCityRideAsGroup(cityRide, req.user.id);
-    notifyGroupMembersUpdated(group || serialized);
+    if (!updatedTarget) {
+      throw new HttpError(409, `Group is at maximum capacity (${maxMembers}/${maxMembers} seats filled).`);
+    }
 
-    for (const m of target.members) {
+    if (cityRide && updatedTarget.members.length >= maxMembers) {
+      await CityRide.updateOne({ id: updatedTarget.id }, { $set: { status: 'Full' } });
+      updatedTarget.status = 'Full';
+    }
+
+    const serialized = group ? serializeGroup(updatedTarget, req.user.id) : serializeCityRideAsGroup(updatedTarget, req.user.id);
+    notifyGroupMembersUpdated(group ? updatedTarget : serialized);
+
+    for (const m of updatedTarget.members) {
       const memberId = m.user_id || m.userId || m.id;
       if (memberId && memberId !== req.user.id && !m.is_companion) {
         notifyUser(memberId, 'member_joined', {
-          groupId: target.id,
-          destinationName: target.destination_name || target.destination,
+          groupId: updatedTarget.id,
+          destinationName: updatedTarget.destination_name || updatedTarget.destination,
           joinerId: companion.user_id,
           joinerName: companion.name,
           joinerHostel: companion.hostel,
-          membersCount: target.members.length,
+          membersCount: updatedTarget.members.length,
           maxMembers
         });
       }

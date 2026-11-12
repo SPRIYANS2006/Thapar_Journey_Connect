@@ -2,10 +2,14 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { Destination, Hostel, Community, Counter, CommunityGroup, CityRide, User } from '../models/index.js';
 
-const FALLBACK_MONGODB_URI = 'mongodb+srv://psoni1be24_db_user:g1A5fLmc2frxKZtN@thaparclusters.mk83gfu.mongodb.net/thapar_journey?retryWrites=true&w=majority';
-
 export async function connectDB(customUri) {
-  const uri = customUri || process.env.MONGODB_URI || FALLBACK_MONGODB_URI;
+  const isProd = process.env.NODE_ENV === 'production';
+  const uri = customUri || process.env.MONGODB_URI || (!isProd ? 'mongodb://127.0.0.1:27017/thapar_journey' : null);
+
+  if (!uri) {
+    console.error('❌ FATAL: MONGODB_URI environment variable is required in production.');
+    return false;
+  }
 
   try {
     console.log('🔄 Connecting to MongoDB...');
@@ -237,107 +241,109 @@ export async function seedDefaultData() {
       ]
     });
 
-    // 6. Seed test student accounts for instant password sign-in (testing without Google)
-    const testPasswordHash = await bcrypt.hash('Thapar@123', 10);
-    const testAccounts = [
-      {
-        id: 'student_aarav',
-        name: 'Aarav Sharma',
-        email: 'student1@thapar.edu',
-        password_hash: testPasswordHash,
-        hostel: 'Tejas Hall (Hostel-J)',
-        avatar: 'AS',
-        phone: '9876543210',
-        degree: 'B.E. Computer Engineering',
-        year: '3rd Year',
-        hometown: 'Delhi NCR',
-        reliability: 5.0,
-        trips_completed: 4,
-        joined_community: 'del'
-      },
-      {
-        id: 'student_diya',
-        name: 'Diya Verma',
-        email: 'student2@thapar.edu',
-        password_hash: testPasswordHash,
-        hostel: 'Vasudha Hall (Hostel-E)',
-        avatar: 'DV',
-        phone: '9876543211',
-        degree: 'B.E. Electronics & Communication',
-        year: '2nd Year',
-        hometown: 'Delhi NCR',
-        reliability: 4.9,
-        trips_completed: 2,
-        joined_community: 'del'
-      },
-      {
-        id: 'student_aarav_alias',
-        name: 'Aarav Sharma',
-        email: 'test.student1@thapar.edu',
-        password_hash: testPasswordHash,
-        hostel: 'Tejas Hall (Hostel-J)',
-        avatar: 'AS',
-        phone: '9876543210',
-        degree: 'B.E. Computer Engineering',
-        year: '3rd Year',
-        hometown: 'Delhi NCR',
-        reliability: 5.0,
-        trips_completed: 4,
-        joined_community: 'del'
-      },
-      {
-        id: 'student_diya_alias',
-        name: 'Diya Verma',
-        email: 'test.student2@thapar.edu',
-        password_hash: testPasswordHash,
-        hostel: 'Vasudha Hall (Hostel-E)',
-        avatar: 'DV',
-        phone: '9876543211',
-        degree: 'B.E. Electronics & Communication',
-        year: '2nd Year',
-        hometown: 'Delhi NCR',
-        reliability: 4.9,
-        trips_completed: 2,
-        joined_community: 'del'
-      },
-      {
-        id: 'vendor_patiala_express',
-        name: 'Patiala Campus Express Logistics',
-        email: 'vendor@thapar.edu',
-        password_hash: testPasswordHash,
-        hostel: 'Executive Center',
-        avatar: 'PX',
-        phone: '9888123456',
-        degree: 'Verified Logistics Partner',
-        year: 'Campus Vendor',
-        hometown: 'Patiala',
-        reliability: 5.0,
-        trips_completed: 120,
-        role: 'vendor'
-      },
-      {
-        id: 'admin_thapar',
-        name: 'Thapar Admin Desk',
-        email: 'admin@thapar.edu',
-        password_hash: testPasswordHash,
-        hostel: 'Administrative Block',
-        avatar: 'AD',
-        phone: '9888999999',
-        degree: 'Dean of Student Affairs Office',
-        year: 'Administration',
-        hometown: 'Patiala',
-        reliability: 5.0,
-        trips_completed: 0,
-        role: 'admin'
-      }
-    ];
+    // 6. Seed test student accounts for instant password sign-in (testing without Google in non-production only)
+    if (process.env.NODE_ENV !== 'production' || process.env.SEED_DEMO_ACCOUNTS === 'true') {
+      const testPasswordHash = await bcrypt.hash('Thapar@123', 10);
+      const testAccounts = [
+        {
+          id: 'student_aarav',
+          name: 'Aarav Sharma',
+          email: 'student1@thapar.edu',
+          password_hash: testPasswordHash,
+          hostel: 'Tejas Hall (Hostel-J)',
+          avatar: 'AS',
+          phone: '9876543210',
+          degree: 'B.E. Computer Engineering',
+          year: '3rd Year',
+          hometown: 'Delhi NCR',
+          reliability: 5.0,
+          trips_completed: 4,
+          joined_community: 'del'
+        },
+        {
+          id: 'student_diya',
+          name: 'Diya Verma',
+          email: 'student2@thapar.edu',
+          password_hash: testPasswordHash,
+          hostel: 'Vasudha Hall (Hostel-E)',
+          avatar: 'DV',
+          phone: '9876543211',
+          degree: 'B.E. Electronics & Communication',
+          year: '2nd Year',
+          hometown: 'Delhi NCR',
+          reliability: 4.9,
+          trips_completed: 2,
+          joined_community: 'del'
+        },
+        {
+          id: 'student_aarav_alias',
+          name: 'Aarav Sharma',
+          email: 'test.student1@thapar.edu',
+          password_hash: testPasswordHash,
+          hostel: 'Tejas Hall (Hostel-J)',
+          avatar: 'AS',
+          phone: '9876543210',
+          degree: 'B.E. Computer Engineering',
+          year: '3rd Year',
+          hometown: 'Delhi NCR',
+          reliability: 5.0,
+          trips_completed: 4,
+          joined_community: 'del'
+        },
+        {
+          id: 'student_diya_alias',
+          name: 'Diya Verma',
+          email: 'test.student2@thapar.edu',
+          password_hash: testPasswordHash,
+          hostel: 'Vasudha Hall (Hostel-E)',
+          avatar: 'DV',
+          phone: '9876543211',
+          degree: 'B.E. Electronics & Communication',
+          year: '2nd Year',
+          hometown: 'Delhi NCR',
+          reliability: 4.9,
+          trips_completed: 2,
+          joined_community: 'del'
+        },
+        {
+          id: 'vendor_patiala_express',
+          name: 'Patiala Campus Express Logistics',
+          email: 'vendor@thapar.edu',
+          password_hash: testPasswordHash,
+          hostel: 'Executive Center',
+          avatar: 'PX',
+          phone: '9888123456',
+          degree: 'Verified Logistics Partner',
+          year: 'Campus Vendor',
+          hometown: 'Patiala',
+          reliability: 5.0,
+          trips_completed: 120,
+          role: 'vendor'
+        },
+        {
+          id: 'admin_thapar',
+          name: 'Thapar Admin Desk',
+          email: 'admin@thapar.edu',
+          password_hash: testPasswordHash,
+          hostel: 'Administrative Block',
+          avatar: 'AD',
+          phone: '9888999999',
+          degree: 'Dean of Student Affairs Office',
+          year: 'Administration',
+          hometown: 'Patiala',
+          reliability: 5.0,
+          trips_completed: 0,
+          role: 'admin'
+        }
+      ];
 
-    for (const acc of testAccounts) {
-      await User.updateOne(
-        { email: acc.email },
-        { $set: acc },
-        { upsert: true }
-      );
+      for (const acc of testAccounts) {
+        await User.updateOne(
+          { email: acc.email },
+          { $set: acc },
+          { upsert: true }
+        );
+      }
     }
 
     console.log('🌱 Seeded default data (Destinations, Hostels, Communities, Counters, Test Accounts)');

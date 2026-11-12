@@ -2260,4 +2260,186 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     assert.equal(resOverCapacity.status, 409);
     assert.match(resOverCapacity.body.error, /maximum capacity/i);
   });
+
+  // 48. Security: Rescheduling body override prevention (user identity spoofing blocked)
+  it('48. Security: Rescheduling body override prevention (user identity spoofing blocked)', async () => {
+    const { token: realToken } = await createTestStudent({ name: 'Real Authenticated Student' });
+    const { user: victimUser } = await createTestStudent({ name: 'Victim Student' });
+
+    // Real user joins slot A
+    const resJoinA = await request(app)
+      .post('/api/slots/join')
+      .set('Authorization', `Bearer ${realToken}`)
+      .send({
+        destinationId: 'railway',
+        date: 'Tomorrow',
+        time: '11:00',
+        vehicle: 'Shared Cab'
+      });
+    const oldGroupId = resJoinA.body.group.id;
+
+    // Attacker tries to pass user: victimUser in body to impersonate victim
+    const resReschedule = await request(app)
+      .post('/api/slots/reschedule')
+      .set('Authorization', `Bearer ${realToken}`)
+      .send({
+        oldGroupId,
+        targetTime: '11:15',
+        user: { id: victimUser.id, name: victimUser.name }
+      });
+
+    assert.equal(resReschedule.status, 200);
+    // Verifies that the new slot has realUser, NOT victimUser
+    const newGroupMembers = resReschedule.body.group.members;
+    assert.ok(newGroupMembers.some((m) => m.name === 'Real Authenticated Student'));
+    assert.ok(!newGroupMembers.some((m) => m.name === 'Victim Student'));
+  });
+
+  // 49. Security: Password change requires current password when password is set
+  it('49. Security: Password change requires current password when password is set', async () => {
+    const { token: studentToken } = await createTestStudent({ name: 'Password Guard Student' });
+
+    // 1. Set initial password
+    const resInitial = await request(app)
+      .post('/api/auth/password')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({ password: 'FirstStrongPassword123' });
+    assert.equal(resInitial.status, 200);
+    const activeToken = resInitial.body.token;
+
+    // 2. Attempt to update password without currentPassword -> HTTP 400
+    const resNoCurrent = await request(app)
+      .post('/api/auth/password')
+      .set('Authorization', `Bearer ${activeToken}`)
+      .send({ password: 'SecondStrongPassword123' });
+    assert.equal(resNoCurrent.status, 400);
+    assert.match(resNoCurrent.body.error, /current password is required/i);
+
+    // 3. Attempt to update with wrong currentPassword -> HTTP 400
+    const resWrongCurrent = await request(app)
+      .post('/api/auth/password')
+      .set('Authorization', `Bearer ${activeToken}`)
+      .send({ currentPassword: 'WrongPassword999', password: 'SecondStrongPassword123' });
+    assert.equal(resWrongCurrent.status, 400);
+    assert.match(resWrongCurrent.body.error, /current password is incorrect/i);
+
+    // 4. Update with correct currentPassword -> HTTP 200
+    const resSuccess = await request(app)
+      .post('/api/auth/password')
+      .set('Authorization', `Bearer ${activeToken}`)
+      .send({ currentPassword: 'FirstStrongPassword123', password: 'SecondStrongPassword123' });
+    assert.equal(resSuccess.status, 200);
+  });
+
+  // 50. Security: Logout revokes session token by incrementing token_version
+  it('50. Security: Logout revokes session token by incrementing token_version', async () => {
+    const { user: student, token: studentToken } = await createTestStudent({ name: 'Revoke Student' });
+
+    // 1. Verify token works
+    const resBefore = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${studentToken}`);
+    assert.equal(resBefore.status, 200);
+    assert.equal(resBefore.body.user.id, student.id);
+
+    // 2. Logout
+    const resLogout = await request(app)
+      .post('/api/auth/logout')
+      .set('Authorization', `Bearer ${studentToken}`);
+    assert.equal(resLogout.status, 200);
+
+    // 3. Token is now invalidated on server -> HTTP 401
+    const resAfter = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${studentToken}`);
+    assert.equal(resAfter.status, 401);
+    assert.match(resAfter.body.error, /Session invalidated/i);
+  });
+
+  // 51. Privacy: Community posts blocked for non-members (HTTP 403)
+  it('51. Privacy: Community posts blocked for non-members (HTTP 403)', async () => {
+    const { token: studentToken } = await createTestStudent({ name: 'Delhi Student', joined_community: 'del' });
+
+    // Non-member student attempts to read Bangalore notices -> HTTP 403
+    const resPosts = await request(app)
+      .get('/api/communities/blr/posts')
+      .set('Authorization', `Bearer ${studentToken}`);
+    assert.equal(resPosts.status, 403);
+    assert.match(resPosts.body.error, /only view discussions within your enrolled hometown/i);
+
+    // Enrolled community notices -> HTTP 200
+    const resEnrolled = await request(app)
+      .get('/api/communities/del/posts')
+      .set('Authorization', `Bearer ${studentToken}`);
+    assert.equal(resEnrolled.status, 200);
+    assert.ok(Array.isArray(resEnrolled.body));
+  });
+
+  // 52. Privacy: Public /api/slots masks sensitive rider info from unauthenticated viewers
+  it('52. Privacy: Public /api/slots masks sensitive rider info from unauthenticated viewers', async () => {
+    const { token: studentToken } = await createTestStudent({ name: 'Private Rider', hostel: 'Hostel-J Room 304' });
+
+    await request(app)
+      .post('/api/slots/join')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({
+        destinationId: 'bus_stand',
+        date: 'Tomorrow',
+        time: '16:00',
+        vehicle: 'Shared Cab'
+      });
+
+    // Unauthenticated GET /api/slots
+    const resSlots = await request(app)
+      .get('/api/slots?destinationId=bus_stand&date=Tomorrow&vehicle=Shared Cab');
+    assert.equal(resSlots.status, 200);
+
+    const slot16 = resSlots.body.slots.find((s) => s.time === '16:00');
+    assert.ok(slot16);
+    assert.equal(slot16.seatsFilled, 1);
+    // User ID and specific hostel are masked/hidden from unauthenticated crawlers
+    assert.equal(slot16.members[0].id, undefined);
+    assert.equal(slot16.members[0].hostel, undefined);
+    // Name is masked to first name
+    assert.equal(slot16.members[0].name, 'Private');
+  });
+
+  // 53. Luggage Lifecycle: Invalid status transitions rejected (e.g. Requested -> In Transit without OTP)
+  it('53. Luggage Lifecycle: Invalid status transitions rejected (e.g. Requested -> In Transit without OTP)', async () => {
+    const { token: studentToken } = await createTestStudent({ name: 'Luggage Owner' });
+    const { token: vendorToken } = await createTestStudent({ name: 'Vendor Officer', role: 'vendor' });
+
+    // 1. Create luggage booking in "Requested"
+    const resCreate = await request(app)
+      .post('/api/luggage')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({
+        pickupLocation: 'Hostel B',
+        destination: 'Railway Station',
+        date: 'Tomorrow',
+        slotTime: '15:00',
+        items: [{ size: 'Large', count: 1 }]
+      });
+    const luggageId = resCreate.body.luggage.id;
+
+    // 2. Vendor attempts to jump straight from "Requested" to "In Transit" -> HTTP 400
+    const resInvalid = await request(app)
+      .post(`/api/vendor/requests/${luggageId}/status`)
+      .set('Authorization', `Bearer ${vendorToken}`)
+      .send({ status: 'In Transit' });
+    assert.equal(resInvalid.status, 400);
+    assert.match(resInvalid.body.error, /must be picked up with OTP first/i);
+  });
+
+  // 54. Date/Time Matching: True departure minute diff distinguishes 00:05 and 23:55 on same date
+  it('54. Date/Time Matching: True departure minute diff distinguishes 00:05 and 23:55 on same date', async () => {
+    const { getCircularMinuteDiff, getDepartureMinuteDiff } = await import('../server/utils/time.js');
+
+    // On same date, 00:05 and 23:55 are 1430 minutes apart (not 10 min)
+    const sameDateDiff = getCircularMinuteDiff('00:05', '23:55');
+    assert.equal(sameDateDiff, 1430);
+
+    const timestampDiff = getDepartureMinuteDiff('2026-11-12', '00:05', '2026-11-12', '23:55');
+    assert.equal(timestampDiff, 1430);
+  });
 });

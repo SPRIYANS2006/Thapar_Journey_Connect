@@ -34,3 +34,20 @@ export function notifyGroupMembersUpdated(group) {
     }
   }
 }
+
+export function evictUserFromRoom(userId, roomName) {
+  if (!ioInstance || !userId || !roomName) return;
+  try {
+    const userRoom = ioInstance.sockets?.adapter?.rooms?.get(`user_${userId}`);
+    if (userRoom) {
+      for (const socketId of userRoom) {
+        const socket = ioInstance.sockets?.sockets?.get(socketId);
+        if (socket) {
+          socket.leave(roomName);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn(`Failed to evict user ${userId} from room ${roomName}:`, err.message);
+  }
+}

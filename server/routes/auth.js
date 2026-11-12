@@ -1,9 +1,10 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import crypto from 'node:crypto';
 import { OAuth2Client } from 'google-auth-library';
 import { User, Group, CityRide } from '../models/index.js';
-import { generateSessionToken, requireAuth } from '../middleware/auth.js';
+import { generateSessionToken, requireAuth, parseCookieToken, JWT_SECRET } from '../middleware/auth.js';
 import { authRateLimiter } from '../middleware/rateLimit.js';
 import { serializeUser } from '../services/serializers.js';
 
@@ -171,7 +172,12 @@ router.post('/password', requireAuth, async (req, res, next) => {
       });
     }
 
-    if (req.user.password_hash && currentPassword) {
+    if (req.user.password_hash) {
+      if (!currentPassword || typeof currentPassword !== 'string') {
+        return res.status(400).json({
+          error: 'Current password is required to change your password.'
+        });
+      }
       const isMatch = await bcrypt.compare(currentPassword, req.user.password_hash);
       if (!isMatch) {
         return res.status(400).json({
@@ -250,9 +256,26 @@ router.put('/profile', requireAuth, async (req, res, next) => {
   }
 });
 
-// 6. Logout - Clear HttpOnly Session Cookie
-router.post('/logout', (req, res) => {
+// 6. Logout - Clear HttpOnly Session Cookie and invalidate token version
+router.post('/logout', async (req, res) => {
   clearSessionCookie(res);
+  try {
+    const authHeader = req.headers.authorization;
+    let token = null;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1]?.trim();
+    } else {
+      token = parseCookieToken(req);
+    }
+    if (token) {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      if (decoded?.userId) {
+        await User.updateOne({ id: decoded.userId }, { $inc: { token_version: 1 } });
+      }
+    }
+  } catch {
+    // Ignore verification errors during logout
+  }
   res.json({ success: true, message: 'Logged out successfully.' });
 });
 

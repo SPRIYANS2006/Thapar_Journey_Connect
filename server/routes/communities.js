@@ -160,9 +160,12 @@ router.post('/:id/leave', async (req, res, next) => {
   }
 });
 
-// 5. Get Posts for Community
+// 5. Get Posts for Community (Verified enrolled members only)
 router.get('/:id/posts', async (req, res, next) => {
   try {
+    if (req.user.joined_community !== req.params.id) {
+      throw new HttpError(403, 'Forbidden: You can only view discussions within your enrolled hometown community.');
+    }
     const posts = await CommunityPost.find({ community_id: req.params.id })
       .sort({ created_at: -1 })
       .lean();
@@ -509,37 +512,57 @@ router.post('/:id/rides/:rideId/join', async (req, res, next) => {
       joined_at: new Date()
     };
 
-    ride.members.push(newMember);
-    ride.current_members_count = ride.members.length;
-    if (ride.current_members_count >= ride.max_capacity) {
-      ride.status = 'Full';
+    const updatedRide = await CityRide.findOneAndUpdate(
+      {
+        id: req.params.rideId,
+        community_id: req.params.id,
+        $expr: { $lt: [{ $size: '$members' }, '$max_capacity'] },
+        'members.user_id': { $ne: req.user.id }
+      },
+      {
+        $push: { members: newMember },
+        $inc: { current_members_count: 1 }
+      },
+      { returnDocument: 'after' }
+    );
+
+    if (!updatedRide) {
+      const refreshed = await CityRide.findOne({ id: req.params.rideId, community_id: req.params.id });
+      if (!refreshed) throw new HttpError(404, 'Ride not found in this community.');
+      if ((refreshed.members || []).some((m) => m.user_id === req.user.id)) {
+        throw new HttpError(400, 'You are already a member of this ride.');
+      }
+      throw new HttpError(409, 'This ride is already full.');
     }
 
-    await ride.save();
+    if (updatedRide.members.length >= updatedRide.max_capacity) {
+      await CityRide.updateOne({ id: updatedRide.id }, { $set: { status: 'Full' } });
+      updatedRide.status = 'Full';
+    }
 
-    await User.updateOne({ id: req.user.id }, { $set: { active_group_id: ride.id } });
+    await User.updateOne({ id: req.user.id }, { $set: { active_group_id: updatedRide.id } });
 
     // Notify all existing members of this group with an in-app popup toast
-    const existingMembers = (ride.members || []).filter((m) => m.user_id !== req.user.id);
+    const existingMembers = (updatedRide.members || []).filter((m) => m.user_id !== req.user.id);
     for (const em of existingMembers) {
       const memberId = em.user_id || em.userId || em.id;
       if (memberId) {
         notifyUser(memberId, 'member_joined', {
-          groupId: ride.id,
-          destinationName: `${ride.destination} (${ride.community_name || 'Community'})`,
+          groupId: updatedRide.id,
+          destinationName: `${updatedRide.destination} (${updatedRide.community_name || 'Community'})`,
           joinerId: req.user.id,
           joinerName: req.user.name,
           joinerHostel: req.user.hostel || 'Campus',
-          membersCount: ride.members.length,
-          maxMembers: ride.max_capacity || (ride.mode === 'Cab' ? 4 : 6)
+          membersCount: updatedRide.members.length,
+          maxMembers: updatedRide.max_capacity || (updatedRide.mode === 'Cab' ? 4 : 6)
         });
       }
     }
 
     res.json({
       success: true,
-      message: `Successfully joined ${ride.mode} ride to ${ride.destination}!`,
-      ride: serializeCityRide(ride, req.user.id)
+      message: `Successfully joined ${updatedRide.mode} ride to ${updatedRide.destination}!`,
+      ride: serializeCityRide(updatedRide, req.user.id)
     });
   } catch (err) {
     next(err);

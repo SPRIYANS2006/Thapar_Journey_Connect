@@ -55,7 +55,7 @@ export function createApp() {
       if (allowedOrigins.includes(origin)) return callback(null, true);
       if (origin.endsWith('.onrender.com')) return callback(null, true);
       if (process.env.NODE_ENV !== 'production') return callback(null, true);
-      callback(null, true);
+      return callback(null, false);
     },
     credentials: true
   }));

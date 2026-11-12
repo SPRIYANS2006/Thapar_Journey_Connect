@@ -188,6 +188,18 @@ router.post('/requests/:id/status', async (req, res, next) => {
       throw new HttpError(404, 'Luggage request not found.');
     }
 
+    if (luggage.status === 'Cancelled' || luggage.status === 'Delivered') {
+      throw new HttpError(400, `Cannot update status of a request that is already "${luggage.status}".`);
+    }
+
+    if (status === 'In Transit' && luggage.status !== 'Picked Up') {
+      throw new HttpError(400, `Cannot transition to "In Transit" from current status "${luggage.status}". Belongings must be picked up with OTP first.`);
+    }
+
+    if (status === 'Delivered' && !['Picked Up', 'In Transit'].includes(luggage.status)) {
+      throw new HttpError(400, `Cannot transition to "Delivered" from current status "${luggage.status}".`);
+    }
+
     luggage.status = status;
     luggage.timeline.push({
       status,

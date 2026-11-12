@@ -8,7 +8,7 @@ import { connectDB } from './config/db.js';
 import { setSocketIO } from './services/notifications.js';
 import { cleanupExpiredGroups } from './services/groups.js';
 import { JWT_SECRET } from './middleware/auth.js';
-import { User, Group, CityRide } from './models/index.js';
+import { User, Group, CityRide, CommunityGroup } from './models/index.js';
 
 const PORT = process.env.PORT || 5000;
 
@@ -43,7 +43,10 @@ async function bootstrap() {
         if (!origin || socketOrigins.includes(origin) || origin.endsWith('.onrender.com')) {
           return callback(null, true);
         }
-        return callback(null, true);
+        if (process.env.NODE_ENV !== 'production') {
+          return callback(null, true);
+        }
+        return callback(new Error('CORS policy: origin not allowed for socket'), false);
       },
       methods: ['GET', 'POST'],
       credentials: true
@@ -139,10 +142,30 @@ async function bootstrap() {
       }
     });
 
-    // Community Group discussion rooms
-    socket.on('join_community_group', (groupId) => {
-      if (groupId) {
-        socket.join(`cg_${groupId}`);
+    // Community Group discussion rooms: verified members only
+    socket.on('join_community_group', async (groupId) => {
+      try {
+        if (!groupId || !socket.user?.id) return;
+        const sGroupId = String(groupId).trim();
+        const cg = await CommunityGroup.findOne({
+          id: sGroupId,
+          $or: [
+            { creator_id: socket.user.id },
+            { 'members.user_id': socket.user.id },
+            { 'members.userId': socket.user.id },
+            { 'members.id': socket.user.id }
+          ]
+        }).lean();
+
+        if (cg) {
+          socket.join(`cg_${sGroupId}`);
+        } else {
+          socket.emit('error', {
+            message: 'Access denied: You are not a member of this community group.'
+          });
+        }
+      } catch (e) {
+        console.warn('Socket join_community_group error:', e.message);
       }
     });
 

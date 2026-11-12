@@ -27,12 +27,29 @@ export function timeToMinutes(timeStr) {
   return (h % 24) * 60 + (m % 60);
 }
 
-// Circular minute difference handling midnight wrap-around: min(|a-b|, 1440 - |a-b|)
+// Calculate true minute difference between two departures.
+// When full dates are provided, compares absolute timestamps.
+// On the same calendar date, 00:05 and 23:55 are correctly 1430 minutes apart (not 10m).
+export function getDepartureMinuteDiff(dateA, timeA, dateB, timeB) {
+  if (dateA && dateB && timeA && timeB) {
+    const normA = normalizeDateStr(dateA);
+    const normB = normalizeDateStr(dateB);
+    const msA = new Date(`${normA}T${timeA}:00+05:30`).getTime();
+    const msB = new Date(`${normB}T${timeB}:00+05:30`).getTime();
+    if (!isNaN(msA) && !isNaN(msB)) {
+      return Math.round(Math.abs(msA - msB) / 60000);
+    }
+  }
+  const minA = timeToMinutes(timeA);
+  const minB = timeToMinutes(timeB);
+  return Math.abs(minA - minB);
+}
+
+// Minute difference on same day
 export function getCircularMinuteDiff(timeA, timeB) {
   const minA = timeToMinutes(timeA);
   const minB = timeToMinutes(timeB);
-  const absDiff = Math.abs(minA - minB);
-  return Math.min(absDiff, 1440 - absDiff);
+  return Math.abs(minA - minB);
 }
 
 // Helper to convert date strings like "Today", "Tomorrow", or "YYYY-MM-DD" to standard "YYYY-MM-DD"

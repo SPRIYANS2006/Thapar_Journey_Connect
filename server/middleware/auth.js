@@ -5,15 +5,13 @@ import { HttpError } from './errors.js';
 const isProduction = process.env.NODE_ENV === 'production';
 const rawSecret = process.env.SESSION_SECRET;
 
-const FALLBACK_SECRET = 'thapar_prod_secure_session_secret_key_at_least_32_characters_long_entropy_token!';
-
 if (isProduction && (!rawSecret || rawSecret.trim().length < 32)) {
-  console.warn('⚠️ Notice: SESSION_SECRET is not configured or <32 chars in Render. Using secure 32+ char fallback secret.');
+  throw new Error('FATAL: SESSION_SECRET environment variable must be configured with at least 32 characters in production.');
 }
 
 export const JWT_SECRET = (rawSecret && rawSecret.trim().length >= 32)
   ? rawSecret.trim()
-  : FALLBACK_SECRET;
+  : 'thapar_dev_session_secret_at_least_32_chars_testing_entropy_token';
 
 export function generateSessionToken(user) {
   return jwt.sign(

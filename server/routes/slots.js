@@ -70,14 +70,17 @@ export function generateTenMinuteSlots(dateStr, destObj, vehicle, existingGroups
         totalFare: baseFareNum,
         groupId: group ? group.id : null,
         status: group ? group.status : 'Open',
-        members: (group?.members || []).map((mem) => ({
-          id: mem.user_id || mem.userId || mem.id,
-          name: mem.name,
-          avatar: mem.avatar || 'ST',
-          hostel: mem.hostel || '',
-          role: mem.role || 'Member',
-          reliability: typeof mem.reliability === 'number' ? mem.reliability : 5.0
-        }))
+        members: (group?.members || []).map((mem) => {
+          const isSelf = currentUserId && (mem.user_id === currentUserId || mem.userId === currentUserId || mem.id === currentUserId);
+          return {
+            id: isSelf ? (mem.user_id || mem.userId || mem.id) : undefined,
+            name: isSelf ? mem.name : (mem.name ? mem.name.split(' ')[0] : 'Rider'),
+            avatar: mem.avatar || 'ST',
+            hostel: isSelf ? (mem.hostel || '') : undefined,
+            role: mem.role || 'Member',
+            reliability: typeof mem.reliability === 'number' ? mem.reliability : 5.0
+          };
+        })
       });
     }
   }
@@ -470,6 +473,11 @@ export async function rescheduleGroupSlot({
     penalty = 0.3;
   }
 
+  let newReliability = user.reliability ?? 5.0;
+  if (penalty > 0) {
+    newReliability = Math.max(1.0, +(newReliability - penalty).toFixed(1));
+  }
+
   const maxCapacity = selectedVehicle === 'Shared Auto' ? 3 : 4;
   const resolvedPickup = targetPickupPoint || oldGroup.pickup_point || 'Main Gate (Near Executive Mess)';
 
@@ -562,61 +570,74 @@ export async function rescheduleGroupSlot({
     }
   }
 
-  // Step 2: Now safely remove member from oldGroup
-  oldGroup.members.splice(memberIndex, 1);
+  // Step 2 & 3: Safely remove member from oldGroup and update user with compensation rollback
+  try {
+    oldGroup.members.splice(memberIndex, 1);
 
-  if (oldGroup.members.length === 0) {
-    await Group.deleteOne({ id: oldGroup.id });
-    await Message.deleteMany({ group_id: oldGroup.id });
-  } else {
-    // Reassign admin if leaver was admin
-    const wasAdmin = oldGroup.admin_id === user.id || !oldGroup.admin_id;
-    if (wasAdmin) {
-      const nextMember = oldGroup.members[0];
-      const nextAdminId = nextMember.user_id || nextMember.userId || nextMember.id;
-      oldGroup.admin_id = nextAdminId;
-      nextMember.role = 'Group Admin';
-    }
-    await oldGroup.save();
+    if (oldGroup.members.length === 0) {
+      await Group.deleteOne({ id: oldGroup.id });
+      await Message.deleteMany({ group_id: oldGroup.id });
+    } else {
+      // Reassign admin if leaver was admin
+      const wasAdmin = oldGroup.admin_id === user.id || !oldGroup.admin_id;
+      if (wasAdmin) {
+        const nextMember = oldGroup.members[0];
+        const nextAdminId = nextMember.user_id || nextMember.userId || nextMember.id;
+        oldGroup.admin_id = nextAdminId;
+        nextMember.role = 'Group Admin';
+      }
+      await oldGroup.save();
 
-    // Post notice in old group chat
-    const penaltyNotice = penalty > 0 ? ` (Late rescheduling penalty: -${penalty}⭐)` : '';
-    await Message.create({
-      id: crypto.randomUUID(),
-      group_id: oldGroup.id,
-      sender_id: 'system',
-      sender_name: 'Policy Alert',
-      avatar: 'PA',
-      text: `⚠️ Notice: ${user.name} rescheduled their journey to another travel slot.${penaltyNotice}`
-    });
+      // Post notice in old group chat
+      const penaltyNotice = penalty > 0 ? ` (Late rescheduling penalty: -${penalty}⭐)` : '';
+      await Message.create({
+        id: crypto.randomUUID(),
+        group_id: oldGroup.id,
+        sender_id: 'system',
+        sender_name: 'Policy Alert',
+        avatar: 'PA',
+        text: `⚠️ Notice: ${user.name} rescheduled their journey to another travel slot.${penaltyNotice}`
+      });
 
-    notifyGroupMembersUpdated(oldGroup);
+      notifyGroupMembersUpdated(oldGroup);
 
-    // Notify remaining members of oldGroup
-    for (const em of oldGroup.members) {
-      const mId = em.user_id || em.userId || em.id;
-      if (mId && mId !== user.id) {
-        notifyUser(mId, 'member_left', {
-          groupId: oldGroup.id,
-          destinationName: oldGroup.destination_name,
-          leaverId: user.id,
-          leaverName: user.name,
-          remainingMembersCount: oldGroup.members.length,
-          maxMembers: oldGroup.max_members || 4
-        });
+      // Notify remaining members of oldGroup
+      for (const em of oldGroup.members) {
+        const mId = em.user_id || em.userId || em.id;
+        if (mId && mId !== user.id) {
+          notifyUser(mId, 'member_left', {
+            groupId: oldGroup.id,
+            destinationName: oldGroup.destination_name,
+            leaverId: user.id,
+            leaverName: user.name,
+            remainingMembersCount: oldGroup.members.length,
+            maxMembers: oldGroup.max_members || 4
+          });
+        }
       }
     }
-  }
 
-  // Step 3: Update user reliability & active group
-  let newReliability = user.reliability ?? 5.0;
-  if (penalty > 0) {
-    newReliability = Math.max(1.0, +(newReliability - penalty).toFixed(1));
+    // Step 3: Update user reliability & active group
+    await User.updateOne(
+      { id: user.id },
+      { $set: { active_group_id: finalTargetGroup.id, reliability: newReliability } }
+    );
+  } catch (rollbackErr) {
+    // Compensation rollback: safely remove user from finalTargetGroup
+    try {
+      await Group.updateOne(
+        { id: finalTargetGroup.id },
+        { $pull: { members: { user_id: user.id } } }
+      );
+      const remainingTarget = await Group.findOne({ id: finalTargetGroup.id });
+      if (remainingTarget && remainingTarget.members.length === 0) {
+        await Group.deleteOne({ id: finalTargetGroup.id });
+      }
+    } catch (cleanErr) {
+      console.error('Reschedule compensation rollback failed:', cleanErr);
+    }
+    throw rollbackErr;
   }
-  await User.updateOne(
-    { id: user.id },
-    { $set: { active_group_id: finalTargetGroup.id, reliability: newReliability } }
-  );
 
   // Step 4: Notify new group
   const targetExistingMembers = (finalTargetGroup.members || []).filter(
@@ -661,9 +682,23 @@ export async function rescheduleGroupSlot({
 
 router.post('/reschedule', requireAuth, async (req, res, next) => {
   try {
+    const {
+      oldGroupId,
+      targetDestinationId,
+      targetDate,
+      targetTime,
+      targetVehicle,
+      targetPickupPoint
+    } = req.body || {};
+
     const result = await rescheduleGroupSlot({
-      user: req.user,
-      ...req.body
+      oldGroupId,
+      targetDestinationId,
+      targetDate,
+      targetTime,
+      targetVehicle,
+      targetPickupPoint,
+      user: req.user
     });
     res.json(result);
   } catch (err) {

@@ -191,7 +191,7 @@ export default function GroupDetailsPage({
       <div className="flex items-center justify-between flex-wrap gap-4">
         <button
           onClick={onBack}
-          className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 px-3.5 py-2 rounded-xl hover:bg-slate-100 transition-colors shadow-xs"
+          className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3.5 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shadow-xs cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Back to Groups / Dashboard</span>
@@ -200,24 +200,24 @@ export default function GroupDetailsPage({
         <div className="flex items-center gap-3">
           <button
             onClick={() => setShowFareSplit(true)}
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-700 hover:text-blue-800 bg-blue-50 border border-blue-200 px-3.5 py-2 rounded-xl hover:bg-blue-100 transition-colors shadow-xs"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-700 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-200 bg-blue-50 dark:bg-blue-950/70 border border-blue-200 dark:border-blue-800 px-3.5 py-2 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-colors shadow-xs cursor-pointer"
           >
-            <Calculator className="w-4 h-4 text-blue-600" />
+            <Calculator className="w-4 h-4 text-blue-600 dark:text-blue-400" />
             <span>Cab Fare Splitter</span>
           </button>
 
           <button
             onClick={() => setShowSOS(true)}
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-red-700 hover:text-red-800 bg-red-50 border border-red-200 px-3.5 py-2 rounded-xl hover:bg-red-100 transition-colors shadow-xs"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-red-700 dark:text-red-300 hover:text-red-800 dark:hover:text-red-200 bg-red-50 dark:bg-red-950/70 border border-red-200 dark:border-red-800 px-3.5 py-2 rounded-xl hover:bg-red-100 dark:hover:bg-red-900/60 transition-colors shadow-xs cursor-pointer"
           >
-            <ShieldAlert className="w-4 h-4 text-red-600" />
+            <ShieldAlert className="w-4 h-4 text-red-600 dark:text-red-400" />
             <span>Campus SOS</span>
           </button>
         </div>
       </div>
 
       {/* Group Header Card */}
-      <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
+      <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 dark:from-slate-950 dark:via-indigo-950 dark:to-slate-950 text-white rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden border border-slate-800/60 transition-colors">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
           <div className="space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
@@ -271,7 +271,7 @@ export default function GroupDetailsPage({
               <>
                 <button
                   onClick={() => onOpenChat && onOpenChat(group.id)}
-                  className="px-5 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-2xl shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  className="px-5 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-2xl shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95"
                 >
                   <MessageSquare className="w-4 h-4" />
                   <span>Open Group Chat</span>
@@ -280,7 +280,7 @@ export default function GroupDetailsPage({
                 {!isCompleted && !group.isCommunityRide && (
                   <button
                     onClick={() => setShowRescheduleModal(true)}
-                    className="px-4 py-3 bg-indigo-600/90 hover:bg-indigo-600 text-white font-bold text-xs rounded-2xl border border-indigo-400/40 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md"
+                    className="px-4 py-3 bg-indigo-600/90 hover:bg-indigo-600 text-white font-bold text-xs rounded-2xl border border-indigo-400/40 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md active:scale-95"
                     title="Move to another 15-minute time slot"
                   >
                     <Clock className="w-4 h-4" />
@@ -291,7 +291,7 @@ export default function GroupDetailsPage({
                 {!isConfirmed && !isCompleted && isAdmin && (
                   <button
                     onClick={() => onConfirmJourney && onConfirmJourney(group.id)}
-                    className="px-5 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-2xl shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                    className="px-5 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-2xl shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95"
                   >
                     <CheckCircle className="w-4 h-4" />
                     <span>Confirm Journey</span>
@@ -310,7 +310,7 @@ export default function GroupDetailsPage({
                       )}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-4 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-2xl shadow-md flex items-center justify-center gap-1.5 transition-all"
+                      className="px-4 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-2xl shadow-md flex items-center justify-center gap-1.5 transition-all active:scale-95"
                       title="Share details to WhatsApp"
                     >
                       <span>Share on WhatsApp</span>
@@ -321,7 +321,7 @@ export default function GroupDetailsPage({
                 {onLeaveGroup && (
                   <button
                     onClick={() => setShowLeaveConfirm(true)}
-                    className={`px-4 py-3 font-bold text-xs rounded-2xl border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    className={`px-4 py-3 font-bold text-xs rounded-2xl border transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 ${
                       isCriticalCancellation
                         ? 'bg-rose-900/60 hover:bg-rose-800 text-rose-200 border-rose-500/50'
                         : isLateCancellation
@@ -348,7 +348,7 @@ export default function GroupDetailsPage({
             ) : (
               <button
                 onClick={() => onJoinGroup && onJoinGroup(group.id)}
-                className="px-6 py-3.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-sm rounded-2xl shadow-xl shadow-blue-500/40 flex items-center justify-center gap-2.5 transition-all cursor-pointer ring-2 ring-white/30"
+                className="px-6 py-3.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-sm rounded-2xl shadow-xl shadow-blue-500/40 flex items-center justify-center gap-2.5 transition-all cursor-pointer ring-2 ring-white/30 active:scale-95"
               >
                 <UserPlus className="w-5 h-5" />
                 <span>
@@ -364,19 +364,19 @@ export default function GroupDetailsPage({
       <div
         className={`p-4 rounded-2xl border text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
           isCriticalCancellation
-            ? 'bg-rose-50 border-rose-200 text-rose-900'
+            ? 'bg-rose-50 dark:bg-rose-950/60 border-rose-200 dark:border-rose-800 text-rose-900 dark:text-rose-200'
             : isLateCancellation
-            ? 'bg-amber-50 border-amber-200 text-amber-900'
-            : 'bg-slate-50 border-slate-200 text-slate-700'
+            ? 'bg-amber-50 dark:bg-amber-950/60 border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200'
+            : 'bg-slate-50 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300'
         }`}
       >
         <div className="flex items-center gap-2">
-          <Clock className="w-4 h-4 shrink-0 text-slate-500" />
+          <Clock className="w-4 h-4 shrink-0 text-slate-500 dark:text-slate-400" />
           <span>
             <strong>Cancellation Policy:</strong> Free cancellation up to 4 hours before departure. Cancellations within 4 hours incur a <strong>-0.3⭐</strong> reliability penalty (<strong>-0.8⭐</strong> in the final 30 minutes).
           </span>
         </div>
-        <span className="font-bold text-[11px] whitespace-nowrap px-2.5 py-1 rounded-lg bg-white/80 border border-current shadow-xs">
+        <span className="font-bold text-[11px] whitespace-nowrap px-2.5 py-1 rounded-xl bg-white/80 dark:bg-slate-800/80 border border-current shadow-xs">
           {hoursLeft <= 0.5
             ? '⚠️ < 30 Mins Left (-0.8⭐)'
             : hoursLeft <= 4
@@ -386,18 +386,18 @@ export default function GroupDetailsPage({
       </div>
 
       {/* Pickup Point Card with Admin Selector */}
-      <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-colors">
         <div className="flex items-center gap-3 flex-1">
-          <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl border border-blue-100 shrink-0">
+          <div className="p-3 bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400 rounded-2xl border border-blue-100 dark:border-blue-900/50 shrink-0">
             <MapPin className="w-6 h-6" />
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-blue-600">
+              <span className="text-xs font-bold text-blue-600 dark:text-blue-400">
                 Pickup point
               </span>
               {isAdmin && (
-                <span className="text-[10px] font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
+                <span className="text-[10px] font-bold bg-indigo-100 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-full">
                   Admin editable
                 </span>
               )}
@@ -409,10 +409,10 @@ export default function GroupDetailsPage({
                   value={group.pickupPoint}
                   onChange={handlePickupChange}
                   disabled={isUpdatingPickup}
-                  className="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
                 >
                   {PICKUP_POINTS.map((pt) => (
-                    <option key={pt} value={pt}>
+                    <option key={pt} value={pt} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
                       {pt}
                     </option>
                   ))}
@@ -422,20 +422,20 @@ export default function GroupDetailsPage({
                 )}
               </div>
             ) : (
-              <h3 className="font-bold text-slate-900 text-lg mt-0.5">
+              <h3 className="font-bold text-slate-900 dark:text-white text-lg mt-0.5">
                 {group.pickupPoint}
               </h3>
             )}
 
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               Optimized for member hostels. All members meet here 5 minutes prior to departure.
             </p>
           </div>
         </div>
 
-        <div className="bg-slate-50 px-4 py-2.5 rounded-2xl border border-slate-200 text-xs text-slate-600 font-semibold w-full md:w-auto text-center shrink-0">
+        <div className="bg-slate-50 dark:bg-slate-800/70 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300 font-semibold w-full md:w-auto text-center shrink-0">
           Capacity:{' '}
-          <strong className="text-indigo-600 font-extrabold text-sm">
+          <strong className="text-indigo-600 dark:text-indigo-400 font-extrabold text-sm">
             {(group.members || []).length}/{group.capacity || 4}
           </strong>{' '}
           Seats ({group.transport || 'Shared Cab'})
@@ -479,8 +479,10 @@ export default function GroupDetailsPage({
             return (
               <div
                 key={member.userId || member.id}
-                className={`bg-white rounded-3xl border p-6 shadow-sm transition-all flex flex-col justify-between relative overflow-hidden ${
-                  isMe ? 'border-blue-400 bg-blue-50/20' : 'border-slate-200'
+                className={`bg-white dark:bg-slate-900 rounded-3xl border p-6 shadow-sm transition-all flex flex-col justify-between relative overflow-hidden ${
+                  isMe 
+                    ? 'border-blue-500/80 bg-blue-50/30 dark:bg-blue-950/20' 
+                    : 'border-slate-200/90 dark:border-slate-800'
                 }`}
               >
                 {isMe && (
@@ -505,47 +507,47 @@ export default function GroupDetailsPage({
                     className="mb-4 shadow-md"
                   />
 
-                  <h3 className="font-bold text-slate-900 text-base">
+                  <h3 className="font-bold text-slate-900 dark:text-white text-base">
                     {member.name}
                   </h3>
 
-                  <div className="mt-3 space-y-2 text-xs text-slate-600">
+                  <div className="mt-3 space-y-2 text-xs text-slate-600 dark:text-slate-400">
                     <div className="flex items-center gap-2">
-                      <Home className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      <Home className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
                       <span>
-                        Hostel: <strong className="text-slate-800 font-semibold">{member.hostel || 'Campus'}</strong>
+                        Hostel: <strong className="text-slate-800 dark:text-slate-200 font-semibold">{member.hostel || 'Campus'}</strong>
                       </span>
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <Clock className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      <Clock className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
                       <span>
-                        Departure: <strong className="text-slate-800 font-semibold">{formatTime24to12(member.departureTime || group.departureTime)}</strong>
+                        Departure: <strong className="text-slate-800 dark:text-slate-200 font-semibold">{formatTime24to12(member.departureTime || group.departureTime)}</strong>
                       </span>
                     </div>
 
                     <div className="flex items-center gap-2">
                       <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500 shrink-0" />
                       <span>
-                        Reliability: <strong className="text-slate-800 font-semibold">{typeof member.reliability === 'number' ? member.reliability.toFixed(1) : '5.0'} / 5.0</strong>
+                        Reliability: <strong className="text-slate-800 dark:text-slate-200 font-semibold">{typeof member.reliability === 'number' ? member.reliability.toFixed(1) : '5.0'} / 5.0</strong>
                       </span>
                     </div>
 
                     {/* Privacy Shielded Phone Contact */}
-                    <div className="pt-2 border-t border-slate-100">
+                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
                       {isMe ? (
-                        <div className="flex items-center gap-1.5 text-xs text-slate-700">
-                          <Phone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <div className="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-200">
+                          <Phone className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                           <span className="font-mono font-bold text-[11px]">{member.phone || 'No phone set'}</span>
                         </div>
                       ) : canSeePhone ? (
-                        <div className="flex items-center gap-1.5 text-xs text-slate-800">
-                          <Phone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <div className="flex items-center gap-1.5 text-xs text-slate-800 dark:text-slate-200">
+                          <Phone className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                           <span className="font-mono font-bold text-[11px]">{member.phone || 'No phone set'}</span>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-1.5 text-slate-400 text-[11px]" title="Phone visible only to confirmed group members.">
-                          <ShieldCheck className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <div className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 text-[11px]" title="Phone visible only to confirmed group members.">
+                          <ShieldCheck className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
                           <span className="italic">
                             {isMember ? '🔒 Visible after confirmation' : '🔒 Members only'}
                           </span>
@@ -555,8 +557,8 @@ export default function GroupDetailsPage({
                   </div>
                 </div>
 
-                <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-                  <span className="bg-slate-100 px-2.5 py-0.5 rounded-md font-bold text-slate-700">
+                <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                  <span className="bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 rounded-md font-bold text-slate-700 dark:text-slate-300">
                     {member.role || 'Member'}
                   </span>
                   {canRemoveCompanion ? (
@@ -564,12 +566,12 @@ export default function GroupDetailsPage({
                       type="button"
                       onClick={() => handleRemoveFriend(member.id || member.userId || member.user_id, member.name)}
                       disabled={friendActionLoading}
-                      className="text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 px-2 py-0.5 rounded-md font-bold transition-colors cursor-pointer"
+                      className="text-rose-600 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-300 bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 dark:hover:bg-rose-900/60 px-2 py-0.5 rounded-md font-bold transition-colors cursor-pointer"
                     >
                       Remove Friend
                     </button>
                   ) : (
-                    <span className="text-emerald-600 font-semibold">✓ Verified TIET</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold">✓ Verified TIET</span>
                   )}
                 </div>
               </div>

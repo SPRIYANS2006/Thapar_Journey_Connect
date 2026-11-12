@@ -143,65 +143,65 @@ export default function RescheduleSlotModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-      <div className="relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+      <div className="relative w-full max-w-4xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh] transition-colors">
         
         {/* Modal Header */}
-        <div className="px-6 py-5 border-b border-slate-200/80 flex items-center justify-between bg-slate-50/50">
+        <div className="px-6 py-5 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-850">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold bg-indigo-100 text-indigo-800 px-2.5 py-0.5 rounded-md">
+              <span className="text-[10px] font-bold bg-indigo-100 dark:bg-indigo-950/70 text-indigo-800 dark:text-indigo-300 px-2.5 py-0.5 rounded-md border border-indigo-200 dark:border-indigo-900/60">
                 Reschedule ride
               </span>
-              <span className="text-xs text-slate-500 font-semibold">
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold">
                 Group #{group.id}
               </span>
             </div>
-            <h2 className="text-xl font-black text-slate-900 mt-1">
+            <h2 className="text-xl font-black text-slate-900 dark:text-white mt-1">
               Change date and time
             </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               Pick a new 15-minute slot for {group.destinationName}.
             </p>
           </div>
 
           <button
             onClick={onClose}
-            className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors cursor-pointer"
+            className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white flex items-center justify-center transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Current Booking Pill */}
-        <div className="px-6 py-3 bg-blue-50/70 border-b border-blue-100 flex flex-wrap items-center justify-between gap-2 text-xs">
-          <div className="flex items-center gap-2 text-blue-900 font-semibold">
-            <Clock className="w-4 h-4 text-blue-600" />
+        <div className="px-6 py-3 bg-blue-50/70 dark:bg-blue-950/40 border-b border-blue-100 dark:border-blue-900/60 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-2 text-blue-900 dark:text-blue-200 font-semibold">
+            <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
             <span>
               Current slot: <strong>{formatTime24to12(group.departureTime)}</strong> ({group.date || 'Today'}) • {group.transport}
             </span>
           </div>
-          <div className="flex items-center gap-1.5 text-blue-700 text-[11px]">
+          <div className="flex items-center gap-1.5 text-blue-700 dark:text-blue-300 text-[11px]">
             <MapPin className="w-3.5 h-3.5" />
             <span>{group.pickupPoint}</span>
           </div>
         </div>
 
         {/* Filters & Date Picker bar */}
-        <div className="p-4 sm:p-6 border-b border-slate-100 bg-white grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Date Picker */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-blue-600" />
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
               <span>Select new date</span>
             </label>
             <select
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
             >
               {dateOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>
+                <option key={opt.value} value={opt.value} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
                   {opt.display}
                 </option>
               ))}
@@ -210,7 +210,7 @@ export default function RescheduleSlotModal({
 
           {/* Vehicle Filter */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
               Vehicle
             </label>
             <div className="flex gap-2">
@@ -219,10 +219,10 @@ export default function RescheduleSlotModal({
                   key={v}
                   type="button"
                   onClick={() => setSelectedVehicle(v)}
-                  className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition-all ${
+                  className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     selectedVehicle === v
                       ? 'bg-blue-600 text-white shadow-xs'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                   }`}
                 >
                   {v === 'Shared Cab' ? 'Cab' : v === 'Shared Auto' ? 'Auto' : 'Either'}
@@ -233,7 +233,7 @@ export default function RescheduleSlotModal({
         </div>
 
         {/* Slots List (Scrollable) */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50/50 dark:bg-slate-950/40">
           <SlotPicker
             slots={slots}
             loading={loadingSlots}
@@ -243,13 +243,13 @@ export default function RescheduleSlotModal({
         </div>
 
         {/* Modal Footer */}
-        <div className="px-6 py-4 bg-slate-50 border-t border-slate-200/80 flex items-center justify-between">
-          <span className="text-[11px] text-slate-500">
+        <div className="px-6 py-4 bg-slate-50 dark:bg-slate-850 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
+          <span className="text-[11px] text-slate-500 dark:text-slate-400">
             You stay safely in your current group if the new slot fills up.
           </span>
           <button
             onClick={onClose}
-            className="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+            className="px-5 py-2.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs rounded-xl transition-colors cursor-pointer"
           >
             Cancel
           </button>
@@ -257,14 +257,14 @@ export default function RescheduleSlotModal({
 
         {/* Confirmation & Penalty Dialog Overlay */}
         {showConfirm && targetSlot && (
-          <div className="absolute inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200 space-y-4 animate-in zoom-in-95 duration-200">
+          <div className="absolute inset-0 z-50 bg-slate-900/70 dark:bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4 animate-in zoom-in-95 duration-200 transition-colors">
               <div className="flex items-center gap-3">
                 <div
                   className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
                     penaltyPreview?.willIncurPenalty
-                      ? 'bg-amber-100 text-amber-600'
-                      : 'bg-blue-100 text-blue-600'
+                      ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400'
+                      : 'bg-blue-100 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400'
                   }`}
                 >
                   {penaltyPreview?.willIncurPenalty ? (
@@ -274,38 +274,38 @@ export default function RescheduleSlotModal({
                   )}
                 </div>
                 <div>
-                  <h3 className="font-black text-slate-900 text-lg">
+                  <h3 className="font-black text-slate-900 dark:text-white text-lg">
                     Confirm slot change
                   </h3>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
                     Switch to {targetSlot.time} ({selectedDate})
                   </p>
                 </div>
               </div>
 
               {penaltyPreview?.willIncurPenalty ? (
-                <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 text-xs text-amber-900 space-y-1.5">
-                  <div className="font-bold flex items-center gap-1.5 text-amber-800">
-                    <AlertTriangle className="w-4 h-4 text-amber-600" />
+                <div className="p-4 bg-amber-50 dark:bg-amber-950/60 rounded-2xl border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 space-y-1.5">
+                  <div className="font-bold flex items-center gap-1.5 text-amber-800 dark:text-amber-300">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                     <span>Late rescheduling notice</span>
                   </div>
                   <p>
                     Your current group departs in{' '}
                     <strong>{penaltyPreview.hoursLeft} hours</strong>. Rescheduling
                     now will apply a late-change penalty of{' '}
-                    <strong className="text-red-700">
+                    <strong className="text-red-700 dark:text-red-400">
                       -{penaltyPreview.penalty}⭐
                     </strong>{' '}
                     to your campus reliability rating.
                   </p>
                 </div>
               ) : (
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-xs text-slate-600 space-y-1">
+                <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300 space-y-1">
                   <p>
                     You are moving from <strong>{group.departureTime}</strong> to{' '}
                     <strong>{targetSlot.time}</strong> ({selectedDate}).
                   </p>
-                  <p className="text-emerald-700 font-semibold">
+                  <p className="text-emerald-700 dark:text-emerald-400 font-semibold">
                     No reliability penalty applies.
                   </p>
                 </div>
@@ -316,7 +316,7 @@ export default function RescheduleSlotModal({
                   type="button"
                   disabled={isSubmitting}
                   onClick={() => setShowConfirm(false)}
-                  className="py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+                  className="py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl transition-colors cursor-pointer"
                 >
                   Keep current slot
                 </button>
@@ -324,7 +324,7 @@ export default function RescheduleSlotModal({
                   type="button"
                   disabled={isSubmitting}
                   onClick={handleConfirmReschedule}
-                  className={`py-3 px-4 text-white font-black text-xs rounded-xl shadow-md transition-all cursor-pointer ${
+                  className={`py-3 px-4 text-white font-black text-xs rounded-xl shadow-md transition-all cursor-pointer active:scale-95 ${
                     penaltyPreview?.willIncurPenalty
                       ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-500/20'
                       : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/20'

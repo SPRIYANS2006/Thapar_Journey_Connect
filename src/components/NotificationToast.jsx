@@ -63,16 +63,16 @@ function ToastItem({ notification, onDismiss }) {
   return (
     <div
       role="alert"
-      className={`pointer-events-auto w-full bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border p-4 transition-all duration-300 animate-in slide-in-from-top-4 fade-in ${
+      className={`pointer-events-auto w-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-2xl shadow-2xl border p-4 transition-all duration-300 animate-in slide-in-from-top-4 fade-in ${
         isChat
-          ? 'border-blue-400/70 shadow-blue-500/15 ring-1 ring-blue-400/30'
+          ? 'border-blue-400/70 dark:border-blue-500/50 shadow-blue-500/15 ring-1 ring-blue-400/30'
           : isMatch
-          ? 'border-indigo-400/80 shadow-indigo-500/20 ring-2 ring-indigo-500/20 bg-gradient-to-br from-white via-indigo-50/40 to-white'
+          ? 'border-indigo-400/80 dark:border-indigo-500/50 shadow-indigo-500/20 ring-2 ring-indigo-500/20 bg-gradient-to-br from-white via-indigo-50/40 to-white dark:from-slate-900 dark:via-indigo-950/40 dark:to-slate-900'
           : isWarning
-          ? 'border-amber-400/80 shadow-amber-500/15 bg-amber-50/40'
+          ? 'border-amber-400/80 dark:border-amber-500/50 shadow-amber-500/15 bg-amber-50/40 dark:bg-amber-950/30'
           : isSuccess
-          ? 'border-emerald-400/80 shadow-emerald-500/15 bg-emerald-50/30'
-          : 'border-slate-200 shadow-slate-400/10'
+          ? 'border-emerald-400/80 dark:border-emerald-500/50 shadow-emerald-500/15 bg-emerald-50/30 dark:bg-emerald-950/30'
+          : 'border-slate-200 dark:border-slate-800 shadow-slate-400/10'
       }`}
     >
       <div className="flex items-start gap-3">
@@ -87,7 +87,7 @@ function ToastItem({ notification, onDismiss }) {
               rounded="rounded-2xl"
               bg="bg-blue-600"
             />
-            <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-blue-600 rounded-full border-2 border-white flex items-center justify-center text-white text-[9px]">
+            <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-blue-600 rounded-full border-2 border-white dark:border-slate-900 flex items-center justify-center text-white text-[9px]">
               <MessageSquare className="w-2.5 h-2.5" />
             </span>
           </div>
@@ -112,11 +112,11 @@ function ToastItem({ notification, onDismiss }) {
         {/* Content Body */}
         <div className="flex-1 min-w-0 pr-1">
           <div className="flex items-center justify-between gap-2">
-            <h5 className="font-extrabold text-xs text-slate-900 truncate">
+            <h5 className="font-extrabold text-xs text-slate-900 dark:text-white truncate">
               {title || (isChat ? `Chat • ${sender}` : 'Notification')}
             </h5>
             {time && (
-              <span className="text-[10px] text-slate-400 shrink-0 font-medium flex items-center gap-0.5">
+              <span className="text-[10px] text-slate-400 dark:text-slate-500 shrink-0 font-medium flex items-center gap-0.5">
                 <Clock className="w-2.5 h-2.5" />
                 {time}
               </span>
@@ -125,28 +125,28 @@ function ToastItem({ notification, onDismiss }) {
 
           {/* Subtext */}
           {isChat ? (
-            <p className="text-xs text-slate-700 font-medium mt-1 line-clamp-2 leading-snug">
-              <span className="font-bold text-blue-700 mr-1">{sender}:</span>
+            <p className="text-xs text-slate-700 dark:text-slate-300 font-medium mt-1 line-clamp-2 leading-snug">
+              <span className="font-bold text-blue-700 dark:text-blue-400 mr-1">{sender}:</span>
               {text || message}
             </p>
           ) : (
-            <p className="text-xs text-slate-600 mt-1 line-clamp-2 leading-relaxed">
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
               {message || text}
             </p>
           )}
 
           {/* Optional Action Button */}
           {actionLabel && (
-            <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-end">
+            <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end">
               <button
                 type="button"
                 onClick={handleActionClick}
-                className={`text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-xs cursor-pointer ${
+                className={`text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-95 ${
                   isMatch
                     ? 'bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white shadow-indigo-500/25'
                     : isChat
                     ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/25'
-                    : 'bg-slate-900 hover:bg-slate-800 text-white'
+                    : 'bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white'
                 }`}
               >
                 <span>{actionLabel}</span>
@@ -160,7 +160,7 @@ function ToastItem({ notification, onDismiss }) {
         <button
           type="button"
           onClick={() => onDismiss(id)}
-          className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 transition-colors shrink-0 -mr-1 -mt-1 cursor-pointer"
+          className="text-slate-400 hover:text-slate-700 dark:hover:text-white p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0 -mr-1 -mt-1 cursor-pointer"
           title="Dismiss"
         >
           <X className="w-4 h-4" />

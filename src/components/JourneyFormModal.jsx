@@ -87,14 +87,14 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200 transition-colors">
         
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-slate-900 text-white p-6 relative">
+        <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-slate-900 dark:from-blue-800 dark:via-indigo-900 dark:to-slate-950 text-white p-6 relative">
           <button
             onClick={onClose}
-            className="absolute top-5 right-5 text-white/80 hover:text-white p-1.5 rounded-full hover:bg-white/10 transition-colors"
+            className="absolute top-5 right-5 text-white/80 hover:text-white p-1.5 rounded-full hover:bg-white/10 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -122,17 +122,17 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
           
           {/* Destination Selector */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
-              <MapPin className="w-4 h-4 text-blue-600" />
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
+              <MapPin className="w-4 h-4 text-blue-600 dark:text-blue-400" />
               <span>Destination</span>
             </label>
             <select
               value={selectedDestId}
               onChange={(e) => setSelectedDestId(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer"
             >
               {DESTINATIONS.map((d) => (
-                <option key={d.id} value={d.id}>
+                <option key={d.id} value={d.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
                   {d.icon} {d.name}
                 </option>
               ))}
@@ -141,31 +141,31 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
 
           {/* From Location */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
               From
             </label>
             <input
               type="text"
               value="Thapar Institute"
               disabled
-              className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-600 cursor-not-allowed"
+              className="w-full bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 rounded-xl px-3.5 py-2.5 text-sm font-medium cursor-not-allowed"
             />
           </div>
 
           {/* Date & Departure Time */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
-                <Calendar className="w-4 h-4 text-blue-600" />
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
+                <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                 <span>Date</span>
               </label>
               <select
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer"
               >
                 {availableDates.map((item, idx) => (
-                  <option key={idx} value={item.value}>
+                  <option key={idx} value={item.value} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
                     {item.label}
                   </option>
                 ))}
@@ -173,8 +173,8 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-blue-600" />
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
+                <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                 <span>Time (optional)</span>
               </label>
               <label htmlFor="modal-departure-time" className="sr-only">Time</label>
@@ -182,11 +182,11 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
                 id="modal-departure-time"
                 value={departureTime}
                 onChange={(e) => setDepartureTime(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer"
+                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer"
               >
-                <option value="">Any time</option>
+                <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Any time</option>
                 {TIME_SLOT_OPTIONS_15MIN.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
+                  <option key={opt.value} value={opt.value} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
                     {opt.label}
                   </option>
                 ))}
@@ -197,11 +197,11 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
           {/* Time Flexibility Pills */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                <Sliders className="w-4 h-4 text-blue-600" />
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <Sliders className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                 <span>Time window</span>
               </label>
-              <span className="text-xs text-blue-600 font-semibold">
+              <span className="text-xs text-blue-600 dark:text-blue-400 font-semibold">
                 ±{flexibility} min
               </span>
             </div>
@@ -212,10 +212,10 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
                   type="button"
                   key={mins}
                   onClick={() => setFlexibility(mins)}
-                  className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all ${
+                  className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                     flexibility === mins
                       ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
                   }`}
                 >
                   ±{mins} min
@@ -223,8 +223,8 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
               ))}
             </div>
             
-            <div className="mt-2 bg-blue-50/70 border border-blue-100 rounded-xl p-2.5 text-xs text-blue-900 flex items-start gap-2">
-              <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+            <div className="mt-2 bg-blue-50/70 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/60 rounded-xl p-2.5 text-xs text-blue-900 dark:text-blue-200 flex items-start gap-2">
+              <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
               <span>
                 Students departing within your ±{flexibility} min window will be matched.
               </span>
@@ -233,27 +233,27 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
 
           {/* Hostel Selection */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
-              <Home className="w-4 h-4 text-blue-600" />
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
+              <Home className="w-4 h-4 text-blue-600 dark:text-blue-400" />
               <span>Hostel</span>
             </label>
             <select
               value={hostel}
               onChange={(e) => setHostel(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer"
             >
-              <option value="">-- Choose Your Hostel / Hall --</option>
-              <optgroup label="Boys Hostels">
+              <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">-- Choose Your Hostel / Hall --</option>
+              <optgroup label="Boys Hostels" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
                 {HOSTELS.filter(h => h.gender === 'Boys').map(h => (
                   <option key={h.id} value={h.name}>{h.name}</option>
                 ))}
               </optgroup>
-              <optgroup label="Girls Hostels">
+              <optgroup label="Girls Hostels" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
                 {HOSTELS.filter(h => h.gender === 'Girls').map(h => (
                   <option key={h.id} value={h.name}>{h.name}</option>
                 ))}
               </optgroup>
-              <optgroup label="PG / Research Hostels">
+              <optgroup label="PG / Research Hostels" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
                 {HOSTELS.filter(h => h.gender === 'Co-ed').map(h => (
                   <option key={h.id} value={h.name}>{h.name}</option>
                 ))}
@@ -263,8 +263,8 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
 
           {/* Transport Preference */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
-              <Car className="w-4 h-4 text-blue-600" />
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
+              <Car className="w-4 h-4 text-blue-600 dark:text-blue-400" />
               <span>Vehicle</span>
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -277,10 +277,10 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
                   type="button"
                   key={pref.id}
                   onClick={() => setTransport(pref.id)}
-                  className={`py-2.5 px-3 rounded-xl text-xs font-bold border transition-all ${
+                  className={`py-2.5 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                     transport === pref.id
                       ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
-                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
                   }`}
                 >
                   {pref.label}
@@ -292,7 +292,7 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
           {/* Submit Button */}
           <button
             type="submit"
-            className="w-full py-3.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-base rounded-2xl shadow-lg shadow-blue-500/25 hover:from-blue-700 hover:to-indigo-700 transition-all flex items-center justify-center gap-2 mt-4 cursor-pointer"
+            className="w-full py-3.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-base rounded-2xl shadow-lg shadow-blue-500/25 hover:from-blue-700 hover:to-indigo-700 transition-all flex items-center justify-center gap-2 mt-4 cursor-pointer active:scale-98"
           >
             <CheckCircle2 className="w-5 h-5" />
             <span>Find rides</span>

@@ -31,23 +31,23 @@ export default function FareSplitModal({ group, onClose, onShareToChat }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in fade-in zoom-in-95 duration-200 transition-colors">
         
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-700 to-indigo-700 text-white p-6 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-blue-700 to-indigo-700 dark:from-blue-800 dark:to-indigo-900 text-white p-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-white/10 rounded-2xl">
               <Calculator className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h3 className="font-extrabold text-lg text-white">Cab Fare Splitter</h3>
+              <h3 className="font-extrabold text-lg text-white">Cab fare splitter</h3>
               <p className="text-xs text-blue-200">Group #{group?.id} • {group?.destinationName}</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-white/80 hover:text-white rounded-full hover:bg-white/10 transition-colors"
+            className="p-2 text-white/80 hover:text-white rounded-full hover:bg-white/10 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -59,8 +59,8 @@ export default function FareSplitModal({ group, onClose, onShareToChat }) {
           {/* Input Grid */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                Total Cab Fare (₹)
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                Total cab fare (₹)
               </label>
               <div className="relative">
                 <span className="absolute left-3.5 top-3 text-sm font-bold text-slate-400">₹</span>
@@ -68,14 +68,14 @@ export default function FareSplitModal({ group, onClose, onShareToChat }) {
                   type="number"
                   value={totalFare}
                   onChange={(e) => setTotalFare(Math.max(0, Number(e.target.value)))}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-4 py-2.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-8 pr-4 py-2.5 text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                Toll / Tip (₹)
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                Toll or tip (₹)
               </label>
               <div className="relative">
                 <span className="absolute left-3.5 top-3 text-sm font-bold text-slate-400">₹</span>
@@ -83,7 +83,7 @@ export default function FareSplitModal({ group, onClose, onShareToChat }) {
                   type="number"
                   value={driverTip}
                   onChange={(e) => setDriverTip(Math.max(0, Number(e.target.value)))}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-4 py-2.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-8 pr-4 py-2.5 text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </div>
@@ -91,7 +91,7 @@ export default function FareSplitModal({ group, onClose, onShareToChat }) {
 
           {/* Quick preset buttons */}
           <div className="flex items-center gap-2 flex-wrap text-xs">
-            <span className="text-slate-400 font-semibold">Presets:</span>
+            <span className="text-slate-400 dark:text-slate-500 font-semibold">Presets:</span>
             {[
               { label: 'Station Auto (₹160)', val: 160 },
               { label: 'Chd Airport (₹1,400)', val: 1400 },
@@ -101,7 +101,7 @@ export default function FareSplitModal({ group, onClose, onShareToChat }) {
                 key={p.label}
                 type="button"
                 onClick={() => setTotalFare(p.val)}
-                className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors"
+                className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors cursor-pointer"
               >
                 {p.label}
               </button>
@@ -109,35 +109,35 @@ export default function FareSplitModal({ group, onClose, onShareToChat }) {
           </div>
 
           {/* Calculation Result Cards */}
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-5 space-y-4">
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 border border-blue-200 dark:border-blue-900/60 rounded-2xl p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-xs uppercase font-extrabold text-blue-700">Cost Per Student</span>
-                <div className="text-3xl font-black text-slate-900 mt-0.5">
+                <span className="text-xs font-bold text-blue-700 dark:text-blue-300">Cost per student</span>
+                <div className="text-3xl font-black text-slate-900 dark:text-white mt-0.5">
                   ₹{perPerson}
-                  <span className="text-xs text-slate-500 font-normal"> / student</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400 font-normal"> / student</span>
                 </div>
               </div>
 
               <div className="text-right">
-                <span className="inline-flex items-center gap-1 text-xs font-bold bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full">
+                <span className="inline-flex items-center gap-1 text-xs font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
                   <Sparkles className="w-3.5 h-3.5" />
                   Save {savingsPercent}%
                 </span>
-                <div className="text-xs text-slate-600 mt-1">
-                  You save <strong>₹{savings}</strong> vs solo cab!
+                <div className="text-xs text-slate-600 dark:text-slate-300 mt-1">
+                  You save <strong>₹{savings}</strong> vs solo cab
                 </div>
               </div>
             </div>
 
             {/* Members split breakdown */}
-            <div className="pt-3 border-t border-blue-200/60 space-y-2">
-              <span className="text-[11px] font-bold uppercase text-slate-500">Student Breakdown:</span>
+            <div className="pt-3 border-t border-blue-200/60 dark:border-blue-800/60 space-y-2">
+              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Student breakdown:</span>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 {group?.members?.map((m) => (
-                  <div key={m.id} className="flex items-center justify-between bg-white px-3 py-1.5 rounded-xl border border-blue-100">
-                    <span className="font-semibold text-slate-700 truncate max-w-[100px]">{m.name.split(' ')[0]}</span>
-                    <span className="font-bold text-blue-700">₹{perPerson}</span>
+                  <div key={m.id} className="flex items-center justify-between bg-white dark:bg-slate-850 px-3 py-1.5 rounded-xl border border-blue-100 dark:border-blue-900/50">
+                    <span className="font-semibold text-slate-700 dark:text-slate-300 truncate max-w-[100px]">{m.name.split(' ')[0]}</span>
+                    <span className="font-bold text-blue-700 dark:text-blue-300">₹{perPerson}</span>
                   </div>
                 ))}
               </div>
@@ -148,14 +148,14 @@ export default function FareSplitModal({ group, onClose, onShareToChat }) {
           <div className="flex items-center gap-3">
             <button
               onClick={handleCopy}
-              className="flex-1 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center justify-center gap-2 transition-all"
+              className="flex-1 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95"
             >
               {copied ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
-              <span>{copied ? 'Copied & Shared to Chat!' : 'Copy & Share to Chat'}</span>
+              <span>{copied ? 'Copied & shared to chat' : 'Copy & share to chat'}</span>
             </button>
             <button
               onClick={onClose}
-              className="py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors"
+              className="py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl transition-colors cursor-pointer"
             >
               Close
             </button>

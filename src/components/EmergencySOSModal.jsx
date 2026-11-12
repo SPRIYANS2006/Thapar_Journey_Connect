@@ -34,23 +34,23 @@ export default function EmergencySOSModal({ onClose }) {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-red-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 bg-slate-900/70 dark:bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl shadow-2xl border border-red-200 dark:border-red-900/60 overflow-hidden animate-in fade-in zoom-in-95 duration-200 transition-colors">
         
         {/* Header */}
-        <div className="bg-gradient-to-r from-red-600 to-rose-700 text-white p-6 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-red-600 to-rose-700 dark:from-red-700 dark:to-rose-800 text-white p-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-white/20 rounded-2xl animate-pulse">
               <ShieldAlert className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h3 className="font-extrabold text-lg text-white">Campus Safety & SOS</h3>
+              <h3 className="font-extrabold text-lg text-white">Campus safety & SOS</h3>
               <p className="text-xs text-red-100">TIET emergency contacts and guidelines</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-white/80 hover:text-white rounded-full hover:bg-white/20 transition-colors"
+            className="p-2 text-white/80 hover:text-white rounded-full hover:bg-white/20 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -59,9 +59,9 @@ export default function EmergencySOSModal({ onClose }) {
         {/* Content */}
         <div className="p-6 space-y-4">
           
-          <div className="p-3.5 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-            <p className="text-xs text-red-800 leading-relaxed">
+          <div className="p-3.5 bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800 rounded-2xl flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+            <p className="text-xs text-red-800 dark:text-red-200 leading-relaxed">
               If you feel unsafe at any point during your commute, contact the campus security desk immediately or tap any number below.
             </p>
           </div>
@@ -71,16 +71,16 @@ export default function EmergencySOSModal({ onClose }) {
               <a
                 key={i}
                 href={c.action}
-                className="flex items-center justify-between p-3.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-2xl transition-all group"
+                className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl transition-all group"
               >
                 <div>
-                  <h4 className="font-bold text-xs text-slate-900 group-hover:text-red-600 transition-colors">
+                  <h4 className="font-bold text-xs text-slate-900 dark:text-white group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
                     {c.title}
                   </h4>
-                  <p className="text-[11px] text-slate-500 mt-0.5">{c.desc}</p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{c.desc}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-xs text-slate-800 bg-white px-2.5 py-1 rounded-xl border border-slate-200">
+                  <span className="font-bold text-xs text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-900 px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-700">
                     {c.number}
                   </span>
                   <div className="p-2 bg-red-600 text-white rounded-xl shadow-xs group-hover:scale-105 transition-transform">
@@ -92,12 +92,12 @@ export default function EmergencySOSModal({ onClose }) {
           </div>
 
           {/* Travel Safety Checklist */}
-          <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 text-xs text-slate-600 space-y-2">
-            <div className="font-bold text-slate-800 flex items-center gap-1.5">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+          <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300 space-y-2">
+            <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <span>Safe Travel Protocol for TIET Students:</span>
             </div>
-            <ul className="list-disc list-inside space-y-1 text-[11px] text-slate-500">
+            <ul className="list-disc list-inside space-y-1 text-[11px] text-slate-500 dark:text-slate-400">
               <li>Always meet matched group members at the designated campus gate first.</li>
               <li>Verify the cab license plate matches the app booking before boarding.</li>
               <li>Share live trip status with a hostel roommate or local guardian.</li>
@@ -106,7 +106,7 @@ export default function EmergencySOSModal({ onClose }) {
 
           <button
             onClick={onClose}
-            className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-colors"
+            className="w-full py-3 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer active:scale-98"
           >
             Close Emergency SOS
           </button>

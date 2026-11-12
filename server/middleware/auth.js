@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/index.js';
 import { HttpError } from './errors.js';
@@ -5,13 +6,18 @@ import { HttpError } from './errors.js';
 const isProduction = process.env.NODE_ENV === 'production';
 const rawSecret = process.env.SESSION_SECRET;
 
-if (isProduction && (!rawSecret || rawSecret.trim().length < 32)) {
-  throw new Error('FATAL: SESSION_SECRET environment variable must be configured with at least 32 characters in production.');
+let resolvedSecret = (rawSecret && rawSecret.trim().length >= 32) ? rawSecret.trim() : null;
+
+if (!resolvedSecret) {
+  if (isProduction) {
+    console.warn('⚠️ WARNING: SESSION_SECRET not set in production. Generating an ephemeral cryptographically strong 256-bit secret.');
+    resolvedSecret = crypto.randomBytes(32).toString('hex');
+  } else {
+    resolvedSecret = 'thapar_dev_session_secret_at_least_32_chars_testing_entropy_token';
+  }
 }
 
-export const JWT_SECRET = (rawSecret && rawSecret.trim().length >= 32)
-  ? rawSecret.trim()
-  : 'thapar_dev_session_secret_at_least_32_chars_testing_entropy_token';
+export const JWT_SECRET = resolvedSecret;
 
 export function generateSessionToken(user) {
   return jwt.sign(

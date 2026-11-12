@@ -16,6 +16,7 @@ import GroupChatModal from './components/GroupChatModal';
 import NotificationToast from './components/NotificationToast';
 
 import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { useAuth } from './context/useAuth';
 import { useGroups } from './hooks/useGroups';
 import { useCommunities } from './hooks/useCommunities';
@@ -466,7 +467,7 @@ function AppContent() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans selection:bg-blue-500 selection:text-white">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans selection:bg-blue-500 selection:text-white transition-colors duration-200">
       {/* Top Navbar Header */}
       <Navbar
         activePage={activePage}
@@ -818,14 +819,14 @@ function AppContent() {
       <NotificationToast notifications={notifications} onDismiss={dismissToast} />
 
       {/* Persistent Footer */}
-      <footer className="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-500">
+      <footer className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-6 text-center text-xs text-slate-500 dark:text-slate-400 transition-colors">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-800">Thapar Journey Connect</span>
+            <span className="font-bold text-slate-800 dark:text-slate-200">Thapar Journey Connect</span>
             <span>•</span>
             <span>Made for TIET students</span>
           </div>
-          <p className="text-slate-400">
+          <p className="text-slate-400 dark:text-slate-500">
             Campus ride sharing for Thapar students.
           </p>
         </div>
@@ -836,8 +837,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

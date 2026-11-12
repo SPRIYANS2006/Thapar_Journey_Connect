@@ -77,23 +77,23 @@ export default function SlotPicker({
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <div className="h-6 w-48 bg-slate-200 rounded-lg animate-pulse" />
-          <div className="h-6 w-24 bg-slate-200 rounded-lg animate-pulse" />
+          <div className="h-6 w-48 bg-slate-200 dark:bg-slate-800 rounded-lg animate-pulse" />
+          <div className="h-6 w-24 bg-slate-200 dark:bg-slate-800 rounded-lg animate-pulse" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map((idx) => (
             <div
               key={idx}
-              className="bg-white rounded-3xl border border-slate-200 p-5 shadow-xs space-y-4 animate-pulse"
+              className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs space-y-4 animate-pulse"
             >
               <div className="flex justify-between items-center">
-                <div className="h-8 w-24 bg-slate-200 rounded-xl" />
-                <div className="h-6 w-16 bg-slate-200 rounded-lg" />
+                <div className="h-8 w-24 bg-slate-200 dark:bg-slate-800 rounded-xl" />
+                <div className="h-6 w-16 bg-slate-200 dark:bg-slate-800 rounded-lg" />
               </div>
-              <div className="h-4 w-full bg-slate-200 rounded-full" />
+              <div className="h-4 w-full bg-slate-200 dark:bg-slate-800 rounded-full" />
               <div className="flex justify-between items-center pt-2">
-                <div className="h-8 w-8 bg-slate-200 rounded-full" />
-                <div className="h-9 w-24 bg-slate-200 rounded-xl" />
+                <div className="h-8 w-8 bg-slate-200 dark:bg-slate-800 rounded-full" />
+                <div className="h-9 w-24 bg-slate-200 dark:bg-slate-800 rounded-xl" />
               </div>
             </div>
           ))}
@@ -105,17 +105,17 @@ export default function SlotPicker({
   return (
     <div className="space-y-5">
       {/* Modern Compact Filter Bar */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-3 sm:p-4 shadow-xs space-y-3">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-3 sm:p-4 shadow-xs space-y-3 transition-colors">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-700">
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
               Departures every 15 min
             </span>
-            <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
               {availableCount} available
             </span>
             {fillingFastCount > 0 && (
-              <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 text-xs font-bold px-2.5 py-0.5 rounded-full border border-amber-200">
+              <span className="inline-flex items-center gap-1 bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 text-xs font-bold px-2.5 py-0.5 rounded-full border border-amber-200 dark:border-amber-800">
                 <Flame className="w-3 h-3 text-amber-500 fill-amber-500" />
                 <span>{fillingFastCount} filling fast</span>
               </span>
@@ -124,20 +124,20 @@ export default function SlotPicker({
 
           {/* Jump to time & Availability toggle */}
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 text-xs text-slate-600 bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200/80">
-              <Clock className="w-3.5 h-3.5 text-slate-400" />
-              <span className="font-semibold text-slate-500">Hour:</span>
+            <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/80 px-2.5 py-1 rounded-xl border border-slate-200/80 dark:border-slate-700">
+              <Clock className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+              <span className="font-semibold text-slate-500 dark:text-slate-400">Hour:</span>
               <label htmlFor="jump-time-input" className="sr-only">Jump to time</label>
               <select
                 id="jump-time-input"
                 value={jumpTime}
                 onChange={(e) => setJumpTimeInput(e.target.value)}
-                className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
+                className="bg-transparent text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
                 title="Jump to time slot"
               >
-                <option value="">All</option>
+                <option value="" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">All</option>
                 {TIME_SLOT_OPTIONS_15MIN.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
+                  <option key={opt.value} value={opt.value} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">
                     {opt.label}
                   </option>
                 ))}
@@ -146,19 +146,19 @@ export default function SlotPicker({
                 <button
                   type="button"
                   onClick={() => setJumpTimeInput('')}
-                  className="text-xs text-blue-600 hover:text-blue-800 font-bold ml-1 cursor-pointer"
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-bold ml-1 cursor-pointer"
                 >
                   Clear
                 </button>
               )}
             </div>
 
-            <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 cursor-pointer select-none">
+            <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={onlyAvailable}
                 onChange={(e) => setOnlyAvailable(e.target.checked)}
-                className="w-3.5 h-3.5 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
+                className="w-3.5 h-3.5 text-blue-600 rounded border-slate-300 dark:border-slate-600 dark:bg-slate-800 focus:ring-blue-500 cursor-pointer"
               />
               <span>Available only</span>
             </label>
@@ -167,7 +167,7 @@ export default function SlotPicker({
 
         {/* Clean Segmented Time Window Tabs */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
-          <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0 mr-1 hidden sm:block" />
+          <Filter className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0 mr-1 hidden sm:block" />
           {TIME_FILTERS.map((f) => {
             const isActive = activeFilter === f.id;
             return (
@@ -178,7 +178,7 @@ export default function SlotPicker({
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
                   isActive
                     ? 'bg-blue-600 text-white shadow-xs'
-                    : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200/70'
+                    : 'bg-slate-100/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-slate-700'
                 }`}
               >
                 {f.label}
@@ -190,10 +190,10 @@ export default function SlotPicker({
 
       {/* Slots Grid */}
       {filteredSlots.length === 0 ? (
-        <div className="bg-white rounded-3xl border border-dashed border-slate-200 p-12 text-center space-y-3">
-          <Clock className="w-10 h-10 text-slate-300 mx-auto" />
-          <h3 className="text-base font-bold text-slate-700">No departures in this window</h3>
-          <p className="text-xs text-slate-400 max-w-sm mx-auto">
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 p-12 text-center space-y-3">
+          <Clock className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto" />
+          <h3 className="text-base font-bold text-slate-700 dark:text-slate-200">No departures in this window</h3>
+          <p className="text-xs text-slate-400 dark:text-slate-500 max-w-sm mx-auto">
             Switch to "All" or clear the time filter.
           </p>
           <button
@@ -203,7 +203,7 @@ export default function SlotPicker({
               setJumpTimeInput('');
               setOnlyAvailable(false);
             }}
-            className="px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+            className="px-4 py-2 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/60 font-bold text-xs rounded-xl transition-colors cursor-pointer"
           >
             Reset filters
           </button>
@@ -221,14 +221,14 @@ export default function SlotPicker({
                 key={slot.slotKey}
                 className={`rounded-2xl border p-4 sm:p-5 transition-all flex flex-col justify-between relative overflow-hidden ${
                   isJoined
-                    ? 'bg-emerald-50/50 border-emerald-300 ring-2 ring-emerald-500/20 shadow-xs'
+                    ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-700/80 ring-2 ring-emerald-500/20 shadow-xs'
                     : isPast
-                    ? 'bg-slate-50/80 border-slate-200/60 opacity-60'
+                    ? 'bg-slate-50/80 dark:bg-slate-900/40 border-slate-200/60 dark:border-slate-800/60 opacity-60'
                     : isFull
-                    ? 'bg-slate-50 border-slate-200'
+                    ? 'bg-slate-50 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800'
                     : slot.isFillingFast
-                    ? 'bg-white border-amber-300 shadow-xs hover:shadow-md hover:border-amber-400'
-                    : 'bg-white border-slate-200 hover:border-blue-300 shadow-xs hover:shadow-md'
+                    ? 'bg-white dark:bg-slate-900 border-amber-300 dark:border-amber-700/80 shadow-xs hover:shadow-md hover:border-amber-400'
+                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-700 shadow-xs hover:shadow-md'
                 }`}
               >
                 {/* Header: Time, Vehicle, Status */}
@@ -236,16 +236,16 @@ export default function SlotPicker({
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <div className="flex items-baseline gap-2">
-                        <span className="text-2xl font-black text-slate-900 tracking-tight">
+                        <span className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
                           {slot.time}
                         </span>
-                        <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
                           {formatTime24to12(slot.time)}
                         </span>
                       </div>
-                      <p className="text-xs font-medium text-slate-500 mt-1 flex items-center gap-1.5">
-                        <Car className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                        <span className="font-semibold text-slate-700">{slot.vehicle || 'Shared Cab'}</span>
+                      <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1.5">
+                        <Car className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                        <span className="font-semibold text-slate-700 dark:text-slate-300">{slot.vehicle || 'Shared Cab'}</span>
                         <span>•</span>
                         <span className="truncate max-w-[150px]">{slot.destinationName || slot.destination}</span>
                       </p>
@@ -259,26 +259,26 @@ export default function SlotPicker({
                           <span>Joined</span>
                         </span>
                       ) : isPast ? (
-                        <span className="bg-slate-200 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-md">
+                        <span className="bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-bold px-2 py-0.5 rounded-md">
                           Departed
                         </span>
                       ) : isFull ? (
-                        <span className="bg-rose-100 text-rose-700 text-[10px] font-bold px-2 py-0.5 rounded-md">
+                        <span className="bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 text-[10px] font-bold px-2 py-0.5 rounded-md">
                           Full
                         </span>
                       ) : slot.isFillingFast ? (
-                        <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-md">
-                          <Flame className="w-3 h-3 text-amber-600 fill-amber-500" />
+                        <span className="inline-flex items-center gap-1 bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-md">
+                          <Flame className="w-3 h-3 text-amber-600 dark:text-amber-400 fill-amber-500" />
                           <span>Filling fast</span>
                         </span>
                       ) : (
-                        <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold px-2 py-0.5 rounded-md">
+                        <span className="bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-md">
                           Available
                         </span>
                       )}
 
                       {(slot.groupId || slot.rideId) && (
-                        <span className="text-[10px] font-bold text-slate-400">
+                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">
                           Group #{slot.groupId || slot.rideId}
                         </span>
                       )}
@@ -286,9 +286,9 @@ export default function SlotPicker({
                   </div>
 
                   {/* Seat Indicators & Price */}
-                  <div className="bg-slate-50/80 rounded-xl p-2.5 border border-slate-100 flex items-center justify-between">
+                  <div className="bg-slate-50/80 dark:bg-slate-800/60 rounded-xl p-2.5 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
                     <div className="space-y-1">
-                      <span className="text-[10px] font-bold text-slate-400 block">
+                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 block">
                         Seats
                       </span>
                       <div className="flex items-center gap-1.5">
@@ -302,24 +302,24 @@ export default function SlotPicker({
                                   ? isFull
                                     ? 'bg-rose-500'
                                     : 'bg-blue-600'
-                                  : 'bg-slate-200'
+                                  : 'bg-slate-200 dark:bg-slate-700'
                               }`}
                             />
                           );
                         })}
-                        <span className="text-xs font-bold text-slate-700 ml-1">
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300 ml-1">
                           {slot.seatsFilled}/4
                         </span>
                       </div>
                     </div>
 
                     <div className="text-right">
-                      <span className="text-[10px] font-bold text-slate-400 block">
+                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 block">
                         Fare
                       </span>
-                      <div className="text-base font-black text-blue-700 leading-none">
+                      <div className="text-base font-black text-blue-700 dark:text-blue-400 leading-none">
                         ₹{slot.estimatedFarePerPerson}{' '}
-                        <span className="text-[10px] font-normal text-slate-500">/ rider</span>
+                        <span className="text-[10px] font-normal text-slate-500 dark:text-slate-400">/ rider</span>
                       </div>
                     </div>
                   </div>
@@ -333,7 +333,7 @@ export default function SlotPicker({
                             <span
                               key={m.id}
                               title={`${m.name} (${m.hostel || 'Campus'})`}
-                              className="inline-block ring-2 ring-white rounded-full"
+                              className="inline-block ring-2 ring-white dark:ring-slate-900 rounded-full"
                             >
                               <Avatar
                                 src={m.avatar}
@@ -345,25 +345,25 @@ export default function SlotPicker({
                             </span>
                           ))}
                         </div>
-                        <span className="text-[11px] text-slate-600 font-semibold truncate max-w-[140px]">
+                        <span className="text-[11px] text-slate-600 dark:text-slate-300 font-semibold truncate max-w-[140px]">
                           {slot.members.map((m) => m.name.split(' ')[0]).join(', ')}
                         </span>
                       </div>
                     ) : (
-                      <span className="text-[11px] text-slate-400 font-medium">
+                      <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
                         Empty • Start this slot
                       </span>
                     )}
 
-                    <span className="text-[10px] text-slate-400 flex items-center gap-0.5">
-                      <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 flex items-center gap-0.5">
+                      <ShieldCheck className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                       <span>Verified</span>
                     </span>
                   </div>
                 </div>
 
                 {/* Bottom Action Button */}
-                <div className="mt-3.5 pt-3 border-t border-slate-100">
+                <div className="mt-3.5 pt-3 border-t border-slate-100 dark:border-slate-800">
                   {isJoined ? (
                     <button
                       type="button"
@@ -377,7 +377,7 @@ export default function SlotPicker({
                     <button
                       type="button"
                       disabled
-                      className="w-full py-2 bg-slate-100 text-slate-400 font-bold text-xs rounded-xl cursor-not-allowed text-center"
+                      className="w-full py-2 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 font-bold text-xs rounded-xl cursor-not-allowed text-center"
                     >
                       Departed
                     </button>
@@ -385,7 +385,7 @@ export default function SlotPicker({
                     <button
                       type="button"
                       disabled
-                      className="w-full py-2 bg-slate-100 text-slate-400 font-bold text-xs rounded-xl cursor-not-allowed text-center"
+                      className="w-full py-2 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 font-bold text-xs rounded-xl cursor-not-allowed text-center"
                     >
                       Full (4/4)
                     </button>

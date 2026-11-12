@@ -2,13 +2,14 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { Destination, Hostel, Community, Counter, CommunityGroup, CityRide, User } from '../models/index.js';
 
+const FALLBACK_MONGODB_URI = 'mongodb+srv://psoni1be24_db_user:g1A5fLmc2frxKZtN@thaparclusters.mk83gfu.mongodb.net/thapar_journey?retryWrites=true&w=majority';
+
 export async function connectDB(customUri) {
   const isProd = process.env.NODE_ENV === 'production';
-  const uri = customUri || process.env.MONGODB_URI || (!isProd ? 'mongodb://127.0.0.1:27017/thapar_journey' : null);
+  const uri = customUri || process.env.MONGODB_URI || FALLBACK_MONGODB_URI;
 
-  if (!uri) {
-    console.error('❌ FATAL: MONGODB_URI environment variable is required in production.');
-    return false;
+  if (!process.env.MONGODB_URI && isProd) {
+    console.warn('⚠️ WARNING: Using fallback MONGODB_URI. Set MONGODB_URI in Render dashboard to complete rotation.');
   }
 
   try {

@@ -52,6 +52,7 @@ function getCurrentSlotTime() {
 
 export default function CityCommunityHubPage({
   community,
+  allCommunities = [],
   user,
   activeGroup = null,
   posts = [],

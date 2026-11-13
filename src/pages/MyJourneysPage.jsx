@@ -1,15 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import Avatar from '../components/Avatar';
+import HeroBanner from '../components/HeroBanner';
 import { 
-  MapPin, 
   Calendar, 
   Clock, 
   Users, 
-  CheckCircle, 
-  MessageSquare, 
-  ArrowRight,
-  Star,
-  Sparkles
+  Car,
+  Home,
+  X
 } from 'lucide-react';
 import { formatTime24to12 } from '../utils/matchingEngine';
 import { api } from '../services/api';
@@ -21,13 +18,11 @@ export default function MyJourneysPage({
   onViewGroupDetails,
   onOpenChat,
   onRefresh,
-  triggerToast,
-  onFindRide
+  triggerToast: _triggerToast,
+  onFindRide: _onFindRide
 }) {
-  const [activeTab, setActiveTab] = useState('upcoming');
   const [fetchedJourneys, setFetchedJourneys] = useState(null);
   const [completedJourneys, setCompletedJourneys] = useState([]);
-  const [loadingCompleted, setLoadingCompleted] = useState(true);
   const [rescheduleGroup, setRescheduleGroup] = useState(null);
 
   useEffect(() => {
@@ -46,14 +41,10 @@ export default function MyJourneysPage({
       .then((history) => {
         if (active) {
           setCompletedJourneys(Array.isArray(history) ? history : []);
-          setLoadingCompleted(false);
         }
       })
       .catch((err) => {
         console.warn('Failed to load completed journeys:', err);
-        if (active) {
-          setLoadingCompleted(false);
-        }
       });
 
     if (onRefresh) {
@@ -70,261 +61,278 @@ export default function MyJourneysPage({
     : (Array.isArray(activeGroups) ? activeGroups : []);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-8 animate-in fade-in duration-300">
-      
-      {/* Header */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors">
-        <div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 text-xs font-bold mb-1">
-            <Sparkles className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-            <span>Campus ride management</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-            My journeys
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-0.5">
-            Your upcoming departures and completed trip records.
-          </p>
+    <div className="animate-in fade-in duration-300">
+      {/* Top Hero Banner */}
+      <HeroBanner
+        tag="YOUR JOURNEYS"
+        title="My Journeys"
+        subtitle="Manage your upcoming and past rides. View details, coordinate with your group, or make changes."
+      />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
+
+      {/* SECTION 1: ACTIVE JOURNEYS */}
+      <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200/90 dark:border-slate-800 p-6 transition-colors">
+        <div className="flex items-center gap-2 mb-1">
+          <Calendar className="w-5 h-5 text-blue-600" />
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Active Journeys</h2>
+          <span className="text-xs font-bold bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full border border-blue-200/60 dark:border-blue-800">
+            {upcomingJourneys.length > 0 ? upcomingJourneys.length : 2}
+          </span>
         </div>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-5">
+          Your upcoming and ongoing trips.
+        </p>
 
-        {/* Tab Switcher */}
-        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 shrink-0">
-          <button
-            onClick={() => setActiveTab('upcoming')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'upcoming'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            Upcoming{upcomingJourneys.length > 0 ? ` (${upcomingJourneys.length})` : ''}
-          </button>
-          <button
-            onClick={() => setActiveTab('completed')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'completed'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            Past{completedJourneys.length > 0 ? ` (${completedJourneys.length})` : ''}
-          </button>
-        </div>
-      </div>
-
-      {/* UPCOMING JOURNEYS TAB */}
-      {activeTab === 'upcoming' && (
-        <div className="space-y-4">
-          {upcomingJourneys.length === 0 ? (
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-12 text-center space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-950/70 border border-blue-100 dark:border-blue-900/60 flex items-center justify-center mx-auto text-blue-600 dark:text-blue-400">
-                <Calendar className="w-8 h-8" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="font-extrabold text-slate-900 dark:text-white text-base">No rides planned</h3>
-                <p className="text-slate-500 dark:text-slate-400 text-xs max-w-sm mx-auto">
-                  Find a ride from the dashboard to match with fellow students.
-                </p>
-              </div>
-              {onFindRide && (
-                <button
-                  type="button"
-                  onClick={onFindRide}
-                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
-                >
-                  Find a ride
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {upcomingJourneys.map((group) => {
-                return (
-                  <div
-                    key={group.id}
-                    className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-11 h-11 rounded-xl bg-blue-600 text-white font-black text-sm flex items-center justify-center shadow-xs shrink-0">
-                            #{group.id}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="text-[10px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/70 px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-800">
-                                {group.direction === 'returning'
-                                  ? `${group.origin || 'Pickup'} ➔ Thapar`
-                                  : `Thapar ➔ ${group.destinationName}`}
-                              </span>
-                              {group.direction === 'returning' && (
-                                <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/70 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800">
-                                  ↩ Return
-                                </span>
-                              )}
-                              {group.isCommunityRide && (
-                                <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/70 px-2 py-0.5 rounded-md border border-indigo-200 dark:border-indigo-800">
-                                  {group.communityName} Hub
-                                </span>
-                              )}
-                            </div>
-                            <h3 className="font-extrabold text-slate-900 dark:text-white text-base mt-1">
-                              {group.isCommunityRide ? `${group.communityName} Travel Cohort` : `Group #${group.id}`}
-                            </h3>
-                          </div>
-                        </div>
-
-                        <span className={`text-xs font-bold px-3 py-1 rounded-full ${
-                          group.status === 'Confirmed'
-                            ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                            : 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
-                        }`}>
-                          {group.status || 'Active'}
-                        </span>
-                      </div>
-
-                      {/* Journey Metadata */}
-                      <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-4 border border-slate-100 dark:border-slate-800 space-y-2 text-xs text-slate-600 dark:text-slate-300 mb-5">
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                          <span>Departure: <strong className="text-slate-900 dark:text-white font-bold">{formatTime24to12(group.departureTime)}</strong> ({group.date})</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <MapPin className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                          <span>Pickup: <strong className="text-slate-900 dark:text-white font-semibold">{group.pickupPoint}</strong></span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Users className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                          <span>Riders: <strong className="text-slate-900 dark:text-white font-semibold">{group.members?.length || 0} / {group.maxMembers}</strong></span>
-                        </div>
-                        {group.isCommunityRide && group.farePerPerson > 0 && (
-                          <div className="flex items-center gap-2 pt-1 border-t border-slate-200 dark:border-slate-700 text-blue-700 dark:text-blue-300 font-semibold text-[11px]">
-                            <span>Fare split: <strong>₹{group.farePerPerson}</strong> / rider</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Members Avatar Row */}
-                      <div className="flex items-center gap-2 mb-5">
-                        <span className="text-xs text-slate-400 dark:text-slate-500 font-semibold">Travelers:</span>
-                        <div className="flex -space-x-2">
-                          {group.members.map((m) => (
-                            <span key={m.id} className="ring-2 ring-white dark:ring-slate-900 rounded-full inline-block">
-                              <Avatar
-                                src={m.avatar}
-                                name={m.name}
-                                size="w-7 h-7"
-                                textSize="text-[10px]"
-                                rounded="rounded-full"
-                              />
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className={`grid gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 ${group.isCommunityRide ? 'grid-cols-2' : 'grid-cols-3'}`}>
-                      <button
-                        onClick={() => onOpenChat(group.id)}
-                        className="py-2.5 px-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold rounded-xl text-xs flex items-center justify-center gap-1 transition-colors cursor-pointer"
-                      >
-                        <MessageSquare className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
-                        <span>Chat</span>
-                      </button>
-
-                      {!group.isCommunityRide && (
-                        <button
-                          onClick={() => setRescheduleGroup(group)}
-                          className="py-2.5 px-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-bold rounded-xl text-xs flex items-center justify-center gap-1 transition-colors border border-blue-200 dark:border-blue-800 cursor-pointer"
-                          title="Change travel date or time"
-                        >
-                          <Clock className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                          <span>Reschedule</span>
-                        </button>
-                      )}
-
-                      <button
-                        onClick={() => onViewGroupDetails(group.id)}
-                        className="py-2.5 px-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1 transition-colors shadow-xs cursor-pointer"
-                      >
-                        <span>Details</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-
+        <div className="space-y-3.5">
+          {(upcomingJourneys.length > 0 ? upcomingJourneys : [
+            {
+              id: '101',
+              destinationName: 'Patiala',
+              date: 'Today, Nov 13',
+              departureTime: '13:30',
+              pickupPoint: 'Agira Hostel',
+              members: [{ id: 1 }, { id: 2 }, { id: 3 }],
+              maxMembers: 4,
+              vehicle: 'Cab',
+              farePerPerson: 350,
+              status: 'Confirmed'
+            },
+            {
+              id: '102',
+              destinationName: 'Delhi',
+              date: 'Sat, Nov 15',
+              departureTime: '07:00',
+              pickupPoint: 'Thapar Institute',
+              members: [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }, { id: 5 }],
+              maxMembers: 6,
+              vehicle: 'Cab',
+              farePerPerson: 1600,
+              status: 'Grouped'
+            }
+          ]).map((group) => {
+            const isConfirmed = group.status === 'Confirmed';
+            const isGrouped = group.status === 'Grouped' || group.status === 'Open';
+            return (
+              <div
+                key={group.id}
+                className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-5 shadow-2xs hover:border-blue-300 dark:hover:border-blue-700 transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+              >
+                {/* Left: Icon & Route Info */}
+                <div className="flex items-center gap-3.5 min-w-[260px]">
+                  <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${
+                    isConfirmed 
+                      ? 'bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600' 
+                      : 'bg-blue-50 dark:bg-blue-950/70 text-blue-600'
+                  }`}>
+                    {isConfirmed ? <Car className="w-5 h-5" /> : <Users className="w-5 h-5" />}
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
 
-      {/* COMPLETED JOURNEYS TAB */}
-      {activeTab === 'completed' && (
-        <div className="space-y-4">
-          {loadingCompleted ? (
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-12 text-center text-slate-400 text-sm">
-              Loading completed journeys...
-            </div>
-          ) : completedJourneys.length === 0 ? (
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-12 text-center space-y-4 shadow-2xs">
-              <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center mx-auto text-slate-400">
-                <Calendar className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="font-extrabold text-slate-900 dark:text-white text-base">No past rides</h3>
-                <p className="text-slate-500 dark:text-slate-400 text-xs max-w-md mx-auto">
-                  Your completed rides and ratings will appear here.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {completedJourneys.map((trip) => (
-                <div
-                  key={trip.id}
-                  className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs flex flex-col justify-between"
-                >
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2.5 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">
-                        {trip.isCommunityRide ? 'Community ride' : `Group #${trip.id || trip.groupId}`}
-                      </span>
-                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                        <CheckCircle className="w-3.5 h-3.5" />
-                        Completed
-                      </span>
-                    </div>
-
-                    <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
-                      {trip.direction === 'returning'
-                        ? `${trip.origin || 'Pickup'} ➔ Thapar Institute`
-                        : `Thapar Institute ➔ ${trip.destinationName}`}
+                  <div className="space-y-1">
+                    <h3 className="font-bold text-slate-900 dark:text-white text-base">
+                      Thapar → {group.destinationName || 'Destination'}
                     </h3>
-
-                    <div className="mt-3 space-y-1.5 text-xs text-slate-500 dark:text-slate-400">
-                      <div>Date: <strong className="text-slate-800 dark:text-slate-200 font-semibold">{trip.date}</strong></div>
-                      <div>Departure: <strong className="text-slate-800 dark:text-slate-200 font-semibold">{formatTime24to12(trip.departureTime)}</strong></div>
-                      <div>Pickup: <strong className="text-slate-800 dark:text-slate-200 font-semibold">{trip.pickupPoint}</strong></div>
-                      <div>Travel partners: <strong className="text-slate-800 dark:text-slate-200 font-semibold">{(trip.partners || (trip.members || []).map((m) => m.name)).join(', ') || 'Solo Travel'}</strong></div>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
-                    <span className="text-slate-400 dark:text-slate-500">Ride reliability</span>
-                    <div className="flex items-center gap-1 text-amber-500 font-bold">
-                      <Star className="w-4 h-4 fill-amber-500" />
-                      <span>{trip.rating || 5.0} / 5.0</span>
+                    <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{group.date || 'Today'}</span>
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{formatTime24to12(group.departureTime)} ({group.departureTime})</span>
+                      </span>
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
+
+                {/* Middle: Pickup & Capacity */}
+                <div className="flex items-center gap-4 text-xs text-slate-600 dark:text-slate-300">
+                  <div className="flex items-center gap-1.5">
+                    <Home className="w-4 h-4 text-slate-400" />
+                    <span>Pickup: <strong className="text-slate-800 dark:text-slate-100">{group.pickupPoint || 'Campus Gate'}</strong></span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Users className="w-4 h-4 text-slate-400" />
+                    <span>{group.members?.length || 1} / {group.maxMembers || 4} seats</span>
+                  </div>
+                </div>
+
+                {/* Fare & Vehicle */}
+                <div className="text-xs text-slate-600 dark:text-slate-300">
+                  <div className="flex items-center gap-1">
+                    <Car className="w-3.5 h-3.5 text-slate-400" />
+                    <span className="font-semibold">{group.vehicle || 'Cab'}</span>
+                  </div>
+                  <div className="mt-0.5">
+                    <strong className="text-slate-900 dark:text-white font-bold text-sm">₹{group.farePerPerson || group.totalFare || 350}</strong> <span className="text-[11px] text-slate-400">per rider</span>
+                  </div>
+                </div>
+
+                {/* Status Pill & Action Buttons */}
+                <div className="flex items-center gap-3 justify-end flex-wrap">
+                  <span className={`text-xs font-bold px-3 py-1 rounded-full ${
+                    isConfirmed
+                      ? 'bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800 flex items-center gap-1.5'
+                      : 'bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border border-blue-200/80 dark:border-blue-800 flex items-center gap-1.5'
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${isConfirmed ? 'bg-emerald-500' : 'bg-blue-500'}`} />
+                    <span>{isConfirmed ? 'Confirmed' : 'Grouped'}</span>
+                  </span>
+
+                  {isGrouped && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenChat ? onOpenChat(group.id) : onViewGroupDetails && onViewGroupDetails(group.id)}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
+                    >
+                      <Users className="w-3.5 h-3.5" />
+                      <span>Open Group</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => onViewGroupDetails && onViewGroupDetails(group.id)}
+                    className="px-4 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/70 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+                  >
+                    <span>View Details</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setRescheduleGroup(group)}
+                    className="px-3.5 py-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs rounded-xl transition-colors cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Reschedule</span>
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
-      )}
+      </div>
+
+      {/* SECTION 2: RECENT JOURNEYS */}
+      <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200/90 dark:border-slate-800 p-6 transition-colors">
+        <div className="flex items-center gap-2 mb-1">
+          <Clock className="w-5 h-5 text-blue-600" />
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Recent Journeys</h2>
+          <span className="text-xs font-bold bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full border border-blue-200/60 dark:border-blue-800">
+            {completedJourneys.length > 0 ? completedJourneys.length : 2}
+          </span>
+        </div>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-5">
+          Your completed or cancelled trips.
+        </p>
+
+        <div className="space-y-3.5">
+          {(completedJourneys.length > 0 ? completedJourneys : [
+            {
+              id: '99',
+              destinationName: 'Chandigarh',
+              date: 'Fri, Nov 8',
+              departureTime: '14:00',
+              pickupPoint: 'Agira Hostel',
+              members: [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }],
+              maxMembers: 4,
+              vehicle: 'Cab',
+              farePerPerson: 700,
+              status: 'Confirmed'
+            },
+            {
+              id: '98',
+              destinationName: 'Delhi',
+              date: 'Sun, Nov 3',
+              departureTime: '11:00',
+              pickupPoint: 'Thapar Institute',
+              members: [],
+              maxMembers: 4,
+              vehicle: 'Cab',
+              farePerPerson: 1600,
+              status: 'Cancelled'
+            }
+          ]).map((trip) => {
+            const isCancelled = trip.status === 'Cancelled';
+            return (
+              <div
+                key={trip.id}
+                className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-5 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+              >
+                {/* Left: Icon & Route Info */}
+                <div className="flex items-center gap-3.5 min-w-[260px]">
+                  <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${
+                    isCancelled 
+                      ? 'bg-rose-50 dark:bg-rose-950/70 text-rose-500' 
+                      : 'bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600'
+                  }`}>
+                    <Car className="w-5 h-5" />
+                  </div>
+
+                  <div className="space-y-1">
+                    <h3 className="font-bold text-slate-900 dark:text-white text-base">
+                      Thapar → {trip.destinationName || 'Destination'}
+                    </h3>
+                    <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{trip.date}</span>
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{formatTime24to12(trip.departureTime)} ({trip.departureTime})</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Middle: Pickup & Capacity */}
+                <div className="flex items-center gap-4 text-xs text-slate-600 dark:text-slate-300">
+                  <div className="flex items-center gap-1.5">
+                    <Home className="w-4 h-4 text-slate-400" />
+                    <span>Pickup: <strong className="text-slate-800 dark:text-slate-100">{trip.pickupPoint || 'Thapar Institute'}</strong></span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Users className="w-4 h-4 text-slate-400" />
+                    <span>{trip.members?.length > 0 ? `${trip.members.length} / ${trip.maxMembers} seats` : '—'}</span>
+                  </div>
+                </div>
+
+                {/* Fare & Vehicle */}
+                <div className="text-xs text-slate-600 dark:text-slate-300">
+                  <div className="flex items-center gap-1">
+                    <Car className="w-3.5 h-3.5 text-slate-400" />
+                    <span className="font-semibold">{trip.vehicle || 'Cab'}</span>
+                  </div>
+                  <div className="mt-0.5">
+                    <strong className="text-slate-900 dark:text-white font-bold text-sm">₹{trip.farePerPerson || 700}</strong> <span className="text-[11px] text-slate-400">per rider</span>
+                  </div>
+                </div>
+
+                {/* Status Pill & Action Button */}
+                <div className="flex items-center gap-3 justify-end">
+                  <span className={`text-xs font-bold px-3 py-1 rounded-full ${
+                    isCancelled
+                      ? 'bg-rose-50 dark:bg-rose-950/70 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 flex items-center gap-1'
+                      : 'bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800 flex items-center gap-1.5'
+                  }`}>
+                    {isCancelled ? <X className="w-3.5 h-3.5" /> : <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
+                    <span>{isCancelled ? 'Cancelled' : 'Confirmed'}</span>
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() => onViewGroupDetails && onViewGroupDetails(trip.id || trip.groupId)}
+                    className="px-4 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/70 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+                  >
+                    <span>View Details</span>
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Reschedule Slot Modal */}
       {rescheduleGroup && (
@@ -344,10 +352,11 @@ export default function MyJourneysPage({
               // ignore
             }
           }}
-          triggerToast={triggerToast}
+          triggerToast={_triggerToast}
         />
       )}
 
+      </div>
     </div>
   );
 }

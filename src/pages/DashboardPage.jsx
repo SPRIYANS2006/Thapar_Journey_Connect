@@ -1,7 +1,8 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import DisclaimerBanner from '../components/DisclaimerBanner';
 import SlotPicker from '../components/SlotPicker';
 import AddFriendModal from '../components/AddFriendModal';
+import HeroBanner from '../components/HeroBanner';
 import { DESTINATIONS, HOSTELS } from '../data/mockData';
 import { TIME_SLOT_OPTIONS_15MIN } from '../utils/matchingEngine';
 import { 
@@ -15,10 +16,12 @@ import {
   Home, 
   Calendar,
   ChevronDown,
+  ChevronRight,
   UserPlus,
   X,
   Sparkles,
   ShieldCheck,
+  Zap,
   Users,
   Compass,
   CheckCircle2
@@ -84,8 +87,9 @@ export default function DashboardPage({
   const [selectedHostel, setSelectedHostel] = useState(user?.hostel || HOSTELS[0].name);
   const [direction, setDirection] = useState('departing'); // 'departing' (Going / Thapar -> Dest) or 'returning' (Coming back / Dest -> Thapar)
 
-  // Slots State (Only loaded when user presses Search)
+  // Slots State
   const [hasSearched, setHasSearched] = useState(false);
+  const [showAllSlots, setShowAllSlots] = useState(false);
   const [slots, setSlots] = useState([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsError, setSlotsError] = useState(null);
@@ -129,6 +133,75 @@ export default function DashboardPage({
       setSlotsLoading(false);
     }
   }, [direction]);
+
+  // Initial slot load on mount
+  useEffect(() => {
+    let active = true;
+    api.getSlots({
+      destinationId: selectedDestId,
+      date: selectedDate,
+      vehicle: selectedVehicle,
+      direction
+    }).then((res) => {
+      if (active && res && res.slots) {
+        setSlots(res.slots);
+      }
+    }).catch((err) => {
+      console.warn('Initial slot fetch failed:', err.message);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [selectedDestId, selectedDate, selectedVehicle, direction]);
+
+  // Featured 3 slots for top dashboard view
+  const featuredSlots = useMemo(() => {
+    if (!slots || slots.length === 0) {
+      const baseTime = selectedTime || '13:30';
+      const [hStr, mStr] = baseTime.split(':');
+      const h = parseInt(hStr || '13', 10);
+      const m = parseInt(mStr || '30', 10);
+
+      const makePreview = (minsToAdd) => {
+        const total = h * 60 + m + minsToAdd;
+        const slotH = Math.floor(total / 60) % 24;
+        const slotM = total % 60;
+        const time24 = `${String(slotH).padStart(2, '0')}:${String(slotM).padStart(2, '0')}`;
+        const ampm = slotH >= 12 ? 'PM' : 'AM';
+        const h12 = slotH % 12 || 12;
+        const label12 = `${h12}:${String(slotM).padStart(2, '0')} ${ampm}`;
+        return {
+          slotKey: `preview_${time24}`,
+          destinationId: selectedDestId,
+          date: selectedDate,
+          time: time24,
+          time12: label12,
+          vehicle: selectedVehicle === 'Either' ? 'Shared Cab' : selectedVehicle,
+          memberCount: minsToAdd === 0 ? 3 : minsToAdd === 15 ? 2 : 4,
+          capacity: 4,
+          farePerRider: '₹350'
+        };
+      };
+      return [makePreview(0), makePreview(15), makePreview(30)];
+    }
+
+    let subset = slots;
+    if (selectedTime) {
+      const idx = slots.findIndex((s) => s.time >= selectedTime);
+      if (idx !== -1) {
+        subset = slots.slice(idx, idx + 3);
+      }
+    }
+    if (subset.length < 3) {
+      subset = slots.slice(0, 3);
+    }
+    return subset.map((s) => ({
+      ...s,
+      time12: s.time12 || s.time,
+      farePerRider: s.farePerRider || (s.fare && s.capacity ? `₹${Math.round(s.fare / s.capacity)}` : '₹350')
+    }));
+  }, [slots, selectedTime, selectedDestId, selectedDate, selectedVehicle]);
 
   const handleSearchSubmit = (e) => {
     if (e) e.preventDefault();
@@ -278,73 +351,96 @@ export default function DashboardPage({
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-8 animate-in fade-in duration-300">
-      
-      {/* Disclaimer Banner */}
-      <DisclaimerBanner />
-
-      {/* PART 1: STICKY SEARCH CARD */}
-      <div className="sticky top-20 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs p-4 sm:p-6 transition-colors">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="w-2.5 h-2.5 rounded-full bg-blue-600 dark:bg-blue-400 animate-pulse" />
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">
-              Find a ride
-            </h2>
-            <span className="text-[11px] font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 px-2.5 py-0.5 rounded-full border border-blue-200 dark:border-blue-800 hidden sm:inline-block">
-              Every 15 min
+    <div className="animate-in fade-in duration-300">
+      {/* Top Hero Banner with Thapar Campus Graphic */}
+      <HeroBanner
+        tag="YOUR CAMPUS. YOUR JOURNEY."
+        title="Where are you headed?"
+        subtitle="Find a shared ride with verified Thapar students."
+        pills={
+          <>
+            <span className="inline-flex items-center gap-1.5 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold px-3 py-1.5 rounded-full border border-slate-200/80 dark:border-slate-700 shadow-2xs">
+              <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
+              <span>Verified Students</span>
             </span>
-          </div>
+            <span className="inline-flex items-center gap-1.5 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold px-3 py-1.5 rounded-full border border-slate-200/80 dark:border-slate-700 shadow-2xs">
+              <Zap className="w-3.5 h-3.5 text-blue-600" />
+              <span>Every 15 Minutes</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold px-3 py-1.5 rounded-full border border-slate-200/80 dark:border-slate-700 shadow-2xs">
+              <Users className="w-3.5 h-3.5 text-blue-600" />
+              <span>Save up to 75%</span>
+            </span>
+          </>
+        }
+      />
 
-          {/* Direction Switcher & Swap Button */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="inline-flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700 text-xs">
-              <button
-                type="button"
-                onClick={() => {
-                  if (direction !== 'departing') {
-                    setDirection('departing');
-                    if (hasSearched) fetchSlots(selectedDestId, selectedDate, selectedVehicle, 'departing');
-                  }
-                }}
-                className={`px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  direction === 'departing'
-                    ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                }`}
-              >
-                <span>Depart campus</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (direction !== 'returning') {
-                    setDirection('returning');
-                    if (hasSearched) fetchSlots(selectedDestId, selectedDate, selectedVehicle, 'returning');
-                  }
-                }}
-                className={`px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  direction === 'returning'
-                    ? 'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                }`}
-              >
-                <span>Return to campus</span>
-              </button>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
+        {/* Disclaimer Banner */}
+        <DisclaimerBanner />
+
+        {/* PART 1: STICKY SEARCH CARD */}
+        <div className="sticky top-20 z-30 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm p-4 sm:p-6 transition-colors">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Car className="w-5 h-5 text-blue-600" />
+              <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">
+                Find a ride
+              </h2>
+              <span className="text-[11px] font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 px-2.5 py-0.5 rounded-full border border-blue-200/70 dark:border-blue-800">
+                Every 15 min
+              </span>
             </div>
 
-            <button
-              type="button"
-              onClick={handleToggleDirection}
-              className="p-2 bg-slate-100 hover:bg-blue-50 dark:bg-slate-800 dark:hover:bg-blue-950/60 text-slate-600 hover:text-blue-600 dark:text-slate-300 dark:hover:text-blue-400 rounded-2xl border border-slate-200/80 dark:border-slate-700 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold"
-              title="Switch trip direction"
-              aria-label="Switch trip direction between departing and returning"
-            >
-              <ArrowLeftRight className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Switch</span>
-            </button>
+            {/* Direction Switcher & Swap Button */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="inline-flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200/80 dark:border-slate-700 text-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (direction !== 'departing') {
+                      setDirection('departing');
+                      fetchSlots(selectedDestId, selectedDate, selectedVehicle, 'departing');
+                    }
+                  }}
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    direction === 'departing'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <span>Depart campus</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (direction !== 'returning') {
+                      setDirection('returning');
+                      fetchSlots(selectedDestId, selectedDate, selectedVehicle, 'returning');
+                    }
+                  }}
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    direction === 'returning'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <span>Return to campus</span>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleToggleDirection}
+                className="p-1.5 px-3 bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl border border-slate-200 dark:border-slate-700 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-semibold shadow-2xs"
+                title="Switch trip direction"
+                aria-label="Switch trip direction between departing and returning"
+              >
+                <ArrowLeftRight className="w-3.5 h-3.5" />
+                <span>Switch</span>
+              </button>
+            </div>
           </div>
-        </div>
 
         <form onSubmit={handleSearchSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -681,6 +777,173 @@ export default function DashboardPage({
             ))}
           </div>
         </form>
+      </div>
+
+      {/* 2-Column Section: Available Ride Slots (Left) & Active Journey (Right) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column (2/3 width): Available ride slots */}
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200/90 dark:border-slate-800 p-6 transition-colors">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Users className="w-5 h-5 text-blue-600" />
+                <span>Available ride slots</span>
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Departing from campus • {dateOptions.find((d) => d.value === selectedDate)?.label || 'Today'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowAllSlots((prev) => !prev)}
+              className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 bg-blue-50 dark:bg-blue-950/60 px-3 py-1.5 rounded-xl border border-blue-200/60 dark:border-blue-800/60 cursor-pointer"
+            >
+              <span>{showAllSlots ? 'Show fewer' : 'View all slots'}</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* 3 Featured Slot Cards Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+            {featuredSlots.map((slot, idx) => {
+              const isFull = (slot.memberCount || slot.members?.length || 0) >= (slot.capacity || 4);
+              return (
+                <div
+                  key={slot.slotKey || `featured_${idx}`}
+                  className="rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 bg-slate-50/50 dark:bg-slate-800/40 hover:border-blue-300 dark:hover:border-blue-700 transition-all flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-start justify-between">
+                      <span className="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-1.5">
+                        <Clock className="w-4 h-4 text-blue-600" />
+                        <span>{slot.time12 || slot.time}</span>
+                      </span>
+                      <div className="text-right">
+                        <span className="font-extrabold text-slate-900 dark:text-white text-sm">
+                          {slot.farePerRider || '₹350'}
+                        </span>
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 block">
+                          per rider
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-xs text-slate-600 dark:text-slate-400 font-medium mt-2">
+                      {slot.vehicle === 'Shared Cab' ? 'Cab' : 'Auto'} • {slot.memberCount || slot.members?.length || 0} / {slot.capacity || 4} seats
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    {isFull ? (
+                      <div className="w-full py-2 bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 font-bold text-xs rounded-xl text-center">
+                        Full
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleJoinSlot(slot)}
+                        disabled={joiningSlotKey === slot.slotKey}
+                        className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer text-center"
+                      >
+                        {joiningSlotKey === slot.slotKey ? 'Joining...' : 'Join Slot'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Expandable full SlotPicker if View All Slots is toggled */}
+          {showAllSlots && (
+            <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800">
+              <SlotPicker
+                slots={slots}
+                loading={slotsLoading}
+                onJoinSlot={handleJoinSlot}
+                onViewGroup={onViewGroupDetails}
+                joiningSlotKey={joiningSlotKey}
+                initialJumpTime={selectedTime}
+                activeGroupId={activeUserGroup?.id}
+                direction={direction}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Right Column (1/3 width): Your active journey */}
+        <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200/90 dark:border-slate-800 p-6 flex flex-col justify-between transition-colors">
+          <div>
+            <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-3">
+              <Car className="w-5 h-5 text-blue-600" />
+              <span>Your active journey</span>
+            </h3>
+
+            {activeUserGroup ? (
+              <div
+                onClick={() => onViewGroupDetails && onViewGroupDetails(activeUserGroup.id)}
+                className="bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-800/60 rounded-2xl p-4.5 cursor-pointer hover:border-emerald-400 transition-all space-y-2.5"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100/80 dark:bg-emerald-900/40 px-2.5 py-0.5 rounded-full">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>Confirmed</span>
+                  </span>
+                  <ChevronRight className="w-4 h-4 text-emerald-600" />
+                </div>
+
+                <div>
+                  <h4 className="font-bold text-slate-900 dark:text-white text-base">
+                    Thapar → {activeUserGroup.destinationName || 'Patiala'}
+                  </h4>
+                </div>
+
+                <div className="space-y-1 text-xs text-slate-600 dark:text-slate-300">
+                  <div className="flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Today, {activeUserGroup.departureTime || '1:30 PM'}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Car className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Cab • {activeUserGroup.members?.length || 1} riders</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl p-6 text-center space-y-2">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/70 text-blue-600 flex items-center justify-center mx-auto">
+                  <Car className="w-5 h-5" />
+                </div>
+                <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm">
+                  No active journey
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Join a slot above to coordinate a shared cab.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {activeUserGroup && (
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 mt-4 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsAddFriendOpen(true)}
+                className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-1 cursor-pointer"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Add friend</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onViewGroupDetails && onViewGroupDetails(activeUserGroup.id)}
+                className="flex-1 py-2 bg-slate-900 hover:bg-black dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-1 cursor-pointer"
+              >
+                <span>Open chat</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Active Trip Quick Banner (If user belongs to a group) */}
@@ -1074,6 +1337,7 @@ export default function DashboardPage({
         maxSeats={activeUserGroup?.maxMembers || 4}
       />
 
+      </div>
     </div>
   );
 }

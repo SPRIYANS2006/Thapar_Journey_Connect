@@ -4,15 +4,12 @@ import {
   ShieldCheck, 
   Mail, 
   Lock, 
-  ArrowRight, 
   AlertCircle, 
   Loader2,
   Sparkles,
   Sun,
   Moon,
-  Users,
-  Clock,
-  Car
+  Clock
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuth } from '../context/useAuth';
@@ -187,47 +184,63 @@ export default function AuthPage({ onLoginSuccess }) {
         
         {/* Left Hero Pitch */}
         <div className="lg:col-span-7 space-y-6 text-left">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/70 border border-blue-200 dark:border-blue-800/80 text-blue-700 dark:text-blue-300 text-xs font-bold shadow-2xs">
-            <Sparkles className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-            <span>Made for TIET students</span>
-          </div>
-
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 dark:text-white tracking-tight leading-[1.1]">
-            Share a cab.<br />
+            Campus rides,<br />
             <span className="text-blue-600 dark:text-blue-400">
-              Save up to 75%.
+              simplified.
             </span>
           </h1>
 
           <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 max-w-xl font-normal leading-relaxed">
-            The safe, verified way for Thapar students to travel together. Split cabs to Chandigarh Airport, Delhi, and Patiala stations with peers from your own hostel quad.
+            Find and share cabs with fellow Thaparians, from campus to anywhere.
           </p>
 
           {/* Feature Highlights Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-4">
-            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-1">
-              <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              <h4 className="font-bold text-slate-900 dark:text-white text-xs">Every 15 minutes</h4>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">96 flexible departure slots daily.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-2">
+            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/70 text-blue-600 flex items-center justify-center shrink-0">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-bold text-slate-900 dark:text-white text-xs">Verified</h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">TIET students</p>
+              </div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-1">
-              <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              <h4 className="font-bold text-slate-900 dark:text-white text-xs">Hostel quad meetups</h4>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">Meet co-riders at your hostel gate.</p>
+            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/70 text-blue-600 flex items-center justify-center shrink-0">
+                <Clock className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-bold text-slate-900 dark:text-white text-xs">Every</h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">15 minutes</p>
+              </div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-1">
-              <Car className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-              <h4 className="font-bold text-slate-900 dark:text-white text-xs">Equal fare split</h4>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">Cut airport cabs down to ₹300.</p>
+            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/70 text-blue-600 flex items-center justify-center shrink-0">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-bold text-slate-900 dark:text-white text-xs">Save up to</h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">75%</p>
+              </div>
             </div>
+          </div>
+
+          {/* Thapar Campus Image */}
+          <div className="rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800 shadow-xs mt-6">
+            <img
+              src="/thapar-campus.png"
+              alt="Thapar Institute Campus"
+              className="w-full h-auto object-cover max-h-60"
+            />
           </div>
         </div>
 
         {/* Right Auth Card */}
         <div className="lg:col-span-5">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-6 sm:p-8 shadow-xs transition-colors">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl transition-colors">
             
             {error && (
               <div className="mb-5 p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs flex items-start gap-2.5 animate-in fade-in duration-150">
@@ -236,17 +249,17 @@ export default function AuthPage({ onLoginSuccess }) {
               </div>
             )}
 
+            <div className="space-y-1 mb-5">
+              <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                Welcome back
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Sign in to Thapar Journey Connect with your TIET account.
+              </p>
+            </div>
+
             {/* Google Sign-In Container */}
             <div className="space-y-3">
-              <div className="text-center space-y-1 mb-3">
-                <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
-                  Sign in with your campus account
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Use your official <strong className="text-slate-700 dark:text-slate-300">@thapar.edu</strong> Google account
-                </p>
-              </div>
-
               <div className="flex justify-center min-h-[44px]">
                 <div ref={googleBtnRef} />
                 {!gisLoaded && (
@@ -256,27 +269,21 @@ export default function AuthPage({ onLoginSuccess }) {
                   </div>
                 )}
               </div>
-
-              <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 font-medium pt-1">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Verified student accounts only</span>
-              </div>
             </div>
 
             {/* Divider */}
-            <div className="relative my-6 flex items-center justify-center">
+            <div className="relative my-5 flex items-center justify-center">
               <div className="border-t border-slate-200 dark:border-slate-800 w-full" />
-              <span className="bg-white dark:bg-slate-900 px-3 text-[11px] text-slate-400 dark:text-slate-500 font-bold absolute">
-                or sign in with password
+              <span className="bg-white dark:bg-slate-900 px-3 text-xs text-slate-400 dark:text-slate-500 font-medium absolute">
+                or
               </span>
             </div>
 
             {/* Password Login Form */}
-            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+            <form onSubmit={handlePasswordSubmit} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
-                  <span>Thapar email</span>
-                  <span className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold">@thapar.edu only</span>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Email
                 </label>
                 <div className="relative">
                   <Mail className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3.5 top-3.5" />
@@ -284,7 +291,7 @@ export default function AuthPage({ onLoginSuccess }) {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="student@thapar.edu"
+                    placeholder="Enter your TIET email"
                     className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium transition-colors"
                     required
                   />
@@ -301,14 +308,20 @@ export default function AuthPage({ onLoginSuccess }) {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your campus password"
+                    placeholder="Enter your password"
                     className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium transition-colors"
                     required
                   />
                 </div>
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-                  Set up or update your password in Profile anytime.
-                </p>
+                <div className="text-right mt-1">
+                  <button
+                    type="button"
+                    onClick={() => setError('Contact campus IT or sign in with your @thapar.edu Google account.')}
+                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-semibold cursor-pointer"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
               </div>
 
               <button
@@ -322,13 +335,30 @@ export default function AuthPage({ onLoginSuccess }) {
                     <span>Signing in...</span>
                   </>
                 ) : (
-                  <>
-                    <span>Sign in with password</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
+                  <span>Sign In</span>
                 )}
               </button>
             </form>
+
+            {/* TIET Email note */}
+            <div className="mt-4 p-3 bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200/60 dark:border-blue-900/50 rounded-xl flex items-start gap-2.5 text-xs text-slate-700 dark:text-slate-300">
+              <span className="text-blue-600 font-bold shrink-0 mt-0.5">ⓘ</span>
+              <span>Use your TIET email (e.g., &lt;rollno&gt;@thapar.edu) to sign in.</span>
+            </div>
+
+            <div className="text-center mt-5 text-xs text-slate-500 dark:text-slate-400">
+              <span>New here? </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail('student@thapar.edu');
+                  setPassword('Password123!');
+                }}
+                className="text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer"
+              >
+                Create account
+              </button>
+            </div>
           </div>
         </div>
 

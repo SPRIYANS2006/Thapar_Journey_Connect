@@ -1,1120 +1,877 @@
-import React, { useState, useEffect } from 'react';
-import Avatar from '../components/Avatar';
+import React, { useState } from 'react';
+import HeroBanner from '../components/HeroBanner';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { 
   Users, 
   Search, 
   Plus, 
   MessageSquare, 
-  Heart, 
-  CheckCircle2, 
-  AlertCircle, 
-  ArrowRight, 
-  Sparkles, 
+  Check, 
+  Info, 
   Send, 
-  Building2,
-  CornerDownRight,
+  MapPin, 
+  ArrowLeftRight, 
+  Image as ImageIcon, 
+  MoreVertical, 
+  ThumbsUp, 
+  ChevronDown, 
   X,
-  Lock,
-  Car
+  Compass
 } from 'lucide-react';
 import { 
-  INDIA_LOCATIONS, 
-  ALL_INDIAN_STATES, 
-  POPULAR_STATES, 
-  getCitiesByState, 
-  getCityDetails 
+  POPULAR_STATES 
 } from '../data/indiaLocations';
 
 export default function CommunitiesPage({ 
-  communities, 
-  posts, 
+  communities = [], 
+  posts = [], 
   user, 
   onJoinCommunity, 
   onLeaveCommunity, 
   onCreateCommunity,
   onAddPost, 
-  onSelectCommunityTravel,
+  onSelectCommunityTravel: _onSelectCommunityTravel,
   onOpenCityHub,
   onLikePost,
   onAddComment,
   onSelectCommunity
 }) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCommunityId, setSelectedCommunityId] = useState(user?.joinedCommunity || (communities && communities[0]?.id) || 'del');
   const [filterState, setFilterState] = useState('All');
   
-  // Create New Community Modal State
+  // Selected community ID
+  const initialCommId = user?.joinedCommunity || (communities && communities[0]?.id) || 'del';
+  const [selectedCommunityId, setSelectedCommunityId] = useState(initialCommId);
+
+  // Switch Community confirmation dialog
+  const [targetCommunityToJoin, setTargetCommunityToJoin] = useState(null);
+  const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
+
+  // Post Creator State
+  const [postContent, setPostContent] = useState('');
+  const [showPhotoAlert, setShowPhotoAlert] = useState(false);
+  const [showTripDetailsInput, setShowTripDetailsInput] = useState(false);
+  const [tripDetailsText, setTripDetailsText] = useState('');
+  const [boardNotice, setBoardNotice] = useState('');
+
+  // Comment Thread State (postId that currently has open reply box)
+  const [openReplyPostId, setOpenReplyPostId] = useState(null);
+  const [replyInputText, setReplyInputText] = useState('');
+
+  // Create Community Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newState, setNewState] = useState('Punjab');
   const [selectedCity, setSelectedCity] = useState('');
   const [customCityName, setCustomCityName] = useState('');
-  const [newIcon, setNewIcon] = useState('🏙️');
   const [newDistance, setNewDistance] = useState('');
-  const [newTransport, setNewTransport] = useState('Trains, Shared Cabs, Express Buses');
+  const [newTransport, setNewTransport] = useState('Shared Cabs, Express Buses');
   const [newDesc, setNewDesc] = useState('');
   const [isSubmittingCommunity, setIsSubmittingCommunity] = useState(false);
   const [createCommunityError, setCreateCommunityError] = useState('');
-  const [createCommunitySuccess, setCreateCommunitySuccess] = useState('');
 
-  // Post Creator State
-  const [isPosting, setIsPosting] = useState(false);
-  const [postTitle, setPostTitle] = useState('');
-  const [postContent, setPostContent] = useState('');
-  const [postCategory, setPostCategory] = useState('Ride Sharing');
-
-  // Comment Thread State (post ID that currently has open reply box)
-  const [openReplyPostId, setOpenReplyPostId] = useState(null);
-  const [replyInputText, setReplyInputText] = useState('');
+  // Switch Community dropdown toggle in header
+  const [showSwitchDropdown, setShowSwitchDropdown] = useState(false);
 
   // Filtered communities
-  const filteredCommunities = (communities || []).filter((c) => {
+  const filteredCommunities = (communities && communities.length > 0 ? communities : [
+    { id: 'del', name: 'Delhi NCR', state: 'Delhi', membersCount: 842, description: 'Delhi, Noida, Gurugram, Ghaziabad' },
+    { id: 'chd', name: 'Chandigarh', state: 'Punjab', membersCount: 516, description: 'Chandigarh, Mohali, Panchkula' },
+    { id: 'ldh', name: 'Ludhiana', state: 'Punjab', membersCount: 327, description: 'Ludhiana & nearby areas' },
+    { id: 'jai', name: 'Jaipur', state: 'Rajasthan', membersCount: 214, description: 'Jaipur & nearby areas' },
+    { id: 'asr', name: 'Amritsar', state: 'Punjab', membersCount: 193, description: 'Amritsar & nearby areas' }
+  ]).filter((c) => {
     const matchesSearch = 
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.state.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (c.tags && c.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase())));
+      (c.state && c.state.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (c.description && c.description.toLowerCase().includes(searchQuery.toLowerCase()));
     
     if (filterState === 'All') return matchesSearch;
-    return matchesSearch && c.state.toLowerCase().includes(filterState.toLowerCase());
+    return matchesSearch && c.state && c.state.toLowerCase().includes(filterState.toLowerCase());
   });
 
-  const activeCommunity = (communities || []).find((c) => c.id === selectedCommunityId) || communities[0] || {
+  const activeCommunity = (communities || []).find((c) => c.id === selectedCommunityId) || {
     id: 'del',
     name: 'Delhi NCR',
-    state: 'Delhi / NCR',
-    icon: '🚇',
-    membersCount: 0,
-    distanceFromThapar: '250 km',
-    popularTransport: 'Shatabdi Express, Long Cabs, Volvos',
-    description: 'Largest student origin community covering South Delhi, Noida, Gurgaon & West Delhi.',
-    tags: ['Holiday Rush', 'Shatabdi Cohort', 'IGI Airport']
+    state: 'Delhi',
+    membersCount: 842,
+    description: 'Delhi, Noida, Gurugram, Ghaziabad'
   };
 
-  const activePosts = (posts || []).filter((p) => p.communityId === activeCommunity?.id);
-  const isUserJoined = user?.joinedCommunity === activeCommunity?.id;
+  const isUserJoined = user?.joinedCommunity === activeCommunity.id;
 
-  // Auto-sync posts when active community selection changes
-  useEffect(() => {
-    if (onSelectCommunity && selectedCommunityId) {
-      onSelectCommunity(selectedCommunityId);
+  // Filter real posts for this community
+  const dbPosts = (posts || []).filter((p) => p.communityId === activeCommunity.id);
+
+  // Fallback featured discussions if no database posts exist yet (matches Image 5)
+  const defaultDiscussions = [
+    {
+      id: 'mock_post_1',
+      authorName: 'Aarav Sharma',
+      authorInitial: 'A',
+      authorColor: 'bg-blue-100 text-blue-700 dark:bg-blue-950/70 dark:text-blue-300',
+      meta: 'B.Tech CSE • 2 hours ago',
+      content: 'Ride sharing: Going from Delhi (Dwarka) to campus tomorrow (Nov 14) around 1:00 PM. 2 seats available. DM if you want to join!',
+      likesCount: 14,
+      repliesCount: 5,
+      replies: [
+        { id: 'r1', authorName: 'Rohan Gupta', meta: '1 hour ago', text: 'Hey Aarav, do you still have a seat left?' }
+      ]
+    },
+    {
+      id: 'mock_post_2',
+      authorName: 'Khushi Verma',
+      authorInitial: 'K',
+      authorColor: 'bg-purple-100 text-purple-700 dark:bg-purple-950/70 dark:text-purple-300',
+      meta: 'B.Tech ECE • 6 hours ago',
+      content: 'Looking for a roommate for next semester (Jan–May). Preferably from Delhi NCR. DM if interested!',
+      likesCount: 9,
+      repliesCount: 7,
+      replies: []
+    },
+    {
+      id: 'mock_post_3',
+      authorName: 'Raghav Mehta',
+      authorInitial: 'R',
+      authorColor: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300',
+      meta: 'B.Tech ME • 11 hours ago',
+      content: 'Travel plans: Planning to leave from Gurugram on Nov 17 (Sun) around 3:00 PM. Have space for 3 more. Let me know if you\'re coming!',
+      likesCount: 18,
+      repliesCount: 4,
+      replies: []
     }
-  }, [selectedCommunityId, onSelectCommunity]);
+  ];
 
-  const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
-  const [boardNotice, setBoardNotice] = useState('');
+  const displayedPosts = dbPosts.length > 0 ? dbPosts : defaultDiscussions;
 
+  // Handle Post Creation
   const handlePostSubmit = (e) => {
     e.preventDefault();
     if (!isUserJoined) {
-      setBoardNotice(`Access Restricted: Under Thapar hometown privacy policy, only verified members of ${activeCommunity.name} community can create posts or ride notices.`);
+      setBoardNotice(`Only verified members of ${activeCommunity.name} community can create posts.`);
       setTimeout(() => setBoardNotice(''), 4000);
       return;
     }
-    if (!postTitle.trim() || !postContent.trim()) return;
+    if (!postContent.trim()) return;
 
-    onAddPost({
-      communityId: activeCommunity.id,
-      category: postCategory,
-      title: postTitle.trim(),
-      content: postContent.trim()
-    });
-    setPostTitle('');
-    setPostContent('');
-    setIsPosting(false);
-  };
-
-  const [likingPostIds, setLikingPostIds] = useState(new Set());
-
-  const handleLikeClick = async (postId) => {
-    if (!isUserJoined) {
-      setBoardNotice(`Access Restricted: Under Thapar community rules, only verified members of ${activeCommunity.name} community can react to notices.`);
-      setTimeout(() => setBoardNotice(''), 4000);
-      return;
+    let fullContent = postContent.trim();
+    if (tripDetailsText.trim()) {
+      fullContent = `${fullContent}\n\n📍 Trip details: ${tripDetailsText.trim()}`;
     }
 
-    if (likingPostIds.has(postId)) return; // Prevent spamming / concurrent rapid clicks
-
-    setLikingPostIds((prev) => new Set(prev).add(postId));
-    try {
-      if (onLikePost) {
-        await onLikePost(postId);
-      }
-    } catch (err) {
-      setBoardNotice(err.message || 'Could not update like.');
-      setTimeout(() => setBoardNotice(''), 4000);
-    } finally {
-      setLikingPostIds((prev) => {
-        const next = new Set(prev);
-        next.delete(postId);
-        return next;
+    if (onAddPost) {
+      onAddPost({
+        communityId: activeCommunity.id,
+        category: 'Ride Sharing',
+        title: postContent.slice(0, 50),
+        content: fullContent
       });
     }
+
+    setPostContent('');
+    setTripDetailsText('');
+    setShowTripDetailsInput(false);
   };
 
+  // Handle Join click
+  const handleJoinClick = (comm) => {
+    if (user?.joinedCommunity && user.joinedCommunity !== comm.id) {
+      // User is already in another community -> trigger confirmation dialog
+      setTargetCommunityToJoin(comm);
+      setShowSwitchConfirm(true);
+      return;
+    }
+
+    if (onJoinCommunity) {
+      onJoinCommunity(comm.id);
+      setSelectedCommunityId(comm.id);
+      if (onSelectCommunity) onSelectCommunity(comm.id);
+    }
+  };
+
+  // Confirm Switch Community
+  const handleConfirmSwitch = async () => {
+    if (!targetCommunityToJoin) return;
+    try {
+      if (user?.joinedCommunity && onLeaveCommunity) {
+        await onLeaveCommunity(user.joinedCommunity);
+      }
+      if (onJoinCommunity) {
+        await onJoinCommunity(targetCommunityToJoin.id);
+      }
+      setSelectedCommunityId(targetCommunityToJoin.id);
+      if (onSelectCommunity) onSelectCommunity(targetCommunityToJoin.id);
+    } finally {
+      setShowSwitchConfirm(false);
+      setTargetCommunityToJoin(null);
+    }
+  };
+
+  // Handle Like
+  const handleLikeClick = (post) => {
+    if (!isUserJoined) {
+      setBoardNotice(`Join ${activeCommunity.name} community to react to notices.`);
+      setTimeout(() => setBoardNotice(''), 4000);
+      return;
+    }
+    if (onLikePost && post.id && !post.id.startsWith('mock_')) {
+      onLikePost(post.id);
+    }
+  };
+
+  // Handle Comment Submit
   const handleCommentSubmit = (postId, e) => {
     e.preventDefault();
     if (!isUserJoined) {
-      setBoardNotice(`Access Restricted: Only members of ${activeCommunity.name} community can reply to notices.`);
+      setBoardNotice(`Join ${activeCommunity.name} community to reply to notices.`);
       setTimeout(() => setBoardNotice(''), 4000);
       return;
     }
     if (!replyInputText.trim()) return;
 
-    if (onAddComment) {
+    if (onAddComment && !postId.startsWith('mock_')) {
       onAddComment(postId, replyInputText.trim());
     }
     setReplyInputText('');
   };
 
-  const handleOpenCreateModal = (prefillQuery = '') => {
-    const query = (prefillQuery || searchQuery || '').trim().toLowerCase();
-    let matchedState = '';
-    let matchedCity = '';
-
-    if (query) {
-      const stateMatch = INDIA_LOCATIONS.find((loc) => loc.state.toLowerCase().includes(query));
-      if (stateMatch) {
-        matchedState = stateMatch.state;
-      } else {
-        for (const loc of INDIA_LOCATIONS) {
-          const cityMatch = loc.cities.find((c) => c.name.toLowerCase().includes(query));
-          if (cityMatch) {
-            matchedState = loc.state;
-            matchedCity = cityMatch.name;
-            break;
-          }
-        }
-      }
-    }
-
-    if (matchedState) {
-      setNewState(matchedState);
-      if (matchedCity) {
-        setSelectedCity(matchedCity);
-        const details = getCityDetails(matchedState, matchedCity);
-        if (details) {
-          if (details.distance !== undefined) setNewDistance(String(details.distance));
-          if (details.transport) setNewTransport(details.transport);
-          if (details.icon) setNewIcon(details.icon);
-          setNewDesc(`Student community for Thapar students from ${details.name}, ${matchedState}. Coordinate rides and campus meetups.`);
-        }
-      } else {
-        setSelectedCity('');
-        setCustomCityName('');
-      }
-    } else {
-      setNewState('Punjab');
-      setSelectedCity('');
-      setCustomCityName('');
-      setNewDistance('');
-      setNewTransport('Trains, Shared Cabs, Express Buses');
-      setNewIcon('🏙️');
-      setNewDesc('');
-    }
-
-    setCreateCommunityError('');
-    setCreateCommunitySuccess('');
-    setShowCreateModal(true);
-  };
-
-  const handleStateChange = (stateName) => {
-    setNewState(stateName);
-    setSelectedCity('');
-    setCustomCityName('');
-    setCreateCommunityError('');
-    setNewDistance('');
-    setNewTransport('Trains, Shared Cabs, Express Buses');
-    setNewIcon('🏙️');
-    setNewDesc('');
-  };
-
-  const handleCityChange = (cityVal) => {
-    setSelectedCity(cityVal);
-    setCreateCommunityError('');
-    if (cityVal === '__custom__') {
-      setCustomCityName('');
-      return;
-    }
-    if (cityVal) {
-      const details = getCityDetails(newState, cityVal);
-      if (details) {
-        if (details.distance !== undefined) setNewDistance(String(details.distance));
-        if (details.transport) setNewTransport(details.transport);
-        if (details.icon) setNewIcon(details.icon);
-        setNewDesc(`Student community for Thapar students from ${details.name}, ${newState}. Coordinate rides and campus meetups.`);
-      }
-    }
-  };
-
+  // Handle Create Community
   const handleCreateCommunitySubmit = async (e) => {
     e.preventDefault();
-    setCreateCommunityError('');
-    setCreateCommunitySuccess('');
-
-    if (!newState.trim()) {
-      setCreateCommunityError('Select a valid state or province.');
-      return;
-    }
-
-    const finalCityName = selectedCity === '__custom__' ? customCityName.trim() : selectedCity.trim();
+    const finalCityName = selectedCity === '__custom__' ? customCityName.trim() : selectedCity;
     if (!finalCityName) {
-      setCreateCommunityError(selectedCity === '__custom__' ? 'Enter your custom city or town name.' : 'Select a city or region.');
+      setCreateCommunityError('Please select or specify a city name.');
       return;
     }
+
+    setIsSubmittingCommunity(true);
+    setCreateCommunityError('');
 
     try {
-      setIsSubmittingCommunity(true);
-      const created = await onCreateCommunity({
-        name: finalCityName,
-        state: newState.trim(),
-        icon: newIcon.trim() || '🏙️',
-        distanceFromThapar: newDistance.trim() ? `${newDistance.trim()} km` : '250 km',
-        popularTransport: newTransport.trim() || 'Trains, Shared Cabs, Express Buses',
-        description: newDesc.trim() || `Student community for Thapar students from ${finalCityName}, ${newState.trim()}. Coordinate rides and campus meetups.`,
-        tags: [finalCityName, newState.trim(), 'Campus Carpool', 'Weekend Trip']
-      });
-
-      setCreateCommunitySuccess(`Community "${created.name}" (${newState}) created.`);
-      if (created?.id) {
-        setSelectedCommunityId(created.id);
+      if (onCreateCommunity) {
+        const newComm = await onCreateCommunity({
+          name: finalCityName,
+          state: newState,
+          distanceFromThapar: newDistance ? `${newDistance} km` : '120 km',
+          popularTransport: newTransport || 'Shared Cabs, Express Buses',
+          description: newDesc || `Student community for Thapar students from ${finalCityName}, ${newState}.`,
+          icon: '🏙️'
+        });
+        if (newComm?.id) {
+          setSelectedCommunityId(newComm.id);
+        }
       }
-      setTimeout(() => {
-        setShowCreateModal(false);
-        setNewState('Punjab');
-        setSelectedCity('');
-        setCustomCityName('');
-        setNewDistance('');
-        setNewDesc('');
-        setCreateCommunitySuccess('');
-        setCreateCommunityError('');
-      }, 1000);
+      setShowCreateModal(false);
     } catch (err) {
-      setCreateCommunityError(err.message || 'Failed to create community. Try again.');
+      setCreateCommunityError(err.message || 'Failed to create community.');
     } finally {
       setIsSubmittingCommunity(false);
     }
   };
 
+  const userInitial = (user?.name?.charAt(0) || 'P').toUpperCase();
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-in fade-in duration-300">
+    <div className="space-y-6 pb-12 animate-in fade-in duration-300">
       
-      {/* Hero Banner */}
-      <div className="bg-[#10264E] dark:bg-[#0c1e3d] rounded-2xl p-6 sm:p-8 text-white shadow-xs border border-slate-800/20 dark:border-slate-800 relative overflow-hidden transition-colors">
-        <div className="relative z-10 max-w-3xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-xs rounded-full text-blue-200 text-xs font-semibold mb-3 border border-white/10">
-            <Users className="w-3.5 h-3.5 text-blue-300" />
-            <span>Thapar City Communities</span>
-          </div>
+      {/* Top Banner Matching Image 5 */}
+      <HeroBanner
+        tag="YOUR CAMPUS. YOUR COMMUNITY."
+        title="City Communities"
+        subtitle="Join your hometown community, find travel partners, and connect with fellow Thapar students."
+      />
 
-          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-            Connect with your hometown peers
-          </h1>
-
-          <p className="text-slate-200 text-sm sm:text-base mt-2 font-normal leading-relaxed">
-            Join your hometown city community to coordinate weekend carpools, train co-passengers, holiday departures, and campus meetups with peers from your district.
-          </p>
-
-          {/* User's current community status pill */}
-          <div className="mt-5 inline-flex items-center gap-3 bg-white/10 backdrop-blur-xs px-4 py-2 rounded-xl border border-white/15 text-xs">
-            <span className="text-blue-200 font-medium">Your active community:</span>
-            {user?.joinedCommunity ? (
-              <span className="font-bold text-white flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                {communities.find(c => c.id === user.joinedCommunity)?.name || 'Hometown'} Community
-              </span>
-            ) : (
-              <span className="text-amber-200 font-medium">None joined yet (Pick one below)</span>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Main Grid: Sidebar Directory + Active Community Hub */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      {/* Main Container */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
-        {/* Left Column: Community Directory (5 cols) */}
-        <div className="lg:col-span-5 space-y-4">
-          
-          {/* Search & State Filters */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-5 shadow-xs space-y-3 transition-colors">
+        {/* Notice alert toast if any */}
+        {boardNotice && (
+          <div className="mb-4 p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-xs flex items-center justify-between animate-in fade-in duration-200">
+            <div className="flex items-center gap-2">
+              <Info className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>{boardNotice}</span>
+            </div>
+            <button onClick={() => setBoardNotice('')} className="text-amber-600 hover:text-amber-800">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* 2-Column Layout Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+          {/* Left Column: Community Directory (5 cols) */}
+          <div className="lg:col-span-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-2xs space-y-4">
+            
+            {/* Header: Title + Create Button */}
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                  <Users className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                    Community Directory
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Find and join your hometown community.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(true)}
+                className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Create Community</span>
+              </button>
+            </div>
+
+            {/* Search Input */}
             <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
-                placeholder="Search city, state or tag..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 rounded-xl focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
+                placeholder="Search communities (e.g., Delhi, Chandigarh)"
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
               />
             </div>
 
-            <div className="flex gap-1.5 overflow-x-auto pb-1 text-xs font-semibold">
-              {['All', 'Punjab', 'Haryana', 'Delhi', 'Rajasthan'].map((st) => (
-                <button
-                  key={st}
-                  onClick={() => setFilterState(st)}
-                  className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition-colors cursor-pointer ${
-                    filterState === st 
-                      ? 'bg-blue-600 text-white shadow-xs' 
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  {st}
-                </button>
-              ))}
-            </div>
-
-            {/* Add Custom Community Hub Trigger Button */}
-            <button
-              onClick={() => handleOpenCreateModal(searchQuery)}
-              className="w-full py-2.5 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer active:scale-[0.98]"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Can't find your city? Add community hub</span>
-            </button>
-          </div>
-
-          {/* Communities List */}
-          <div className="space-y-3 max-h-[640px] overflow-y-auto pr-1">
-            {filteredCommunities.length === 0 ? (
-              <div className="text-center py-8 bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 p-6 space-y-3">
-                <Building2 className="w-8 h-8 text-slate-400 dark:text-slate-500 mx-auto" />
-                <div>
-                  <p className="text-sm font-bold text-slate-700 dark:text-slate-300">No community found for "{searchQuery}"</p>
-                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Be the first to start a hub for your hometown.</p>
-                </div>
-                <button
-                  onClick={() => handleOpenCreateModal(searchQuery)}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs inline-flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Add "{searchQuery || 'New city'}" as hub</span>
-                </button>
-              </div>
-            ) : (
-              filteredCommunities.map((c) => {
-                const isSelected = c.id === selectedCommunityId;
-                const isUserMember = user?.joinedCommunity === c.id;
-
+            {/* State Filter Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+              {['All', 'Punjab', 'Haryana', 'Delhi', 'Rajasthan'].map((stateName) => {
+                const isActive = filterState.toLowerCase() === stateName.toLowerCase();
                 return (
-                  <div
-                    key={c.id}
-                    onClick={() => setSelectedCommunityId(c.id)}
-                    className={`p-4 sm:p-5 rounded-2xl border cursor-pointer transition-all ${
-                      isSelected
-                        ? 'bg-blue-50/70 dark:bg-blue-950/60 border-blue-500 dark:border-blue-500 shadow-2xs ring-1 ring-blue-500/30'
-                        : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-2xs'
+                  <button
+                    key={stateName}
+                    type="button"
+                    onClick={() => setFilterState(stateName)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                      isActive
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                     }`}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 flex items-center justify-center text-xl shrink-0">
-                          {c.icon}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">{c.name}</h4>
-                            {isUserMember && (
-                              <span className="bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 text-[10px] font-bold px-1.5 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800">
-                                Joined
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">{c.state} • {c.distanceFromThapar}</p>
-                        </div>
-                      </div>
-
-                      <div className="text-right">
-                        <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
-                          <Users className="w-3 h-3 text-slate-500 dark:text-slate-400" />
-                          {c.membersCount}
-                        </span>
-                      </div>
-                    </div>
-
-                    <p className="text-xs text-slate-600 dark:text-slate-300 mt-2 line-clamp-2 leading-relaxed">
-                      {c.description}
-                    </p>
-
-                    <div className="flex flex-wrap gap-1 mt-2.5">
-                      {(c.tags || []).map((t, idx) => (
-                        <span key={idx} className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded-md font-medium">
-                          #{t}
-                        </span>
-                      ))}
-                    </div>
-
-                    <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                      <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold">
-                        Cab • Bus • Train rides
-                      </span>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (onOpenCityHub) onOpenCityHub(c);
-                        }}
-                        className="px-2.5 py-1 bg-blue-50 dark:bg-blue-950/70 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 text-blue-700 dark:text-blue-300 text-[11px] font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
-                      >
-                        <span>Open city page</span>
-                        <ArrowRight className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </div>
+                    {stateName}
+                  </button>
                 );
-              })
-            )}
-          </div>
-        </div>
+              })}
 
-        {/* Right Column: Active Community Hub & Forum (7 cols) */}
-        <div className="lg:col-span-7 space-y-6">
-          
-          {/* Community Header Card */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8 shadow-xs transition-colors">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-6">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-blue-50 dark:bg-slate-800 border border-blue-100 dark:border-slate-700 flex items-center justify-center text-3xl shadow-2xs">
-                  {activeCommunity.icon}
+              {/* Extra states dropdown */}
+              <div className="relative shrink-0">
+                <select
+                  value={['All', 'Punjab', 'Haryana', 'Delhi', 'Rajasthan'].includes(filterState) ? '' : filterState}
+                  onChange={(e) => {
+                    if (e.target.value) setFilterState(e.target.value);
+                  }}
+                  className="px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full text-xs font-bold appearance-none cursor-pointer pr-6 focus:outline-none"
+                >
+                  <option value="">+ More ▾</option>
+                  {POPULAR_STATES.filter(s => !['Punjab', 'Haryana', 'Delhi', 'Rajasthan'].includes(s)).map((st) => (
+                    <option key={st} value={st}>{st}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Communities List */}
+            <div className="space-y-2.5 pt-1">
+              {filteredCommunities.length === 0 ? (
+                <div className="p-6 text-center text-xs text-slate-400">
+                  No matching communities found. Try another search.
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-                      {activeCommunity.name} community
-                    </h2>
-                  </div>
-                  <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                    {activeCommunity.state} • Approx {activeCommunity.distanceFromThapar} from TIET Patiala
-                  </p>
-                </div>
-              </div>
-
-              {/* Join / Leave Buttons */}
-              <div>
-                {isUserJoined ? (
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-bold rounded-xl">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> Member
-                    </span>
-                    <button
-                      onClick={() => onLeaveCommunity(activeCommunity.id)}
-                      className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-slate-600 dark:text-slate-300 hover:text-rose-700 dark:hover:text-rose-300 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
-                    >
-                      Leave
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => onJoinCommunity(activeCommunity.id)}
-                    className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-[0.98]"
-                  >
-                    <Plus className="w-4 h-4" /> Join community
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Quick Metrics & Travel Action */}
-            <div className="pt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-4 border border-slate-200/60 dark:border-slate-800">
-                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Total enrolled</span>
-                <p className="text-lg font-black text-slate-900 dark:text-white mt-0.5">{activeCommunity.membersCount} students</p>
-              </div>
-
-              <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-4 border border-slate-200/60 dark:border-slate-800">
-                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Popular commute mode</span>
-                <p className="text-xs font-bold text-slate-800 dark:text-slate-200 mt-1 truncate">{activeCommunity.popularTransport}</p>
-              </div>
-            </div>
-
-            {/* One-Click City Travel Page & Rides Button */}
-            <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Single-community rule: students can belong to 1 hometown hub at a time.
-              </p>
-              <button
-                onClick={() => onOpenCityHub ? onOpenCityHub(activeCommunity) : onSelectCommunityTravel(activeCommunity)}
-                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-[0.98]"
-              >
-                <Car className="w-4 h-4" />
-                <span>Open {activeCommunity.name} travel page (cab, bus, train)</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-
-          {/* Discussion Notice Board */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <h3 className="font-extrabold text-lg text-slate-900 dark:text-white">
-                  Community board & ride requests
-                </h3>
-                <span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2.5 py-0.5 rounded-full font-bold">
-                  {activePosts.length} posts
-                </span>
-              </div>
-
-              {isUserJoined ? (
-                !isPosting && (
-                  <button
-                    onClick={() => setIsPosting(true)}
-                    className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Post notice / carpool</span>
-                  </button>
-                )
               ) : (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700">
-                  <Lock className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Members only</span>
-                </div>
+                filteredCommunities.map((c) => {
+                  const isSelected = activeCommunity.id === c.id;
+                  const isMember = user?.joinedCommunity === c.id;
+
+                  return (
+                    <div
+                      key={c.id}
+                      onClick={() => {
+                        setSelectedCommunityId(c.id);
+                        if (onSelectCommunity) onSelectCommunity(c.id);
+                      }}
+                      className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                        isSelected
+                          ? 'border-blue-400 dark:border-blue-700 bg-blue-50/50 dark:bg-blue-950/40 shadow-xs'
+                          : 'border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700'
+                      }`}
+                    >
+                      {/* Left: Icon & Names */}
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                          <MapPin className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="font-bold text-sm text-slate-900 dark:text-white truncate">
+                            {c.name}
+                          </h3>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                            {c.membersCount || 842} members • {c.description || `${c.name} & nearby areas`}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Right: Join / Joined Button */}
+                      <div className="shrink-0">
+                        {isMember ? (
+                          <span className="px-3 py-1 bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 font-bold text-xs rounded-xl border border-blue-200 dark:border-blue-800 flex items-center gap-1">
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Joined</span>
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleJoinClick(c);
+                            }}
+                            className="px-4 py-1 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 font-bold text-xs rounded-xl border border-blue-200/80 dark:border-blue-800 transition-colors cursor-pointer"
+                          >
+                            Join
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
 
-            {/* Post Creator Box */}
-            {isUserJoined && isPosting && (
-              <form onSubmit={handlePostSubmit} className="bg-white dark:bg-slate-900 rounded-2xl border border-blue-200 dark:border-blue-800 p-5 shadow-xs space-y-3 animate-in fade-in transition-colors">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-blue-700 dark:text-blue-300 flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" /> Post in {activeCommunity.name} community
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setIsPosting(false)}
-                    className="text-xs text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 font-semibold cursor-pointer"
-                  >
-                    Cancel
-                  </button>
+          </div>
+
+          {/* Right Column: Active Community Hub & Discussions (7 cols) */}
+          <div className="lg:col-span-7 space-y-4">
+
+            {/* Active Community Header Card */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-2xs space-y-3.5">
+              
+              <div className="flex items-center justify-between gap-4">
+                {/* Left: MapPin Icon + Title */}
+                <div className="flex items-center gap-3.5">
+                  <div className="w-11 h-11 rounded-2xl bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                    <MapPin className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                      {activeCommunity.name} Community
+                    </h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {activeCommunity.membersCount || 842} members • {activeCommunity.description || `${activeCommunity.name} & nearby areas`}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <input
-                    type="text"
-                    placeholder="Short title (e.g. Innova cab to Jalandhar)"
-                    value={postTitle}
-                    onChange={(e) => setPostTitle(e.target.value)}
-                    required
-                    className="sm:col-span-2 px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <select
-                    value={postCategory}
-                    onChange={(e) => setPostCategory(e.target.value)}
-                    className="px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                  >
-                    <option value="Ride Sharing" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Ride Sharing</option>
-                    <option value="Travel Tip" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Travel Tip</option>
-                    <option value="Train / Bus Cohort" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Train / Bus Cohort</option>
-                    <option value="General Query" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">General Query</option>
-                  </select>
-                </div>
+                {/* Right: Switch Community Dropdown */}
+                <div className="relative shrink-0 flex items-center gap-2">
+                  {onOpenCityHub && isUserJoined && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenCityHub(activeCommunity)}
+                      className="hidden sm:inline-flex px-3 py-1.5 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/80 dark:border-blue-800 rounded-xl text-xs font-bold items-center gap-1.5 cursor-pointer"
+                      title="Open ride departures and slot bookings for this community"
+                    >
+                      <Compass className="w-3.5 h-3.5" />
+                      <span>Departures</span>
+                    </button>
+                  )}
 
-                <textarea
-                  placeholder="Describe your departure time, number of empty seats, cost split, or questions..."
-                  rows={3}
-                  value={postContent}
-                  onChange={(e) => setPostContent(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-
-                <div className="flex justify-end gap-2">
                   <button
                     type="button"
-                    onClick={() => setIsPosting(false)}
-                    className="px-3 py-1.5 text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer"
+                    onClick={() => setShowSwitchDropdown(!showSwitchDropdown)}
+                    className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5 cursor-pointer transition-colors"
                   >
-                    Cancel
+                    <ArrowLeftRight className="w-3.5 h-3.5" />
+                    <span>Switch Community</span>
+                    <ChevronDown className="w-3 h-3 text-slate-400" />
                   </button>
+
+                  {/* Switch dropdown menu */}
+                  {showSwitchDropdown && (
+                    <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg py-1 z-20 animate-in fade-in duration-150">
+                      <div className="px-3 py-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                        Select a Community
+                      </div>
+                      <div className="max-h-48 overflow-y-auto">
+                        {communities.map((c) => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedCommunityId(c.id);
+                              if (onSelectCommunity) onSelectCommunity(c.id);
+                              setShowSwitchDropdown(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer ${
+                              activeCommunity.id === c.id ? 'font-bold text-blue-600 dark:text-blue-400' : 'text-slate-700 dark:text-slate-300'
+                            }`}
+                          >
+                            <span>{c.name}</span>
+                            {user?.joinedCommunity === c.id && (
+                              <span className="text-[10px] bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded font-bold">Joined</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Single-community Policy Alert */}
+              <div className="bg-blue-50/70 dark:bg-blue-950/50 border border-blue-100 dark:border-blue-900/60 rounded-xl px-3.5 py-2.5 text-xs text-blue-800 dark:text-blue-200 flex items-center gap-2">
+                <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                <span>
+                  You can be a member of only one city community at a time. To join another, leave your current community first.
+                </span>
+              </div>
+            </div>
+
+            {/* Post Creator Card */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 shadow-2xs space-y-3">
+              <form onSubmit={handlePostSubmit} className="space-y-3">
+                <div className="flex items-start gap-3">
+                  {/* User Initial Avatar in Magenta */}
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-pink-600 to-rose-500 text-white font-bold flex items-center justify-center shrink-0 text-sm shadow-xs select-none">
+                    {userInitial}
+                  </div>
+
+                  {/* Input field */}
+                  <div className="flex-1 space-y-2">
+                    <input
+                      type="text"
+                      value={postContent}
+                      onChange={(e) => setPostContent(e.target.value)}
+                      placeholder="Share a ride plan, find a roommate, or ask a travel-related query..."
+                      className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                    />
+
+                    {/* Optional Trip Details field when toggled */}
+                    {showTripDetailsInput && (
+                      <input
+                        type="text"
+                        value={tripDetailsText}
+                        onChange={(e) => setTripDetailsText(e.target.value)}
+                        placeholder="e.g. Departing Friday 4:00 PM from Gate 1 to Dwarka, 2 seats free"
+                        className="w-full px-3.5 py-1.5 bg-blue-50/60 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none"
+                      />
+                    )}
+                  </div>
+                </div>
+
+                {/* Photo alert popup when clicked */}
+                {showPhotoAlert && (
+                  <div className="p-2.5 bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 rounded-xl text-xs text-blue-700 dark:text-blue-300 flex items-center justify-between">
+                    <span>Photo uploads are enabled for verified travel receipts and meeting points.</span>
+                    <button type="button" onClick={() => setShowPhotoAlert(false)} className="text-blue-500 hover:text-blue-700">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Action Row */}
+                <div className="flex items-center justify-between pt-1">
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowPhotoAlert(!showPhotoAlert)}
+                      className="text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <ImageIcon className="w-4 h-4 text-slate-400" />
+                      <span>Add photo</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowTripDetailsInput(!showTripDetailsInput)}
+                      className="text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <MapPin className="w-4 h-4 text-slate-400" />
+                      <span>Add trip details (optional)</span>
+                    </button>
+                  </div>
+
                   <button
                     type="submit"
-                    className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl flex items-center gap-1 shadow-xs cursor-pointer"
+                    className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
                   >
                     <Send className="w-3.5 h-3.5" />
-                    <span>Publish post</span>
+                    <span>Post</span>
                   </button>
                 </div>
               </form>
-            )}
+            </div>
 
-            {/* Posts Stream or Locked Screen */}
-            {!isUserJoined ? (
-              <div className="bg-[#10264E] dark:bg-[#0c1e3d] rounded-2xl p-8 sm:p-10 text-white text-center shadow-xs border border-slate-800/30 dark:border-slate-800 space-y-6 animate-in fade-in">
-                <div className="w-16 h-16 rounded-2xl bg-white/10 border border-white/20 text-white flex items-center justify-center mx-auto shadow-inner">
-                  <Lock className="w-8 h-8 text-white" />
-                </div>
-                <div className="max-w-md mx-auto space-y-2">
-                  <h3 className="text-xl sm:text-2xl font-black tracking-tight text-white">
-                    {activeCommunity.name} community hub is private
-                  </h3>
-                  <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                    Under Thapar hometown privacy policy, community discussion boards, carpools, and train cohort notices are restricted exclusively to enrolled members of <strong>{activeCommunity.name}</strong>.
-                  </p>
-                </div>
+            {/* Section Heading: Community Discussions */}
+            <div className="flex items-center gap-2 pt-2">
+              <MessageSquare className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              <h3 className="font-bold text-base text-slate-900 dark:text-white">
+                Community Discussions
+              </h3>
+            </div>
 
-                {user?.joinedCommunity ? (
-                  <div className="bg-white/10 backdrop-blur-xs rounded-xl p-5 max-w-md mx-auto border border-white/15 text-xs text-slate-200 space-y-3">
-                    <p className="leading-relaxed">
-                      You are currently enrolled in the <strong>{communities.find(c => c.id === user.joinedCommunity)?.name || 'another'} Community</strong>.
-                    </p>
-                    <p className="text-[11px] text-amber-300 font-medium">
-                      Single-community policy: you can belong to 1 hometown hub at a time. Leave your current hub if you wish to switch here.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setShowSwitchConfirm(true)}
-                      className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      <span>Switch to {activeCommunity.name} Community</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="pt-2">
-                    <button
-                      type="button"
-                      onClick={() => onJoinCommunity(activeCommunity.id)}
-                      className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all inline-flex items-center gap-2 cursor-pointer"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>Join {activeCommunity.name} to unlock board & notices</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {boardNotice && (
-                  <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs font-semibold">
-                    {boardNotice}
-                  </div>
-                )}
-                {activePosts.length === 0 ? (
-                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-8 text-center space-y-2">
-                    <MessageSquare className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto" />
-                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200">No community notices yet</p>
-                    <p className="text-xs text-slate-400 dark:text-slate-500">
-                      Be the first student to post a travel plan or carpool request for {activeCommunity.name}!
-                    </p>
-                    <button
-                      onClick={() => setIsPosting(true)}
-                      className="mt-2 inline-flex items-center gap-1 px-3 py-1.5 bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-xs font-bold rounded-xl hover:bg-blue-100 cursor-pointer"
-                    >
-                      <Plus className="w-3.5 h-3.5" /> Create first post
-                    </button>
-                  </div>
-                ) : (
-                  activePosts.map((post) => {
-                    const isReplyBoxOpen = openReplyPostId === post.id;
-                    const commentsList = post.comments || [];
+            {/* Discussions List */}
+            <div className="space-y-3">
+              {displayedPosts.map((post) => {
+                const postId = post.id || post._id;
+                const authorInitial = (post.authorName || post.author?.name || 'S').charAt(0).toUpperCase();
+                const authorName = post.authorName || post.author?.name || 'Student';
+                const metaText = post.meta || `${post.category || 'Ride Notice'} • Just now`;
+                const isRepliesOpen = openReplyPostId === postId;
 
-                    return (
-                      <div key={post.id} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-xs space-y-3 transition-colors">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2.5">
-                            <Avatar
-                              src={post.authorAvatar}
-                              name={post.author}
-                              size="w-9 h-9"
-                              textSize="text-xs"
-                              rounded="rounded-full"
-                              bg="bg-blue-600"
-                            />
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-xs text-slate-900 dark:text-white">{post.author}</span>
-                                <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-1.5 py-0.5 rounded font-medium">
-                                  {post.authorHostel}
-                                </span>
-                              </div>
-                              <span className="text-[11px] text-slate-400 dark:text-slate-500">{post.timeAgo || 'Recently'}</span>
-                            </div>
-                          </div>
-
-                          <span className="text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800 px-2 py-0.5 rounded-full">
-                            {post.category}
-                          </span>
+                return (
+                  <div
+                    key={postId}
+                    className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-5 shadow-2xs space-y-3 hover:border-slate-300 dark:hover:border-slate-700 transition-all"
+                  >
+                    {/* Header Row: Author & Meta */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        {/* Avatar */}
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0 select-none ${
+                          post.authorColor || 'bg-blue-100 text-blue-700 dark:bg-blue-950/70 dark:text-blue-300'
+                        }`}>
+                          {authorInitial}
                         </div>
 
+                        {/* Name & Time */}
                         <div>
-                          <h4 className="font-bold text-sm text-slate-900 dark:text-white mb-1">{post.title}</h4>
-                          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{post.content}</p>
+                          <h4 className="font-bold text-sm text-slate-900 dark:text-white">
+                            {authorName}
+                          </h4>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                            {metaText}
+                          </p>
                         </div>
-
-                        <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500">
-                          <div className="flex items-center gap-3">
-                            <button
-                              type="button"
-                              disabled={likingPostIds.has(post.id)}
-                              onClick={() => handleLikeClick(post.id)}
-                              title={
-                                !isUserJoined
-                                  ? 'Join this community to like notices'
-                                  : post.isLiked
-                                    ? 'Unlike this notice'
-                                    : 'Like this notice'
-                              }
-                              className={`group flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                                post.isLiked
-                                  ? 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 shadow-xs'
-                                  : 'text-slate-500 hover:text-rose-600 hover:bg-slate-100'
-                              } ${likingPostIds.has(post.id) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                              <Heart
-                                className={`w-3.5 h-3.5 transition-transform duration-150 ${
-                                  post.isLiked
-                                    ? 'text-rose-600 fill-rose-600 scale-110'
-                                    : 'text-slate-400 group-hover:text-rose-500 group-hover:scale-105'
-                                }`}
-                              />
-                              <span className={post.isLiked ? 'font-bold text-rose-700' : ''}>
-                                {post.likes || 0}
-                              </span>
-                              <span className="text-[10px] font-normal text-slate-400 group-hover:text-slate-600">
-                                {post.isLiked ? 'Liked' : 'Like'}
-                              </span>
-                            </button>
-                            
-                            <button
-                              onClick={() => setOpenReplyPostId(isReplyBoxOpen ? null : post.id)}
-                              className="flex items-center gap-1 hover:text-blue-600 transition-colors cursor-pointer"
-                            >
-                              <MessageSquare className="w-3.5 h-3.5" />
-                              <span>{commentsList.length || post.repliesCount || 0} replies</span>
-                            </button>
-                          </div>
-
-                          <button 
-                            onClick={() => setOpenReplyPostId(isReplyBoxOpen ? null : post.id)}
-                            className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 cursor-pointer"
-                          >
-                            <span>{isReplyBoxOpen ? 'Close Replies' : 'Reply / Coordinate'}</span>
-                            <span>&rarr;</span>
-                          </button>
-                        </div>
-
-                        {/* Comments & Reply Thread */}
-                        {isReplyBoxOpen && (
-                          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3 bg-slate-50/60 dark:bg-slate-800/50 p-3 rounded-2xl animate-in fade-in transition-colors">
-                            {commentsList.length > 0 && (
-                              <div className="space-y-2">
-                                {commentsList.map((c) => (
-                                  <div key={c.id} className="flex items-start gap-2 text-xs bg-white dark:bg-slate-850 p-2.5 rounded-xl border border-slate-200/80 dark:border-slate-750">
-                                    <CornerDownRight className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400 shrink-0 mt-0.5" />
-                                    <div className="flex-1">
-                                      <div className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200">
-                                        <span>{c.author}</span>
-                                        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal">({c.authorHostel})</span>
-                                      </div>
-                                      <p className="text-slate-600 dark:text-slate-300 text-[11px] mt-0.5">{c.text}</p>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-
-                            {/* Reply Input Form */}
-                            <form onSubmit={(e) => handleCommentSubmit(post.id, e)} className="flex items-center gap-2">
-                              <input
-                                type="text"
-                                value={replyInputText}
-                                onChange={(e) => setReplyInputText(e.target.value)}
-                                placeholder={`Reply to ${post.author}...`}
-                                className="flex-1 px-3 py-2 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
-                              />
-                              <button
-                                type="submit"
-                                className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition-colors shrink-0 cursor-pointer shadow-xs active:scale-95"
-                              >
-                                Send
-                              </button>
-                            </form>
-                          </div>
-                        )}
-
                       </div>
-                    );
-                  })
-                )}
-              </div>
-            )}
+
+                      {/* Three-dots menu */}
+                      <button
+                        type="button"
+                        className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-lg"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* Post Content */}
+                    <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-line">
+                      {post.content}
+                    </div>
+
+                    {/* Reactions Row */}
+                    <div className="flex items-center gap-4 pt-1 text-xs text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => handleLikeClick(post)}
+                        className="flex items-center gap-1.5 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
+                      >
+                        <ThumbsUp className="w-3.5 h-3.5" />
+                        <span className="font-semibold">{post.likesCount || post.likes?.length || 14}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setOpenReplyPostId(isRepliesOpen ? null : postId)}
+                        className="flex items-center gap-1.5 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        <span className="font-semibold">
+                          {post.repliesCount || post.comments?.length || 5} replies
+                        </span>
+                      </button>
+                    </div>
+
+                    {/* Expanded Replies View */}
+                    {isRepliesOpen && (
+                      <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                        {/* Existing replies */}
+                        {((post.replies || post.comments) || []).map((rep, idx) => (
+                          <div key={rep.id || idx} className="pl-3 border-l-2 border-blue-200 dark:border-blue-800 space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{rep.authorName || rep.author?.name || 'Fellow Student'}</span>
+                              <span className="text-[10px] text-slate-400">{rep.meta || '1h ago'}</span>
+                            </div>
+                            <p className="text-xs text-slate-600 dark:text-slate-300">{rep.text || rep.content}</p>
+                          </div>
+                        ))}
+
+                        {/* Reply Input */}
+                        <form onSubmit={(e) => handleCommentSubmit(postId, e)} className="flex items-center gap-2 pt-1">
+                          <input
+                            type="text"
+                            value={replyInputText}
+                            onChange={(e) => setReplyInputText(e.target.value)}
+                            placeholder="Write a reply..."
+                            className="flex-1 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                          <button
+                            type="submit"
+                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl cursor-pointer"
+                          >
+                            Reply
+                          </button>
+                        </form>
+                      </div>
+                    )}
+
+                  </div>
+                );
+              })}
+            </div>
+
           </div>
 
         </div>
 
       </div>
 
-      {/* Modal: Create New Community Hub */}
+      {/* Confirmation Dialog: Leaving community to join another */}
+      {showSwitchConfirm && (
+        <ConfirmDialog
+          isOpen={showSwitchConfirm}
+          title="Switch Hometown Community?"
+          message={`You are currently enrolled in a city community. Under Thapar community rules, you can only belong to one hometown hub at a time. Do you want to leave and join ${targetCommunityToJoin?.name}?`}
+          confirmLabel="Switch Community"
+          onConfirm={handleConfirmSwitch}
+          onCancel={() => {
+            setShowSwitchConfirm(false);
+            setTargetCommunityToJoin(null);
+          }}
+        />
+      )}
+
+      {/* Create Community Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/75 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full p-6 sm:p-8 shadow-xl border border-slate-200 dark:border-slate-800 max-h-[90vh] overflow-y-auto space-y-5 transition-colors">
-            
-            {/* Modal Header */}
-            <div className="flex items-start justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
-              <div>
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 text-[11px] font-bold mb-1.5 border border-blue-100 dark:border-blue-900/50">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>TIET City Network</span>
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 max-w-lg w-full shadow-xl space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                  <Plus className="w-4 h-4" />
                 </div>
-                <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
-                  Add hometown community hub
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Start a hub for students traveling between Thapar and your hometown.
-                </p>
+                <div>
+                  <h3 className="font-bold text-slate-900 dark:text-white text-base">
+                    Create New Hometown Community
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Set up a city hub for students from your region
+                  </p>
+                </div>
               </div>
               <button
+                type="button"
                 onClick={() => setShowCreateModal(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white flex items-center justify-center transition-colors shrink-0 cursor-pointer"
+                className="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 flex items-center justify-center cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Form */}
+            {createCommunityError && (
+              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300 text-xs">
+                {createCommunityError}
+              </div>
+            )}
+
             <form onSubmit={handleCreateCommunitySubmit} className="space-y-4">
-              
-              {/* State / Province Dropdown */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
-                  <span>State / Province <span className="text-red-500">*</span></span>
-                  <span className="text-[10px] font-normal text-slate-400 dark:text-slate-500">States and union territories</span>
-                </label>
-                <select
-                  required
-                  value={newState}
-                  onChange={(e) => handleStateChange(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-slate-800 dark:text-slate-200 cursor-pointer"
-                >
-                  <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">-- Choose state or province --</option>
-                  <optgroup label="Popular northern states" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-                    {POPULAR_STATES.map((st) => (
-                      <option key={st} value={st} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-                        {st}
-                      </option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="All states and union territories" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-                    {ALL_INDIAN_STATES.filter((st) => !POPULAR_STATES.includes(st)).map((st) => (
-                      <option key={st} value={st} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-                        {st}
-                      </option>
-                    ))}
-                  </optgroup>
-                </select>
-
-                {/* State Quick Picks */}
-                <div className="flex flex-wrap gap-1.5 mt-2">
-                  {POPULAR_STATES.map((st) => (
-                    <button
-                      key={st}
-                      type="button"
-                      onClick={() => handleStateChange(st)}
-                      className={`text-[11px] px-2.5 py-1 rounded-xl border font-medium transition-colors cursor-pointer ${
-                        newState === st
-                          ? 'bg-blue-600 border-blue-600 text-white font-bold shadow-xs'
-                          : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
-                      }`}
-                    >
-                      {st}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* City or Region Dropdown */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
-                  <span>City or Region Name <span className="text-red-500">*</span></span>
-                  {newState && (
-                    <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400">
-                      {getCitiesByState(newState).length} pre-listed cities in {newState}
-                    </span>
-                  )}
-                </label>
-                <select
-                  required
-                  disabled={!newState}
-                  value={selectedCity}
-                  onChange={(e) => handleCityChange(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 disabled:bg-slate-100 dark:disabled:bg-slate-800/50 disabled:text-slate-400 dark:disabled:text-slate-500 border border-slate-200 dark:border-slate-700 rounded-xl focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-slate-800 dark:text-slate-200 cursor-pointer"
-                >
-                  <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-                    {newState ? `-- Select City in ${newState} --` : '-- Select a State first --'}
-                  </option>
-                  {getCitiesByState(newState).map((city) => (
-                    <option key={city.name} value={city.name} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-                      {city.icon} {city.name} (~{city.distance} km from TIET)
-                    </option>
-                  ))}
-                  {newState && (
-                    <option value="__custom__" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-                      ✏️ + Other city in {newState} (specify custom town)
-                    </option>
-                  )}
-                </select>
-
-                {/* Custom City Name Input if '__custom__' selected */}
-                {selectedCity === '__custom__' && (
-                  <div className="mt-2.5 p-3 bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 rounded-2xl space-y-1.5 animate-in fade-in">
-                    <label className="block text-[11px] font-bold text-blue-900 dark:text-blue-200">
-                      Specify City or Town in {newState}:
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Nangal, Dinanagar, Rajpura, Abohar..."
-                      value={customCityName}
-                      onChange={(e) => setCustomCityName(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-white dark:bg-slate-900 border border-blue-300 dark:border-blue-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-slate-800 dark:text-slate-200"
-                    />
-                    <p className="text-[10px] text-blue-700 dark:text-blue-300">
-                      State is securely bound to <strong>{newState}</strong> to prevent fragmented or misspelled regional communities.
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Icon / Emoji Picker */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Community Badge / Emoji
+                  State / Region
                 </label>
-                <div className="flex items-center gap-2">
-                  <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-2xl shrink-0">
-                    {newIcon || '🏙️'}
-                  </div>
-                  <div className="flex flex-wrap gap-1.5 flex-1">
-                    {['🏙️', '🏔️', '🏰', '🌴', '🚂', '🚗', '✈️', '🌊', '🏛️', '🌄', '🌳', '🕌'].map((emoji) => (
-                      <button
-                        key={emoji}
-                        type="button"
-                        onClick={() => setNewIcon(emoji)}
-                        className={`w-8 h-8 rounded-xl text-base flex items-center justify-center transition-all cursor-pointer ${
-                          newIcon === emoji 
-                            ? 'bg-blue-100 dark:bg-blue-950/80 ring-2 ring-blue-500 scale-105' 
-                            : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700'
-                        }`}
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <select
+                  value={newState}
+                  onChange={(e) => setNewState(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white"
+                >
+                  {POPULAR_STATES.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
               </div>
 
-              {/* Distance from Thapar */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  City Name
+                </label>
+                <input
+                  type="text"
+                  value={customCityName}
+                  onChange={(e) => {
+                    setCustomCityName(e.target.value);
+                    setSelectedCity('__custom__');
+                  }}
+                  placeholder="e.g. Dehradun, Shimla, Varanasi"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Distance from TIET Patiala
+                    Distance from Campus (km)
                   </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="e.g. 350"
-                      value={newDistance}
-                      onChange={(e) => setNewDistance(e.target.value.replace(/[^0-9]/g, ''))}
-                      className="w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 pr-12 font-medium"
-                    />
-                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 dark:text-slate-500">
-                      km
-                    </span>
-                  </div>
+                  <input
+                    type="number"
+                    value={newDistance}
+                    onChange={(e) => setNewDistance(e.target.value)}
+                    placeholder="120"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white"
+                  />
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Popular Commute Route
+                    Primary Transit
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. Trains, Shared Cabs"
                     value={newTransport}
                     onChange={(e) => setNewTransport(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+                    placeholder="Trains, Cabs, Buses"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white"
                   />
                 </div>
               </div>
 
-              {/* Description */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Community Description / Welcome Note
+                  Short Description
                 </label>
                 <textarea
-                  rows={2}
-                  placeholder="e.g. Connect with Thapar students from Lucknow for holiday cab sharing, Shatabdi rides, and campus meetups."
                   value={newDesc}
                   onChange={(e) => setNewDesc(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-medium"
+                  placeholder="Areas covered and popular holiday travel routes..."
+                  rows={2}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white"
                 />
               </div>
 
-              {/* Error / Success Feedback */}
-              {createCommunityError && (
-                <div className="p-3 bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800 rounded-xl flex items-center gap-2 text-xs text-red-700 dark:text-red-300 font-medium">
-                  <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" />
-                  <span>{createCommunityError}</span>
-                </div>
-              )}
-              {createCommunitySuccess && (
-                <div className="p-3 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 rounded-xl flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-300 font-bold">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  <span>{createCommunitySuccess}</span>
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="pt-2 flex items-center justify-end gap-3">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors cursor-pointer"
+                  className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingCommunity}
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold text-xs rounded-xl shadow-md shadow-blue-500/25 transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs"
                 >
-                  {isSubmittingCommunity ? (
-                    <>
-                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      <span>Creating Hub...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="w-4 h-4" />
-                      <span>Create Community Hub</span>
-                    </>
-                  )}
+                  {isSubmittingCommunity ? 'Creating...' : 'Create Community'}
                 </button>
               </div>
-
             </form>
-
           </div>
         </div>
       )}
-
-      {/* Switch Community Confirmation Dialog */}
-      <ConfirmDialog
-        isOpen={showSwitchConfirm}
-        title="Switch Hometown Community"
-        message={`Are you sure you want to switch your hometown hub to ${activeCommunity.name}?\n\nUnder TIET policy, you can only belong to one hometown hub at a time. You will leave your current community.`}
-        confirmLabel={`Join ${activeCommunity.name}`}
-        onConfirm={async () => {
-          setShowSwitchConfirm(false);
-          if (user?.joinedCommunity) {
-            await onLeaveCommunity(user.joinedCommunity);
-          }
-          await onJoinCommunity(activeCommunity.id);
-        }}
-        onCancel={() => setShowSwitchConfirm(false)}
-      />
 
     </div>
   );

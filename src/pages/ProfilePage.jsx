@@ -1,63 +1,55 @@
-import React, { useState, useEffect } from 'react';
-import Avatar from '../components/Avatar';
+import React, { useState } from 'react';
+import HeroBanner from '../components/HeroBanner';
 import { 
   User, 
   Mail, 
   GraduationCap, 
-  Home, 
+  Building2, 
   Phone, 
-  Star, 
   ShieldCheck, 
   Car, 
   Check, 
   Edit3,
-  Lock,
-  KeyRound,
-  Calendar,
-  Clock,
-  CheckCircle2
+  Lock, 
+  KeyRound, 
+  Clock, 
+  CheckCircle2, 
+  ChevronDown, 
+  ChevronRight, 
+  Camera, 
+  Bell, 
+  MapPin, 
+  Layers, 
+  X, 
+  CreditCard, 
+  Shield
 } from 'lucide-react';
 import { HOSTELS, COLLEGE_DEGREES, ACADEMIC_YEARS } from '../data/mockData';
 import { api } from '../services/api';
 import { useAuth } from '../context/useAuth';
 
 export default function ProfilePage({ user, communities = [], onUpdateProfile }) {
-  const [name, setName] = useState(user?.name || '');
-  const [degree, setDegree] = useState(user?.degree || '');
-  const [year, setYear] = useState(user?.year || '');
-  const [hostel, setHostel] = useState(user?.hostel && user.hostel !== 'HA' ? user.hostel : '');
-  const [phone, setPhone] = useState(user?.phone || '');
-  const [prefTransport, setPrefTransport] = useState(user?.preferredTransport || 'Shared Cab');
-  const [joinedCommunity, setJoinedCommunity] = useState(user?.joinedCommunity || '');
+  const [name, setName] = useState(user?.name || 'Priyanshu');
+  const [degree, setDegree] = useState(user?.degree || 'B.Tech (Computer Science and Engineering)');
+  const [year, setYear] = useState(user?.year || '3rd Year');
+  const [hostel, setHostel] = useState(user?.hostel && user.hostel !== 'HA' ? user.hostel : 'Agira Hostel');
+  const [phone, setPhone] = useState(user?.phone || '+91 98765 43210');
+  const [rollNumber, setRollNumber] = useState(user?.rollNumber || '102215043');
+  const [homeCity, setHomeCity] = useState(user?.homeCity || user?.hometown || 'Patiala');
+  
+  // Preferences
+  const [prefTransport, setPrefTransport] = useState(user?.preferredTransport || 'Cab');
+  const [timeWindow, setTimeWindow] = useState(user?.timeWindow || 'Every 15 Minutes');
+  const [frequentRoutes, setFrequentRoutes] = useState(user?.frequentRoutes || ['Patiala', 'Chandigarh', 'Delhi']);
+  const [rideNotifications, setRideNotifications] = useState(true);
+
   const [savedSuccess, setSavedSuccess] = useState(false);
 
-  // Confirmed Ride History State
-  const [history, setHistory] = useState([]);
-  const [historyLoading, setHistoryLoading] = useState(true);
-
-  useEffect(() => {
-    let active = true;
-    api.getGroupHistory()
-      .then((list) => {
-        if (!active) return;
-        setHistory(Array.isArray(list) ? list : []);
-      })
-      .catch((err) => {
-        console.warn('Failed to load ride history:', err.message);
-      })
-      .finally(() => {
-        if (active) setHistoryLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  // Campus Password & Encryption Key Setup State
+  // Campus Password & Encryption Key Modal/Drawer State
   const { setPassword: authSetPassword } = useAuth();
   const [localHasPassword, setLocalHasPassword] = useState(false);
   const hasUserPassword = Boolean(user?.hasPassword || localHasPassword);
+  const [showSecurityModal, setShowSecurityModal] = useState(false);
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -68,21 +60,41 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
   const [passwordError, setPasswordError] = useState('');
 
   const handleSave = (e) => {
-    e.preventDefault();
-    const commObj = communities.find(c => c.id === joinedCommunity);
-    onUpdateProfile({
-      ...user,
-      name: name.trim() || user?.name,
-      degree: degree.trim() || user?.degree,
-      year: year.trim() || user?.year,
-      hostel,
-      phone: phone.trim(),
-      preferredTransport: prefTransport,
-      joinedCommunity,
-      hometown: commObj?.name || user?.hometown
-    });
+    if (e) e.preventDefault();
+    const commObj = communities.find(c => c.name.toLowerCase() === homeCity.toLowerCase() || c.id === homeCity);
+    if (onUpdateProfile) {
+      onUpdateProfile({
+        ...user,
+        name: name.trim() || user?.name,
+        degree: degree.trim() || user?.degree,
+        year: year.trim() || user?.year,
+        hostel,
+        phone: phone.trim(),
+        rollNumber: rollNumber.trim(),
+        homeCity,
+        hometown: homeCity,
+        preferredTransport: prefTransport,
+        timeWindow,
+        frequentRoutes,
+        joinedCommunity: commObj ? commObj.id : user?.joinedCommunity
+      });
+    }
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 3000);
+  };
+
+  const handleReset = () => {
+    setName(user?.name || 'Priyanshu');
+    setDegree(user?.degree || 'B.Tech (Computer Science and Engineering)');
+    setYear(user?.year || '3rd Year');
+    setHostel(user?.hostel && user.hostel !== 'HA' ? user.hostel : 'Agira Hostel');
+    setPhone(user?.phone || '+91 98765 43210');
+    setRollNumber(user?.rollNumber || '102215043');
+    setHomeCity(user?.homeCity || user?.hometown || 'Patiala');
+  };
+
+  const removeRoute = (routeToRemove) => {
+    setFrequentRoutes(frequentRoutes.filter(r => r !== routeToRemove));
   };
 
   const handleSetPassword = async (e) => {
@@ -109,7 +121,7 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
       }
       setLocalHasPassword(true);
       setPasswordSuccess(true);
-      setPasswordSuccessMsg(hasUserPassword ? 'Password updated.' : 'Password saved.');
+      setPasswordSuccessMsg(hasUserPassword ? 'Password updated successfully.' : 'Password saved successfully.');
       setIsUpdatingPassword(false);
       setCurrentPassword('');
       setNewPassword('');
@@ -122,588 +134,656 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
     }
   };
 
+  // Format clean hostel name for display
+  const getDisplayHostelName = (hName) => {
+    if (hName.includes('Agira')) return 'Agira Hostel';
+    if (hName.includes('Amritam')) return 'Amritam Hostel';
+    if (hName.includes('Prithvi')) return 'Prithvi Hostel';
+    if (hName.includes('Neeram')) return 'Neeram Hostel';
+    if (hName.includes('Vyan')) return 'Vyan Hostel';
+    if (hName.includes('Tejas')) return 'Tejas Hostel';
+    if (hName.includes('Ambaram')) return 'Ambaram Hostel';
+    if (hName.includes('Viyat')) return 'Viyat Hostel';
+    if (hName.includes('Anantam')) return 'Anantam Hostel';
+    if (hName.includes('Vyom')) return 'Vyom Hostel';
+    if (hName.includes('Vasudha')) return 'Vasudha Hostel';
+    if (hName.includes('Ira')) return 'Ira Hostel';
+    if (hName.includes('Ananta')) return 'Ananta Hostel';
+    if (hName.includes('Dhriti')) return 'Dhriti Hostel';
+    if (hName.includes('Vahni')) return 'Vahni Hostel';
+    return hName.replace(/\s*\(Previously.*\)/i, '').replace(/\s*Hall/i, ' Hostel');
+  };
+
+  const displayName = name || user?.name || 'Priyanshu';
+  const displayInitial = (displayName.charAt(0) || 'P').toUpperCase();
+  const displayEmail = user?.email || 'priyanshu.btech22@thapar.edu';
+
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-8 animate-in fade-in duration-300">
+    <div className="space-y-6 pb-12 animate-in fade-in duration-300">
       
-      {/* Profile Header Banner */}
-      <div className="bg-[#10264E] dark:bg-[#0c1e3d] text-white rounded-2xl p-6 sm:p-8 shadow-xs relative overflow-hidden border border-slate-800/20 dark:border-slate-800">
-        <div className="flex flex-col sm:flex-row items-center gap-6 relative z-10">
-          <Avatar
-            src={user?.avatar}
-            name={name || user?.name || 'TIET Student'}
-            size="w-24 h-24"
-            textSize="text-3xl"
-            rounded="rounded-2xl"
-            bg="bg-blue-600"
-            className="border-2 border-white/20 shadow-md shrink-0"
-          />
+      {/* Hero Banner Matching Image 1 */}
+      <HeroBanner
+        tag="YOUR ACCOUNT"
+        title="Your Profile"
+        subtitle="Manage your personal details, travel preferences, and account settings."
+      />
 
-          <div className="text-center sm:text-left space-y-1">
-            <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
-              <h1 className="text-2xl sm:text-3xl font-black text-white">
-                {name || user?.name || 'TIET Student'}
-              </h1>
-              <span className="text-xs font-bold bg-white/10 text-emerald-300 border border-white/15 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Verified student</span>
-              </span>
-            </div>
+      {/* Main Profile Container */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
 
-            <p className="text-slate-300 text-sm font-medium">
-              Thapar Institute of Engineering & Technology
-            </p>
-
-            <div className="flex items-center justify-center sm:justify-start gap-3 text-xs text-slate-300 pt-2 flex-wrap">
-              <span>{degree || 'Degree not set'}</span>
-              <span>•</span>
-              <span>{year || 'Year not set'}</span>
-              <span>•</span>
-              <span>Hostel: <strong className="text-blue-200">{hostel ? hostel.split(' ')[0] : 'Not assigned'}</strong></span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs text-center transition-colors">
-          <div className="text-3xl font-black text-blue-600 dark:text-blue-400 mb-1">
-            {Math.max(user?.tripsCompleted || 0, history.length)}
-          </div>
-          <div className="text-xs font-bold text-slate-500 dark:text-slate-400">
-            Trips completed
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs text-center transition-colors">
-          <div className="text-3xl font-black text-amber-500 flex items-center justify-center gap-1 mb-1">
-            {Math.max(user?.tripsCompleted || 0, history.length) > 0 ? (
-              <>
-                <Star className="w-7 h-7 fill-amber-500" />
-                <span>{typeof user?.reliability === 'number' ? user.reliability.toFixed(1) : '5.0'}</span>
-              </>
-            ) : (
-              <span>New</span>
-            )}
-          </div>
-          <div className="text-xs font-bold text-slate-500 dark:text-slate-400">
-            Student reliability rating
-          </div>
-        </div>
-      </div>
-
-      {/* Confirmed Travel History Section */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8 shadow-xs space-y-6 transition-colors">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 flex items-center justify-center border border-blue-200 dark:border-blue-800 shadow-2xs">
-              <CheckCircle2 className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                <span>Past rides</span>
-                {history.length > 0 && (
-                  <span className="text-xs bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 font-bold px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
-                    {history.length}
-                  </span>
-                )}
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Your completed rides with fellow students.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {historyLoading ? (
-          <div className="p-8 text-center text-slate-400 text-xs">
-            Loading past rides...
-          </div>
-        ) : history.length === 0 ? (
-          <div className="p-8 text-center bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 space-y-2">
-            <Car className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto" />
-            <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300">No rides yet</h4>
-            <p className="text-xs text-slate-400 dark:text-slate-500 max-w-sm mx-auto">
-              Your completed trips will show up here.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {history.map((g) => (
-              <div
-                key={g.id}
-                className="p-5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-850 shadow-2xs space-y-3"
+        {/* Top Identity Card */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+          <div className="flex items-center gap-5">
+            {/* Avatar with Camera Badge */}
+            <div className="relative shrink-0">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-pink-600 to-rose-500 text-white flex items-center justify-center font-bold text-3xl shadow-sm select-none">
+                {displayInitial}
+              </div>
+              <button
+                type="button"
+                className="absolute -bottom-1 -right-1 w-7 h-7 bg-blue-600 hover:bg-blue-700 text-white rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900 shadow-xs cursor-pointer transition-colors"
+                title="Change avatar photo"
+                aria-label="Change photo"
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="w-8 h-8 rounded-lg bg-blue-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
-                      #{g.id}
+                <Camera className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Identity Text */}
+            <div className="space-y-1">
+              <div className="flex items-center gap-3">
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+                  {displayName}
+                </h2>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium">
+                TIET Student • Thapar Institute of Engineering & Technology
+              </p>
+              <div className="pt-1">
+                <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-900">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                  <span>Verified TIET Student</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Edit Profile Action */}
+          <button
+            type="button"
+            onClick={() => {
+              const el = document.getElementById('full-name-input');
+              if (el) el.focus();
+            }}
+            className="px-4 py-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs rounded-xl flex items-center gap-2 transition-colors cursor-pointer self-start sm:self-center"
+          >
+            <Edit3 className="w-3.5 h-3.5" />
+            <span>Edit Profile</span>
+          </button>
+        </div>
+
+        {/* Two-Column Grid: Left (Personal Details) & Right (Preferences & Settings) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+          {/* Left Column: Personal Details Form (approx 7 cols) */}
+          <div className="lg:col-span-7">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-7 shadow-2xs space-y-6">
+              
+              {/* Header */}
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 mt-0.5">
+                    <User className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                      Personal Details
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      Keep your information up to date for a better, safer ride-sharing experience.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="shrink-0">
+                  {savedSuccess ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 animate-in fade-in duration-200">
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Profile updated</span>
                     </span>
-                    <div>
-                      <h4 className="font-extrabold text-slate-900 dark:text-white text-sm">
-                        {g.isCommunityRide ? g.destinationName : `TIET ➔ ${g.destinationName}`}
-                      </h4>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                        {g.isCommunityRide && g.communityName ? `📍 ${g.communityName} Hub • ` : ''}{g.transport || 'Cab'} • Pickup: {g.pickupPoint}
-                      </p>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80">
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Profile updated</span>
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Form Grid */}
+              <form onSubmit={handleSave} className="space-y-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                  {/* Full Name */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Full Name <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        id="full-name-input"
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Priyanshu"
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50/70 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+                        required
+                      />
                     </div>
                   </div>
-                  <span className="text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-md shrink-0">
-                    Completed
-                  </span>
-                </div>
 
-                <div className="flex items-center gap-4 text-xs text-slate-600 dark:text-slate-400 pt-2 border-t border-slate-200/60 dark:border-slate-700">
-                  <span className="flex items-center gap-1 font-medium">
-                    <Calendar className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                    <span>{g.date}</span>
-                  </span>
-                  <span>•</span>
-                  <span className="flex items-center gap-1 font-medium">
-                    <Clock className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                    <span>{g.departureTime}</span>
-                  </span>
-                </div>
+                  {/* TIET Email */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      TIET Email <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="email"
+                        value={displayEmail}
+                        disabled
+                        readOnly
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-100/70 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/60 rounded-xl text-xs sm:text-sm font-semibold text-slate-500 dark:text-slate-400 cursor-not-allowed select-none"
+                      />
+                    </div>
+                  </div>
 
-                {/* Co-riders summary */}
-                <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700 flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
-                    Travel Cohort ({g.members?.length || 0} Riders):
-                  </span>
-                  <div className="flex items-center -space-x-1.5">
-                    {(g.members || []).map((m) => (
-                      <span
-                        key={m.userId || m.id}
-                        title={`${m.name} (${m.hostel || 'Hostel'})`}
-                        className="inline-block ring-2 ring-white dark:ring-slate-900 rounded-full"
+                  {/* Phone Number */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Phone Number <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="+91 98765 43210"
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50/70 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Programme */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Programme
+                    </label>
+                    <div className="relative">
+                      <GraduationCap className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <select
+                        value={degree}
+                        onChange={(e) => setDegree(e.target.value)}
+                        className="w-full pl-10 pr-9 py-2.5 bg-slate-50/70 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none cursor-pointer transition-colors"
                       >
-                        <Avatar
-                          src={m.avatar}
-                          name={m.name}
-                          size="w-6 h-6"
-                          textSize="text-[9px]"
-                          rounded="rounded-full"
-                        />
-                      </span>
-                    ))}
+                        <option value="B.Tech (Computer Science and Engineering)">B.Tech (Computer Science and Engineering)</option>
+                        <option value="B.Tech (Electronics and Communication)">B.Tech (Electronics and Communication)</option>
+                        <option value="B.Tech (Mechanical Engineering)">B.Tech (Mechanical Engineering)</option>
+                        <option value="B.Tech (Civil Engineering)">B.Tech (Civil Engineering)</option>
+                        {COLLEGE_DEGREES.map((d) => (
+                          <option key={d} value={d}>{d}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
                   </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
 
-      {/* Profile & Preferences Form */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8 shadow-xs space-y-6 transition-colors">
-        <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
-          <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">
-            Your details & preferences
-          </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Keep your campus hostel quad and degree up to date for accurate matching.
-          </p>
-        </div>
-
-        <form onSubmit={handleSave} className="space-y-5">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* Full Name */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-                <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                <span>Name</span>
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Your Full Name"
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
-              />
-            </div>
-
-            {/* Email */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-                <Mail className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                <span>Thapar email</span>
-              </label>
-              <input
-                type="text"
-                value={user?.email || ''}
-                disabled
-                className="w-full bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-500 dark:text-slate-400 cursor-not-allowed"
-              />
-            </div>
-
-            {/* Degree / Branch Dropdown */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-                <GraduationCap className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                <span>Degree</span>
-              </label>
-              <select
-                value={degree}
-                onChange={(e) => setDegree(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer transition-colors"
-              >
-                <option value="" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">-- Choose Your Program --</option>
-                {degree && !COLLEGE_DEGREES.includes(degree) && (
-                  <option value={degree} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">{degree} (Current)</option>
-                )}
-                {COLLEGE_DEGREES.map((d) => (
-                  <option key={d} value={d} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">
-                    {d}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Year of Study Dropdown */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-                <GraduationCap className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                <span>Year</span>
-              </label>
-              <select
-                value={year}
-                onChange={(e) => setYear(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer transition-colors"
-              >
-                <option value="" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">-- Choose Academic Year --</option>
-                {year && !ACADEMIC_YEARS.includes(year) && (
-                  <option value={year} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">{year} (Current)</option>
-                )}
-                {ACADEMIC_YEARS.map((y) => (
-                  <option key={y} value={y} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">
-                    {y}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Hostel Selector */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-                <Home className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                <span>Hostel Quad</span>
-              </label>
-              <select
-                value={hostel}
-                onChange={(e) => setHostel(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer transition-colors"
-              >
-                <option value="" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">Select your hostel...</option>
-                <optgroup label="Boys Hostels" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-bold">
-                  {HOSTELS.filter((h) => h.gender === 'Boys').map((h) => (
-                    <option key={h.id} value={h.name} className="font-normal">
-                      {h.name}
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label="Girls Hostels" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-bold">
-                  {HOSTELS.filter((h) => h.gender === 'Girls').map((h) => (
-                    <option key={h.id} value={h.name} className="font-normal">
-                      {h.name}
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
-            </div>
-
-            {/* Phone Number */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-                <Phone className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                <span>Phone</span>
-              </label>
-              <input
-                type="text"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+91 XXXXX XXXXX"
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
-              />
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                <span>Only your confirmed co-riders can see your number.</span>
-              </p>
-            </div>
-
-            {/* Hometown City Community */}
-            <div className="md:col-span-2">
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-                <span className="text-base">📍</span>
-                <span>Hometown hub</span>
-              </label>
-              <select
-                value={joinedCommunity || ''}
-                onChange={(e) => setJoinedCommunity(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer transition-colors"
-              >
-                <option value="" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">None / Not Enrolled</option>
-                {communities.map((c) => (
-                  <option key={c.id} value={c.id} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">
-                    {c.icon} {c.name} ({c.state}) — {c.membersCount} students
-                  </option>
-                ))}
-              </select>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                Join your hometown hub to coordinate group rides during breaks and holidays.
-              </p>
-            </div>
-          </div>
-
-          {/* Transport Preference */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-              <Car className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              <span>Usual vehicle preference</span>
-            </label>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { id: 'Shared Cab', label: 'Cab' },
-                { id: 'Shared Auto', label: 'Auto' },
-                { id: 'Either', label: 'Either' }
-              ].map((opt) => (
-                <button
-                  type="button"
-                  key={opt.id}
-                  onClick={() => setPrefTransport(opt.id)}
-                  className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                    prefTransport === opt.id
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                      : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700/60'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Save Button */}
-          <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
-            {savedSuccess ? (
-              <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
-                <Check className="w-4 h-4" />
-                Preferences saved.
-              </span>
-            ) : (
-              <span className="text-xs text-slate-400" />
-            )}
-
-            <button
-              type="submit"
-              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer active:scale-[0.98]"
-            >
-              <Edit3 className="w-4 h-4" />
-              <span>Save preferences</span>
-            </button>
-          </div>
-        </form>
-      </div>
-
-      {/* Set / Update Campus Password & Encryption Key Card */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8 shadow-xs space-y-5 transition-colors">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400 rounded-xl">
-              <KeyRound className="w-6 h-6" />
-            </div>
-            <div>
-              <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">
-                Password and encryption key
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Campus credentials for signing in without Google OAuth.
-              </p>
-            </div>
-          </div>
-
-          <div>
-            {hasUserPassword ? (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span>Encrypted & active</span>
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-                <span>Not configured</span>
-              </span>
-            )}
-          </div>
-        </div>
-
-        {passwordSuccess && (
-          <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs flex items-center gap-2">
-            <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            <span>{passwordSuccessMsg || 'Password saved.'}</span>
-          </div>
-        )}
-
-        {passwordError && (
-          <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300 text-xs">
-            {passwordError}
-          </div>
-        )}
-
-        {hasUserPassword ? (
-          <div className="space-y-4 max-w-lg">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
-                <span className="flex items-center gap-1.5">
-                  <Lock className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                  <span>Encryption key password</span>
-                </span>
-                <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3" />
-                  <span>bcrypt hashed</span>
-                </span>
-              </label>
-
-              <div className="flex items-center gap-3">
-                <div className="relative flex-1">
-                  <input
-                    type="password"
-                    value="••••••••••••••••"
-                    disabled
-                    readOnly
-                    className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-600 dark:text-slate-400 tracking-widest cursor-not-allowed select-none"
-                  />
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
-                    Protected
+                  {/* Year of Study */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Year of Study
+                    </label>
+                    <div className="relative">
+                      <Layers className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <select
+                        value={year}
+                        onChange={(e) => setYear(e.target.value)}
+                        className="w-full pl-10 pr-9 py-2.5 bg-slate-50/70 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none cursor-pointer transition-colors"
+                      >
+                        {ACADEMIC_YEARS.map((y) => (
+                          <option key={y} value={y}>{y}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
                   </div>
+
+                  {/* Hostel */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Hostel
+                    </label>
+                    <div className="relative">
+                      <Building2 className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <select
+                        value={hostel}
+                        onChange={(e) => setHostel(e.target.value)}
+                        className="w-full pl-10 pr-9 py-2.5 bg-slate-50/70 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none cursor-pointer transition-colors"
+                      >
+                        <option value="Agira Hostel">Agira Hostel</option>
+                        {HOSTELS.map((h) => {
+                          const cleanName = getDisplayHostelName(h.name);
+                          return (
+                            <option key={h.id} value={cleanName}>
+                              {cleanName}
+                            </option>
+                          );
+                        })}
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+                  </div>
+
+                  {/* Roll Number */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Roll Number
+                    </label>
+                    <div className="relative">
+                      <CreditCard className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={rollNumber}
+                        onChange={(e) => setRollNumber(e.target.value)}
+                        placeholder="102215043"
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50/70 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Home City */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Home City
+                    </label>
+                    <div className="relative">
+                      <MapPin className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <select
+                        value={homeCity}
+                        onChange={(e) => setHomeCity(e.target.value)}
+                        className="w-full pl-10 pr-9 py-2.5 bg-slate-50/70 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none cursor-pointer transition-colors"
+                      >
+                        <option value="Patiala">Patiala</option>
+                        <option value="Delhi">Delhi</option>
+                        <option value="Chandigarh">Chandigarh</option>
+                        <option value="Ludhiana">Ludhiana</option>
+                        <option value="Jalandhar">Jalandhar</option>
+                        <option value="Amritsar">Amritsar</option>
+                        {communities.map((c) => (
+                          <option key={c.id} value={c.name}>{c.name}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+                  </div>
+
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsUpdatingPassword(!isUpdatingPassword);
-                    setPasswordError('');
-                  }}
-                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
-                >
-                  <Edit3 className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
-                  <span>{isUpdatingPassword ? 'Cancel' : 'Update password'}</span>
-                </button>
-              </div>
-            </div>
-
-            {isUpdatingPassword && (
-              <form onSubmit={handleSetPassword} className="space-y-4 pt-3 border-t border-slate-100 dark:border-slate-800 animate-in fade-in duration-200">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1.5">
-                    <Lock className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-                    <span>Current password</span>
-                  </label>
-                  <input
-                    type="password"
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    placeholder="Enter current password"
-                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1.5">
-                    <Lock className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                    <span>New password (8+ characters)</span>
-                  </label>
-                  <input
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1.5">
-                    <Lock className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                    <span>Confirm new password</span>
-                  </label>
-                  <input
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    required
-                  />
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="submit"
-                    disabled={passwordLoading}
-                    className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
-                  >
-                    <span>{passwordLoading ? 'Updating...' : 'Update password'}</span>
-                  </button>
+                {/* Footer Buttons */}
+                <div className="flex items-center justify-end gap-3 pt-4">
                   <button
                     type="button"
-                    onClick={() => {
-                      setIsUpdatingPassword(false);
-                      setPasswordError('');
-                      setCurrentPassword('');
-                      setNewPassword('');
-                      setConfirmPassword('');
-                    }}
-                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+                    onClick={handleReset}
+                    className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                   >
                     Cancel
                   </button>
+                  <button
+                    type="submit"
+                    className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-[0.98]"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </form>
+
+            </div>
+          </div>
+
+          {/* Right Column: Travel Preferences & Account Settings (approx 5 cols) */}
+          <div className="lg:col-span-5 space-y-6">
+
+            {/* Travel Preferences Card */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs space-y-5">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 mt-0.5">
+                  <Car className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    Travel Preferences
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Help us show you more relevant ride options.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4 pt-1">
+                {/* Preferred Vehicle */}
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
+                    <Car className="w-4 h-4 text-slate-400" />
+                    <span>Preferred vehicle</span>
+                  </div>
+                  <div className="relative min-w-[140px]">
+                    <select
+                      value={prefTransport}
+                      onChange={(e) => setPrefTransport(e.target.value)}
+                      className="w-full py-1.5 pl-3 pr-8 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white focus:outline-none appearance-none cursor-pointer"
+                    >
+                      <option value="Cab">Cab</option>
+                      <option value="Auto">Auto</option>
+                      <option value="Either">Either</option>
+                    </select>
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* Preferred Time Window */}
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
+                    <Clock className="w-4 h-4 text-slate-400" />
+                    <span>Preferred time window</span>
+                  </div>
+                  <div className="relative min-w-[150px]">
+                    <select
+                      value={timeWindow}
+                      onChange={(e) => setTimeWindow(e.target.value)}
+                      className="w-full py-1.5 pl-3 pr-8 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white focus:outline-none appearance-none cursor-pointer"
+                    >
+                      <option value="Every 15 Minutes">Every 15 Minutes</option>
+                      <option value="Morning">Morning</option>
+                      <option value="Afternoon">Afternoon</option>
+                      <option value="Evening">Evening</option>
+                    </select>
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* Frequent Routes (optional) */}
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
+                    <MapPin className="w-4 h-4 text-slate-400" />
+                    <span>Frequent routes (optional)</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5 p-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl">
+                    {frequentRoutes.map((route) => (
+                      <span
+                        key={route}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border border-blue-200/80 dark:border-blue-800"
+                      >
+                        <span>{route}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeRoute(route)}
+                          className="hover:text-blue-900 dark:hover:text-blue-100 cursor-pointer"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                    {frequentRoutes.length < 5 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const city = prompt('Enter frequent city name:');
+                          if (city && city.trim() && !frequentRoutes.includes(city.trim())) {
+                            setFrequentRoutes([...frequentRoutes, city.trim()]);
+                          }
+                        }}
+                        className="text-xs text-blue-600 dark:text-blue-400 font-bold px-2 py-1 hover:underline cursor-pointer"
+                      >
+                        + Add route
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Account & Settings Card */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs space-y-5">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 mt-0.5">
+                  <Shield className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    Account & Settings
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Manage your account and app preferences.
+                  </p>
+                </div>
+              </div>
+
+              <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                {/* Ride Notifications Toggle */}
+                <div className="py-3 flex items-center justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <Bell className="w-4 h-4 text-slate-400 mt-0.5" />
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                        Ride notifications
+                      </h4>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        Get updates about your rides and matches
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Toggle Switch */}
+                  <button
+                    type="button"
+                    onClick={() => setRideNotifications(!rideNotifications)}
+                    className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer ${
+                      rideNotifications ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'
+                    }`}
+                    aria-label="Toggle ride notifications"
+                  >
+                    <div
+                      className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                        rideNotifications ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Account Security (Password / Encryption Key) */}
+                <div 
+                  onClick={() => setShowSecurityModal(true)}
+                  className="py-3 flex items-center justify-between gap-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/40 rounded-xl transition-colors cursor-pointer group"
+                >
+                  <div className="flex items-start gap-3">
+                    <ShieldCheck className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition-colors mt-0.5" />
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                        Account security
+                      </h4>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        Manage your login and account access
+                      </p>
+                    </div>
+                  </div>
+
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors" />
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+      {/* Account Security / Campus Password Modal */}
+      {showSecurityModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 max-w-md w-full shadow-xl space-y-5 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                  <KeyRound className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 dark:text-white text-base">
+                    Account Security
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Campus encryption password
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSecurityModal(false);
+                  setPasswordError('');
+                  setIsUpdatingPassword(false);
+                }}
+                className="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 flex items-center justify-center cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {passwordSuccess && (
+              <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs flex items-center gap-2">
+                <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{passwordSuccessMsg || 'Password saved.'}</span>
+              </div>
+            )}
+
+            {passwordError && (
+              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300 text-xs">
+                {passwordError}
+              </div>
+            )}
+
+            {hasUserPassword && !isUpdatingPassword ? (
+              <div className="space-y-4">
+                <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-slate-600 dark:text-slate-300">Password status:</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      bcrypt encrypted
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="password"
+                      value="••••••••••••••••"
+                      disabled
+                      readOnly
+                      className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-500 tracking-widest cursor-not-allowed select-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsUpdatingPassword(true)}
+                    className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer"
+                  >
+                    Update Password
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleSetPassword} className="space-y-3.5">
+                {hasUserPassword && (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Current Password
+                    </label>
+                    <div className="relative">
+                      <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="password"
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        placeholder="Current password"
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                        required
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    {hasUserPassword ? 'New Password (8+ characters)' : 'Set Password (8+ characters)'}
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Confirm Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-2">
+                  <button
+                    type="submit"
+                    disabled={passwordLoading}
+                    className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer"
+                  >
+                    {passwordLoading ? 'Saving...' : hasUserPassword ? 'Update Password' : 'Save Password'}
+                  </button>
+                  {hasUserPassword && (
+                    <button
+                      type="button"
+                      onClick={() => setIsUpdatingPassword(false)}
+                      className="px-4 py-2.5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  )}
                 </div>
               </form>
             )}
           </div>
-        ) : (
-          <form onSubmit={handleSetPassword} className="space-y-4 max-w-lg">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1.5">
-                <Lock className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                <span>New password (8+ characters)</span>
-              </label>
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1.5">
-                <Lock className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                <span>Confirm password</span>
-              </label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={passwordLoading}
-              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
-            >
-              <span>{passwordLoading ? 'Saving...' : 'Save password'}</span>
-            </button>
-          </form>
-        )}
-      </div>
+        </div>
+      )}
 
     </div>
   );

@@ -102,20 +102,19 @@ export default function Navbar({ activePage, setActivePage, user, onLogout, _myG
             {/* Profile Chip */}
             <div 
               onClick={() => handleNavClick('profile')}
-              className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 cursor-pointer hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-colors"
+              className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 cursor-pointer hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-colors"
             >
               <Avatar
                 src={user?.avatar}
                 name={user?.name || 'Student'}
-                size="w-7 h-7"
+                size="w-6 h-6"
                 textSize="text-xs"
                 rounded="rounded-full"
+                bg="bg-rose-500 text-white"
               />
-              <div className="text-left leading-tight">
-                <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                  {user?.name ? user.name.split(' ')[0] : 'Student'}
-                </div>
-              </div>
+              <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                {user?.name ? user.name.split(' ')[0] : 'Student'}
+              </span>
             </div>
 
             {/* Logout */}

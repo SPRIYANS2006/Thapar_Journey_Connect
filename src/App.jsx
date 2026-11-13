@@ -598,14 +598,14 @@ function AppContent() {
             />
           )}
 
-          {activePage === 'communities' && activeCommunityHub ? (
+          {activePage === 'city-hub' && activeCommunityHub ? (
             <CityCommunityHubPage
               community={activeCommunityHub}
               allCommunities={communities}
               user={user}
               activeGroup={activeGroup}
               posts={communityPosts}
-              onBack={userCommunity ? null : () => setSelectedCityHub(null)}
+              onBack={() => setActivePage('communities')}
               onRefreshGroups={fetchGroups}
               onRefreshPosts={(commId) => fetchPosts(commId || activeCommunityHub?.id)}
               onViewGroupDetails={(gId) => {
@@ -682,6 +682,7 @@ function AppContent() {
               onOpenCityHub={(comm) => {
                 setSelectedCityHub(comm);
                 fetchPosts(comm.id);
+                setActivePage('city-hub');
               }}
               onJoinCommunity={async (commId) => {
                 try {

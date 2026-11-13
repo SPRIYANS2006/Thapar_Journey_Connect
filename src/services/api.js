@@ -285,6 +285,45 @@ export const api = {
       body: JSON.stringify({ text })
     }),
 
+  // Travel Groups (Train & Bus Travel Groups for City Hubs)
+  getTravelGroups: (params = {}) => {
+    const query = new URLSearchParams();
+    if (params.type && params.type !== 'All') query.append('type', params.type);
+    if (params.communityId && params.communityId !== 'All') query.append('communityId', params.communityId);
+    if (params.search) query.append('search', params.search);
+    if (params.date && params.date !== 'All') query.append('date', params.date);
+    const qs = query.toString();
+    return request(`/travel-groups${qs ? `?${qs}` : ''}`);
+  },
+
+  getMyTravelGroups: () => request('/travel-groups/mine'),
+
+  getTravelGroupById: (id) => request(`/travel-groups/${id}`),
+
+  createTravelGroup: (data) =>
+    request('/travel-groups', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+  joinTravelGroup: (id) =>
+    request(`/travel-groups/${id}/join`, {
+      method: 'POST'
+    }),
+
+  leaveTravelGroup: (id) =>
+    request(`/travel-groups/${id}/leave`, {
+      method: 'POST'
+    }),
+
+  getTravelGroupMessages: (id) => request(`/travel-groups/${id}/messages`),
+
+  sendTravelGroupMessage: (id, text) =>
+    request(`/travel-groups/${id}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ text })
+    }),
+
   // City Community Rides (Cab, Bus, Train from Thapar to City)
   getCityRides: (communityId, params = {}) => {
     const query = new URLSearchParams();

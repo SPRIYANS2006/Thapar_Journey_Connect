@@ -317,3 +317,62 @@ export function serializeCityRide(ride, viewingUserId = null) {
     createdAt: ride.created_at ? new Date(ride.created_at).toISOString() : new Date().toISOString()
   };
 }
+
+export function serializeTravelGroup(group, viewingUserId = null) {
+  if (!group) return null;
+  const isMember = Boolean(
+    viewingUserId &&
+    group.members &&
+    group.members.some((m) => (m.user_id || m.userId || m.id) === viewingUserId)
+  );
+
+  return {
+    id: group.id,
+    type: group.type, // 'Train' | 'Bus'
+    title: group.title,
+    communityId: group.community_id,
+    communityName: group.community_name,
+    creatorId: group.creator_id,
+    creatorName: group.creator_name,
+    date: group.date,
+    departureTime: group.departure_time,
+    boardingPoint: group.boarding_point,
+    destination: group.destination,
+    trainNumber: group.train_number || '',
+    travelClass: group.travel_class || '',
+    busOperator: group.bus_operator || '',
+    description: group.description || '',
+    membersCount: group.members_count || (group.members ? group.members.length : 1),
+    status: group.status || 'Open',
+    isMember,
+    members: (group.members || []).map((m) => ({
+      id: m.id || m.user_id,
+      userId: m.user_id || m.userId || m.id,
+      name: m.name,
+      avatar: m.avatar || 'ST',
+      hostel: m.hostel || '',
+      phone: isMember ? (m.phone || '') : '',
+      role: m.role || 'Member',
+      joinedAt: m.joined_at ? new Date(m.joined_at).toISOString() : new Date().toISOString()
+    })),
+    createdAt: group.created_at ? new Date(group.created_at).toISOString() : new Date().toISOString()
+  };
+}
+
+export function serializeTravelGroupMessage(msg) {
+  if (!msg) return null;
+  return {
+    id: msg.id,
+    groupId: msg.group_id,
+    senderId: msg.sender_id,
+    senderName: msg.sender_name,
+    senderAvatar: msg.sender_avatar || 'ST',
+    senderHostel: msg.sender_hostel || '',
+    text: msg.text,
+    time: msg.created_at
+      ? new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : 'Now',
+    createdAt: msg.created_at ? new Date(msg.created_at).toISOString() : new Date().toISOString()
+  };
+}
+

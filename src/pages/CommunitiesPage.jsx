@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import HeroBanner from '../components/HeroBanner';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { 
@@ -16,11 +16,16 @@ import {
   ThumbsUp, 
   ChevronDown, 
   X,
-  Compass
+  Compass,
+  Train,
+  Bus
 } from 'lucide-react';
 import { 
   POPULAR_STATES 
 } from '../data/indiaLocations';
+import CreateTravelGroupModal from '../components/CreateTravelGroupModal';
+import TravelGroupChatModal from '../components/TravelGroupChatModal';
+import { api } from '../services/api';
 
 export default function CommunitiesPage({ 
   communities = [], 
@@ -71,6 +76,56 @@ export default function CommunitiesPage({
 
   // Switch Community dropdown toggle in header
   const [showSwitchDropdown, setShowSwitchDropdown] = useState(false);
+
+  // Content Tabs in Active Community: Discussions | Train Groups | Bus Groups
+  const [contentTab, setContentTab] = useState('discussions');
+  const [travelGroups, setTravelGroups] = useState([]);
+  const [travelLoading, setTravelLoading] = useState(false);
+  const [travelSearchQuery, setTravelSearchQuery] = useState('');
+  const [createTravelModalOpen, setCreateTravelModalOpen] = useState(false);
+  const [travelModalType, setTravelModalType] = useState('Train');
+  const [activeChatTravelGroup, setActiveChatTravelGroup] = useState(null);
+
+  const fetchTravelGroups = useCallback(async (modeType, overrideCommId = null) => {
+    const cId = overrideCommId || selectedCommunityId;
+    if (!cId) return;
+    setTravelLoading(true);
+    try {
+      const data = await api.getTravelGroups({
+        communityId: cId,
+        type: modeType
+      });
+      setTravelGroups(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.warn('Failed to fetch travel groups:', err);
+    } finally {
+      setTravelLoading(false);
+    }
+  }, [selectedCommunityId]);
+
+  const handleJoinTravelGroup = async (tgId) => {
+    try {
+      const res = await api.joinTravelGroup(tgId);
+      setBoardNotice(`Joined: ${res.message || 'You joined the travel group.'}`);
+      setTimeout(() => setBoardNotice(''), 4000);
+      fetchTravelGroups(contentTab === 'trains' ? 'Train' : 'Bus');
+    } catch (err) {
+      setBoardNotice(err.message || 'Could not join travel group.');
+      setTimeout(() => setBoardNotice(''), 4000);
+    }
+  };
+
+  const handleLeaveTravelGroup = async (tgId) => {
+    try {
+      const res = await api.leaveTravelGroup(tgId);
+      setBoardNotice(`Left: ${res.message || 'You left the travel group.'}`);
+      setTimeout(() => setBoardNotice(''), 4000);
+      fetchTravelGroups(contentTab === 'trains' ? 'Train' : 'Bus');
+    } catch (err) {
+      setBoardNotice(err.message || 'Could not leave travel group.');
+      setTimeout(() => setBoardNotice(''), 4000);
+    }
+  };
 
   // Filtered communities
   const filteredCommunities = (communities && communities.length > 0 ? communities : [
@@ -394,6 +449,8 @@ export default function CommunitiesPage({
                       onClick={() => {
                         setSelectedCommunityId(c.id);
                         if (onSelectCommunity) onSelectCommunity(c.id);
+                        if (contentTab === 'trains') fetchTravelGroups('Train', c.id);
+                        if (contentTab === 'buses') fetchTravelGroups('Bus', c.id);
                       }}
                       className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                         isSelected
@@ -505,6 +562,8 @@ export default function CommunitiesPage({
                               setSelectedCommunityId(c.id);
                               if (onSelectCommunity) onSelectCommunity(c.id);
                               setShowSwitchDropdown(false);
+                              if (contentTab === 'trains') fetchTravelGroups('Train', c.id);
+                              if (contentTab === 'buses') fetchTravelGroups('Bus', c.id);
                             }}
                             className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer ${
                               activeCommunity.id === c.id ? 'font-bold text-blue-600 dark:text-blue-400' : 'text-slate-700 dark:text-slate-300'
@@ -606,16 +665,58 @@ export default function CommunitiesPage({
               </form>
             </div>
 
-            {/* Section Heading: Community Discussions */}
-            <div className="flex items-center gap-2 pt-2">
-              <MessageSquare className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              <h3 className="font-bold text-base text-slate-900 dark:text-white">
-                Community Discussions
-              </h3>
+            {/* Section Tabs: Discussions | Train Groups | Bus Groups */}
+            <div className="flex items-center gap-1.5 pt-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+              <button
+                type="button"
+                onClick={() => setContentTab('discussions')}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  contentTab === 'discussions'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span>Discussions</span>
+                <span className="text-[10px] opacity-80">({displayedPosts.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setContentTab('trains');
+                  fetchTravelGroups('Train');
+                }}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  contentTab === 'trains'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                <Train className="w-3.5 h-3.5" />
+                <span>Train Groups</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setContentTab('buses');
+                  fetchTravelGroups('Bus');
+                }}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  contentTab === 'buses'
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                <Bus className="w-3.5 h-3.5" />
+                <span>Bus Groups</span>
+              </button>
             </div>
 
-            {/* Discussions List */}
-            <div className="space-y-3">
+            {/* TAB: Discussions List */}
+            {contentTab === 'discussions' && (
+              <div className="space-y-3">
               {displayedPosts.map((post) => {
                 const postId = post.id || post._id;
                 const authorInitial = (post.authorName || post.author?.name || 'S').charAt(0).toUpperCase();
@@ -722,7 +823,288 @@ export default function CommunitiesPage({
                   </div>
                 );
               })}
-            </div>
+              </div>
+            )}
+
+            {/* TAB: Train Groups */}
+            {contentTab === 'trains' && (
+              <div className="space-y-3.5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={travelSearchQuery}
+                      onChange={(e) => setTravelSearchQuery(e.target.value)}
+                      placeholder="Search train groups (e.g. Shatabdi, 12005)..."
+                      className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTravelModalType('Train');
+                      setCreateTravelModalOpen(true);
+                    }}
+                    className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Create Train Group</span>
+                  </button>
+                </div>
+
+                {travelLoading ? (
+                  <div className="p-8 text-center text-xs text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+                    Loading train groups...
+                  </div>
+                ) : (
+                  (() => {
+                    const q = travelSearchQuery.toLowerCase();
+                    const filtered = travelGroups.filter((g) => {
+                      if (!q) return true;
+                      return (
+                        (g.title && g.title.toLowerCase().includes(q)) ||
+                        (g.trainNumber && g.trainNumber.toLowerCase().includes(q)) ||
+                        (g.boardingPoint && g.boardingPoint.toLowerCase().includes(q)) ||
+                        (g.destination && g.destination.toLowerCase().includes(q))
+                      );
+                    });
+
+                    if (filtered.length === 0) {
+                      return (
+                        <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 space-y-2">
+                          <Train className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto" />
+                          <h4 className="font-bold text-xs text-slate-700 dark:text-slate-300">
+                            No train groups yet for {activeCommunity.name}
+                          </h4>
+                          <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
+                            Start a train travel cohort so students traveling together can coordinate!
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="space-y-3">
+                        {filtered.map((g) => (
+                          <div
+                            key={g.id}
+                            className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 shadow-2xs space-y-3 hover:border-slate-300 dark:hover:border-slate-700 transition-all"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                                  <Train className="w-4 h-4" />
+                                </div>
+                                <div>
+                                  <h4 className="font-bold text-sm text-slate-900 dark:text-white line-clamp-1">
+                                    {g.title}
+                                  </h4>
+                                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                    {g.boardingPoint} ➔ {g.destination}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {g.travelClass && (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 shrink-0">
+                                  {g.travelClass}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+                              <span className="font-bold">🚆 {g.trainNumber || 'Express Train'}</span>
+                              <span className="flex items-center gap-2 text-[11px] text-slate-500">
+                                <span>{g.date}</span>
+                                <span>•</span>
+                                <span>{g.departureTime}</span>
+                              </span>
+                            </div>
+
+                            <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800">
+                              <div className="flex items-center gap-2 text-xs text-slate-500 font-semibold">
+                                <Users className="w-3.5 h-3.5" />
+                                <span>{g.membersCount || g.members?.length || 1} members</span>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                {g.isMember ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => setActiveChatTravelGroup(g)}
+                                      className="px-3 py-1 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 font-bold text-xs rounded-xl flex items-center gap-1 cursor-pointer"
+                                    >
+                                      <MessageSquare className="w-3 h-3" />
+                                      <span>Chat</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleLeaveTravelGroup(g.id)}
+                                      className="px-3 py-1 border border-rose-200 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 font-bold text-xs rounded-xl hover:bg-rose-50 cursor-pointer"
+                                    >
+                                      Leave
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleJoinTravelGroup(g.id)}
+                                    className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer"
+                                  >
+                                    Join Group
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()
+                )}
+              </div>
+            )}
+
+            {/* TAB: Bus Groups */}
+            {contentTab === 'buses' && (
+              <div className="space-y-3.5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={travelSearchQuery}
+                      onChange={(e) => setTravelSearchQuery(e.target.value)}
+                      placeholder="Search bus groups (e.g. PRTC, Zingbus)..."
+                      className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTravelModalType('Bus');
+                      setCreateTravelModalOpen(true);
+                    }}
+                    className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Create Bus Group</span>
+                  </button>
+                </div>
+
+                {travelLoading ? (
+                  <div className="p-8 text-center text-xs text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+                    Loading bus groups...
+                  </div>
+                ) : (
+                  (() => {
+                    const q = travelSearchQuery.toLowerCase();
+                    const filtered = travelGroups.filter((g) => {
+                      if (!q) return true;
+                      return (
+                        (g.title && g.title.toLowerCase().includes(q)) ||
+                        (g.busOperator && g.busOperator.toLowerCase().includes(q)) ||
+                        (g.boardingPoint && g.boardingPoint.toLowerCase().includes(q)) ||
+                        (g.destination && g.destination.toLowerCase().includes(q))
+                      );
+                    });
+
+                    if (filtered.length === 0) {
+                      return (
+                        <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 space-y-2">
+                          <Bus className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto" />
+                          <h4 className="font-bold text-xs text-slate-700 dark:text-slate-300">
+                            No bus groups yet for {activeCommunity.name}
+                          </h4>
+                          <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
+                            Start an intercity bus group to travel together with other students!
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="space-y-3">
+                        {filtered.map((g) => (
+                          <div
+                            key={g.id}
+                            className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 shadow-2xs space-y-3 hover:border-slate-300 dark:hover:border-slate-700 transition-all"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/70 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                                  <Bus className="w-4 h-4" />
+                                </div>
+                                <div>
+                                  <h4 className="font-bold text-sm text-slate-900 dark:text-white line-clamp-1">
+                                    {g.title}
+                                  </h4>
+                                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                    {g.boardingPoint} ➔ {g.destination}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 shrink-0">
+                                Bus
+                              </span>
+                            </div>
+
+                            <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+                              <span className="font-bold">🚌 {g.busOperator || 'Intercity Bus'}</span>
+                              <span className="flex items-center gap-2 text-[11px] text-slate-500">
+                                <span>{g.date}</span>
+                                <span>•</span>
+                                <span>{g.departureTime}</span>
+                              </span>
+                            </div>
+
+                            <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800">
+                              <div className="flex items-center gap-2 text-xs text-slate-500 font-semibold">
+                                <Users className="w-3.5 h-3.5" />
+                                <span>{g.membersCount || g.members?.length || 1} members</span>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                {g.isMember ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => setActiveChatTravelGroup(g)}
+                                      className="px-3 py-1 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 font-bold text-xs rounded-xl flex items-center gap-1 cursor-pointer"
+                                    >
+                                      <MessageSquare className="w-3 h-3" />
+                                      <span>Chat</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleLeaveTravelGroup(g.id)}
+                                      className="px-3 py-1 border border-rose-200 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 font-bold text-xs rounded-xl hover:bg-rose-50 cursor-pointer"
+                                    >
+                                      Leave
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleJoinTravelGroup(g.id)}
+                                    className="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer"
+                                  >
+                                    Join Group
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()
+                )}
+              </div>
+            )}
 
           </div>
 
@@ -871,6 +1253,28 @@ export default function CommunitiesPage({
             </form>
           </div>
         </div>
+      )}
+
+      {/* CREATE TRAVEL GROUP MODAL (TRAIN / BUS) */}
+      <CreateTravelGroupModal
+        isOpen={createTravelModalOpen}
+        onClose={() => setCreateTravelModalOpen(false)}
+        defaultType={travelModalType}
+        community={activeCommunity}
+        allCommunities={communities}
+        onSuccess={() => fetchTravelGroups(travelModalType)}
+        triggerToast={setBoardNotice ? (t) => { setBoardNotice(t.message || t.title); setTimeout(() => setBoardNotice(''), 4000); } : null}
+      />
+
+      {/* TRAVEL GROUP CHAT MODAL */}
+      {activeChatTravelGroup && (
+        <TravelGroupChatModal
+          isOpen={Boolean(activeChatTravelGroup)}
+          onClose={() => setActiveChatTravelGroup(null)}
+          group={activeChatTravelGroup}
+          currentUser={user}
+          triggerToast={setBoardNotice ? (t) => { setBoardNotice(t.message || t.title); setTimeout(() => setBoardNotice(''), 4000); } : null}
+        />
       )}
 
     </div>

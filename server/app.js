@@ -12,6 +12,7 @@ import communityGroupsRouter from './routes/communityGroups.js';
 import slotsRouter from './routes/slots.js';
 import luggageRouter from './routes/luggage.js';
 import vendorRouter from './routes/vendor.js';
+import travelGroupsRouter from './routes/travelGroups.js';
 import { errorHandler, notFoundHandler } from './middleware/errors.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -72,6 +73,7 @@ export function createApp() {
   app.use('/api/communities', communitiesRouter);
   app.use('/api/community-groups', communityGroupsRouter);
   app.use('/api/slots', slotsRouter);
+  app.use('/api/travel-groups', travelGroupsRouter);
   app.use('/api/luggage', luggageRouter);
   app.use('/api/vendor', vendorRouter);
 

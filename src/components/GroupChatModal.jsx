@@ -155,24 +155,24 @@ export default function GroupChatModal({ group, currentUser, onClose, onSendMess
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4">
-      <div className="bg-white dark:bg-slate-900 w-full max-w-2xl h-[95vh] sm:h-[650px] max-h-[96vh] sm:max-h-[90vh] rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 transition-colors">
+      <div className="bg-white dark:bg-slate-900 w-full max-w-2xl h-[95vh] sm:h-[650px] max-h-[96vh] sm:max-h-[90vh] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 transition-colors">
         {/* Header */}
-        <div className="bg-slate-900 dark:bg-slate-950 text-white p-3.5 px-4 sm:p-4 sm:px-6 border-b border-slate-800 flex items-center justify-between shrink-0">
+        <div className="bg-[#10264E] dark:bg-[#0c1e3d] text-white p-3.5 px-4 sm:p-4 sm:px-6 border-b border-slate-800/60 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold flex items-center justify-center shadow-md">
+            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white font-bold flex items-center justify-center shadow-xs">
               #{group.id}
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-bold text-base text-white">
-                  Group #{group.id} Chat
+                  Group #{group.id} chat
                 </h3>
-                <span className="text-[10px] uppercase font-extrabold bg-blue-500/30 text-blue-300 border border-blue-400/30 px-2 py-0.5 rounded-md">
-                  {(group.members || []).length}/{group.maxMembers || group.capacity || 4} Members
+                <span className="text-xs font-semibold bg-blue-500/20 text-blue-200 border border-blue-400/20 px-2.5 py-0.5 rounded-full">
+                  {(group.members || []).length}/{group.maxMembers || group.capacity || 4} members
                 </span>
               </div>
-              <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
-                <MapPin className="w-3 h-3 text-indigo-400" />
+              <p className="text-xs text-slate-300 flex items-center gap-1 mt-0.5">
+                <MapPin className="w-3 h-3 text-blue-300" />
                 <span>
                   {group.destinationName || 'TIET Shared Journey'} {group.pickupPoint ? `• Pickup: ${group.pickupPoint}` : ''}
                 </span>
@@ -182,7 +182,7 @@ export default function GroupChatModal({ group, currentUser, onClose, onSendMess
 
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white rounded-full hover:bg-slate-800 transition-colors cursor-pointer"
+            className="p-2 text-slate-300 hover:text-white rounded-full hover:bg-white/10 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -213,12 +213,12 @@ export default function GroupChatModal({ group, currentUser, onClose, onSendMess
         <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-4 bg-slate-50/60 dark:bg-slate-950/60">
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center p-8 text-slate-400 space-y-2">
-              <div className="w-12 h-12 rounded-2xl bg-slate-200/60 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 text-xl">
+              <div className="w-12 h-12 rounded-xl bg-slate-200/60 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 text-xl">
                 💬
               </div>
-              <div className="font-bold text-slate-700 dark:text-slate-200 text-sm">No Messages Yet</div>
+              <div className="font-bold text-slate-700 dark:text-slate-200 text-sm">No messages yet</div>
               <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs">
-                Say hi to your co-riders to coordinate meeting time, pickup point, and luggage!
+                Say hello to your co-riders to coordinate meeting time and pickup point.
               </p>
             </div>
           ) : (
@@ -237,7 +237,7 @@ export default function GroupChatModal({ group, currentUser, onClose, onSendMess
                     size="w-8 h-8"
                     textSize="text-xs"
                     rounded="rounded-full"
-                    bg={isMe ? 'bg-indigo-600' : 'bg-slate-700'}
+                    bg={isMe ? 'bg-blue-600' : 'bg-slate-700'}
                   />
 
                   <div className={`max-w-[75%] ${isMe ? 'items-end' : 'items-start'}`}>
@@ -253,7 +253,7 @@ export default function GroupChatModal({ group, currentUser, onClose, onSendMess
                     <div
                       className={`p-3.5 rounded-2xl text-sm leading-relaxed shadow-xs ${
                         isMe
-                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-tr-none'
+                          ? 'bg-blue-600 text-white rounded-tr-none'
                           : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200/90 dark:border-slate-700 rounded-tl-none'
                       }`}
                     >
@@ -282,12 +282,12 @@ export default function GroupChatModal({ group, currentUser, onClose, onSendMess
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               placeholder="Coordinate meeting point, cab split, timing..."
-              className="flex-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-2.5 text-sm text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-800 transition-all"
+              className="flex-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-800 transition-all"
             />
             <button
               type="submit"
               disabled={!inputText.trim()}
-              className="p-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-40 text-white rounded-2xl font-bold shadow-md shadow-blue-500/20 transition-all cursor-pointer"
+              className="p-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white rounded-xl font-bold shadow-xs shadow-blue-600/20 transition-all cursor-pointer"
             >
               <Send className="w-4 h-4" />
             </button>

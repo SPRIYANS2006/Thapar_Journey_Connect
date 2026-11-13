@@ -20,10 +20,10 @@ export default function ConfirmDialog({
       aria-labelledby="confirm-dialog-title"
       className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
     >
-      <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 space-y-4 transition-colors">
+      <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-6 space-y-4 transition-colors">
         <div className="flex items-start gap-3">
           <div
-            className={`p-3 rounded-2xl shrink-0 ${
+            className={`p-3 rounded-xl shrink-0 ${
               isDestructive 
                 ? 'bg-rose-100 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400' 
                 : 'bg-blue-100 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400'

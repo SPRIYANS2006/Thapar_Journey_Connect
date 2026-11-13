@@ -437,11 +437,11 @@ export default function CityCommunityHubPage({
       )}
 
       {/* Hero Banner for City Community */}
-      <div className="bg-gradient-to-br from-blue-950 via-slate-900 to-indigo-950 dark:from-slate-950 dark:via-indigo-950 dark:to-slate-950 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden space-y-6 border border-slate-800/60">
+      <div className="bg-[#10264E] dark:bg-[#0c1e3d] rounded-2xl p-6 sm:p-8 text-white shadow-xs relative overflow-hidden space-y-6 border border-slate-800/20 dark:border-slate-800">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
           <div className="space-y-3 max-w-3xl">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-500/20 border border-blue-400/30 text-blue-200">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white/10 border border-white/10 text-blue-200">
                 <Navigation className="w-3.5 h-3.5" />
                 <span>Thapar Campus (Patiala) ➔ {community?.name}</span>
               </span>
@@ -468,7 +468,7 @@ export default function CityCommunityHubPage({
           <div className="shrink-0 flex flex-col sm:flex-row md:flex-col gap-2.5">
             {isUserEnrolledInCity ? (
               <div className="space-y-2 text-center md:text-right">
-                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-2xl text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                   <CheckCircle2 className="w-4 h-4" />
                   Your hometown hub
                 </span>
@@ -484,7 +484,7 @@ export default function CityCommunityHubPage({
             ) : (
               <button
                 onClick={() => onJoinCommunity && onJoinCommunity(community.id)}
-                className="px-5 py-3 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                className="px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
               >
                 <Plus className="w-4 h-4" />
                 <span>Join {community?.name} hub</span>
@@ -495,7 +495,7 @@ export default function CityCommunityHubPage({
 
         {/* Quick Route Benchmarks */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-white/10 text-xs relative z-10">
-          <div className="bg-white/5 rounded-2xl p-3 border border-white/10">
+          <div className="bg-white/5 rounded-xl p-3 border border-white/10">
             <span className="text-slate-400 font-semibold block text-[10px]">
               Distance
             </span>
@@ -503,7 +503,7 @@ export default function CityCommunityHubPage({
               {community?.distanceFromThapar || '200 km'}
             </span>
           </div>
-          <div className="bg-white/5 rounded-2xl p-3 border border-white/10">
+          <div className="bg-white/5 rounded-xl p-3 border border-white/10">
             <span className="text-slate-400 font-semibold block text-[10px]">
               Fare split
             </span>
@@ -511,7 +511,7 @@ export default function CityCommunityHubPage({
               Split 4 ways
             </span>
           </div>
-          <div className="bg-white/5 rounded-2xl p-3 border border-white/10">
+          <div className="bg-white/5 rounded-xl p-3 border border-white/10">
             <span className="text-slate-400 font-semibold block text-[10px]">
               Departures
             </span>
@@ -519,7 +519,7 @@ export default function CityCommunityHubPage({
               Every 15 min
             </span>
           </div>
-          <div className="bg-white/5 rounded-2xl p-3 border border-white/10">
+          <div className="bg-white/5 rounded-xl p-3 border border-white/10">
             <span className="text-slate-400 font-semibold block text-[10px]">
               Students
             </span>
@@ -528,14 +528,10 @@ export default function CityCommunityHubPage({
             </span>
           </div>
         </div>
-
-        {/* Decorative corner glows */}
-        <div className="absolute -top-24 -right-24 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
       </div>
 
       {/* Main Feature Tabs */}
-      <div className="flex border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-2xl px-3 pt-2 shadow-2xs transition-colors">
+      <div className="flex border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-xl px-3 pt-2 shadow-2xs transition-colors">
         <button
           onClick={() => setActiveTab('rides')}
           className={`flex items-center gap-2 px-5 py-3 text-sm font-bold border-b-2 transition-all cursor-pointer ${
@@ -566,8 +562,8 @@ export default function CityCommunityHubPage({
 
       {/* TAB 1: RIDES - Restricted if not enrolled */}
       {activeTab === 'rides' && !isUserEnrolledInCity && (
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-8 sm:p-12 text-center space-y-6 shadow-xs max-w-2xl mx-auto transition-colors">
-          <div className="w-16 h-16 rounded-3xl bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 mx-auto flex items-center justify-center">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-8 sm:p-12 text-center space-y-6 shadow-xs max-w-2xl mx-auto transition-colors">
+          <div className="w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 mx-auto flex items-center justify-center">
             <Lock className="w-8 h-8" />
           </div>
           <div className="space-y-2">
@@ -585,7 +581,7 @@ export default function CityCommunityHubPage({
           </div>
           <button
             onClick={() => onJoinCommunity && onJoinCommunity(community.id)}
-            className="px-6 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-lg shadow-blue-500/25 transition-all cursor-pointer inline-flex items-center gap-2 active:scale-95"
+            className="px-6 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-xs transition-all cursor-pointer inline-flex items-center gap-2 active:scale-95"
           >
             <Plus className="w-4 h-4" />
             <span>Join {community?.name} hub</span>
@@ -599,7 +595,7 @@ export default function CityCommunityHubPage({
 
           {/* ACTIVE BOOKING CARD (if user currently has an active ride) */}
           {userActiveRide && (
-            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/30 border border-emerald-200/90 dark:border-emerald-800/80 rounded-3xl p-5 shadow-xs space-y-4 transition-colors">
+            <div className="bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-800/60 rounded-2xl p-5 shadow-2xs space-y-4 transition-colors">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-start gap-3.5">
                   <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black text-lg shadow-xs shrink-0">
@@ -711,7 +707,7 @@ export default function CityCommunityHubPage({
           )}
 
           {/* STICKY SEARCH CARD (MakeMyTrip style) */}
-          <div className="sticky top-20 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-xl p-5 sm:p-6 transition-all">
+          <div className="sticky top-20 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs p-5 sm:p-6 transition-all">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse" />
@@ -1087,7 +1083,7 @@ export default function CityCommunityHubPage({
                 <div className="flex flex-col justify-between gap-1">
                   <button
                     type="submit"
-                    className="w-full h-full min-h-[46px] rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-sm shadow-md shadow-blue-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95"
+                    className="w-full h-full min-h-[46px] rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-sm shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95"
                   >
                     <Search className="w-4 h-4 stroke-[2.5]" />
                     <span>Find rides</span>
@@ -1132,10 +1128,10 @@ export default function CityCommunityHubPage({
             </form>
           </div>
 
-          {/* 15-MINUTE SLOTS (BlaBlaCar style, only shown when student presses Search) */}
+          {/* 15-MINUTE SLOTS (only shown when student presses Search) */}
           {!hasSearched ? (
-            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-8 sm:p-12 text-center space-y-4 shadow-xs transition-colors">
-              <div className="w-16 h-16 rounded-3xl bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 mx-auto flex items-center justify-center">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-8 sm:p-12 text-center space-y-4 shadow-xs transition-colors">
+              <div className="w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 mx-auto flex items-center justify-center">
                 <Search className="w-8 h-8" />
               </div>
               <div className="space-y-1.5 max-w-md mx-auto">
@@ -1200,7 +1196,7 @@ export default function CityCommunityHubPage({
       {/* TAB 2: COMMUNITY NOTICE BOARD */}
       {activeTab === 'board' && (
         <div className="space-y-6">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors">
             <div>
               <h2 className="text-lg font-black text-slate-900 dark:text-white">
                 {community?.name} notice board
@@ -1217,14 +1213,14 @@ export default function CityCommunityHubPage({
                     setIsPosting(true);
                     setPostError('');
                   }}
-                  className="px-4 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer inline-flex items-center gap-1.5 shrink-0 active:scale-95"
+                  className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer inline-flex items-center gap-1.5 shrink-0 active:scale-95"
                 >
                   <Plus className="w-4 h-4" />
                   <span>New post</span>
                 </button>
               )
             ) : (
-              <span className="text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 px-3.5 py-2 rounded-2xl font-medium shrink-0">
+              <span className="text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 px-3.5 py-2 rounded-xl font-medium shrink-0">
                 Join {community?.name} hub to post notices
               </span>
             )}
@@ -1232,7 +1228,7 @@ export default function CityCommunityHubPage({
 
           {/* Post Creator Form */}
           {isPosting && (
-            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-xs space-y-4 animate-in fade-in transition-colors">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-xs space-y-4 animate-in fade-in transition-colors">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-slate-900 dark:text-white text-sm">
                   New notice
@@ -1314,10 +1310,10 @@ export default function CityCommunityHubPage({
 
           {/* Posts List */}
           {filteredPosts.length === 0 ? (
-            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-10 text-center space-y-2 text-slate-500 dark:text-slate-400 transition-colors">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-10 text-center space-y-2 text-slate-500 dark:text-slate-400 transition-colors">
               <MessageSquare className="w-8 h-8 mx-auto text-slate-300 dark:text-slate-600" />
               <p className="text-sm font-bold text-slate-700 dark:text-slate-200">
-                No notices for {community?.name} yet.
+                No notices for {community?.name} yet
               </p>
               <p className="text-xs text-slate-400 dark:text-slate-500">
                 Join this community hub to post the first update.
@@ -1342,7 +1338,7 @@ export default function CityCommunityHubPage({
                 return (
                   <div
                     key={post.id}
-                    className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-5 shadow-xs space-y-3 transition-colors"
+                    className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-xs space-y-3 transition-colors"
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
@@ -1416,7 +1412,7 @@ export default function CityCommunityHubPage({
                         {commentsList.map((comm) => (
                           <div
                             key={comm.id}
-                            className="bg-slate-50 dark:bg-slate-850 p-2.5 rounded-2xl text-xs space-y-1 border border-slate-200/50 dark:border-slate-800"
+                            className="bg-slate-50 dark:bg-slate-850 p-2.5 rounded-xl text-xs space-y-1 border border-slate-200/50 dark:border-slate-800"
                           >
                             <div className="flex items-center gap-2 font-bold text-slate-700 dark:text-slate-200">
                               <span>{comm.author || comm.authorName || 'Student'}</span>

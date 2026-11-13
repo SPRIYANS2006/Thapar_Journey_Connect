@@ -126,16 +126,16 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-8 animate-in fade-in duration-300">
       
       {/* Profile Header Banner */}
-      <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
+      <div className="bg-[#10264E] dark:bg-[#0c1e3d] text-white rounded-2xl p-6 sm:p-8 shadow-xs relative overflow-hidden border border-slate-800/20 dark:border-slate-800">
         <div className="flex flex-col sm:flex-row items-center gap-6 relative z-10">
           <Avatar
             src={user?.avatar}
             name={name || user?.name || 'TIET Student'}
             size="w-24 h-24"
             textSize="text-3xl"
-            rounded="rounded-3xl"
-            bg="bg-indigo-600"
-            className="border-4 border-white/20 shadow-xl shrink-0"
+            rounded="rounded-2xl"
+            bg="bg-blue-600"
+            className="border-2 border-white/20 shadow-md shrink-0"
           />
 
           <div className="text-center sm:text-left space-y-1">
@@ -143,7 +143,7 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
               <h1 className="text-2xl sm:text-3xl font-black text-white">
                 {name || user?.name || 'TIET Student'}
               </h1>
-              <span className="text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
+              <span className="text-xs font-bold bg-white/10 text-emerald-300 border border-white/15 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
                 <ShieldCheck className="w-3.5 h-3.5" />
                 <span>Verified student</span>
               </span>
@@ -166,8 +166,8 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-xs text-center transition-colors">
-          <div className="text-3xl font-black text-indigo-600 dark:text-indigo-400 mb-1">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs text-center transition-colors">
+          <div className="text-3xl font-black text-blue-600 dark:text-blue-400 mb-1">
             {Math.max(user?.tripsCompleted || 0, history.length)}
           </div>
           <div className="text-xs font-bold text-slate-500 dark:text-slate-400">
@@ -175,7 +175,7 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-xs text-center transition-colors">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs text-center transition-colors">
           <div className="text-3xl font-black text-amber-500 flex items-center justify-center gap-1 mb-1">
             {Math.max(user?.tripsCompleted || 0, history.length) > 0 ? (
               <>
@@ -193,10 +193,10 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
       </div>
 
       {/* Confirmed Travel History Section */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-6 sm:p-8 shadow-xs space-y-6 transition-colors">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8 shadow-xs space-y-6 transition-colors">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 flex items-center justify-center border border-emerald-200 dark:border-emerald-800 shadow-xs">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 flex items-center justify-center border border-blue-200 dark:border-blue-800 shadow-2xs">
               <CheckCircle2 className="w-5 h-5" />
             </div>
             <div>
@@ -232,19 +232,19 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
             {history.map((g) => (
               <div
                 key={g.id}
-                className="p-5 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 shadow-xs space-y-3"
+                className="p-5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-850 shadow-2xs space-y-3"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <span className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
+                    <span className="w-8 h-8 rounded-lg bg-blue-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
                       #{g.id}
                     </span>
                     <div>
                       <h4 className="font-extrabold text-slate-900 dark:text-white text-sm">
-                        {g.isCommunityRide ? g.destinationName : `TIET → ${g.destinationName}`}
+                        {g.isCommunityRide ? g.destinationName : `TIET ➔ ${g.destinationName}`}
                       </h4>
                       <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                        {g.isCommunityRide && g.communityName ? `📍 ${g.communityName} Hub • ` : ''}{g.transport || 'Shared Cab'} • Pickup: {g.pickupPoint}
+                        {g.isCommunityRide && g.communityName ? `📍 ${g.communityName} Hub • ` : ''}{g.transport || 'Cab'} • Pickup: {g.pickupPoint}
                       </p>
                     </div>
                   </div>
@@ -295,7 +295,7 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
       </div>
 
       {/* Profile & Preferences Form */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-6 sm:p-8 shadow-xs space-y-6 transition-colors">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8 shadow-xs space-y-6 transition-colors">
         <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
           <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">
             Your details & preferences
@@ -495,7 +495,7 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
 
             <button
               type="submit"
-              className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer active:scale-[0.98]"
+              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer active:scale-[0.98]"
             >
               <Edit3 className="w-4 h-4" />
               <span>Save preferences</span>
@@ -505,10 +505,10 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
       </div>
 
       {/* Set / Update Campus Password & Encryption Key Card */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-6 sm:p-8 shadow-xs space-y-5 transition-colors">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8 shadow-xs space-y-5 transition-colors">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 rounded-2xl">
+            <div className="p-3 bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400 rounded-xl">
               <KeyRound className="w-6 h-6" />
             </div>
             <div>

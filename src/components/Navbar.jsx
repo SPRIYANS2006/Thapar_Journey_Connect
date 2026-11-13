@@ -40,7 +40,7 @@ export default function Navbar({ activePage, setActivePage, user, onLogout, _myG
             onClick={() => handleNavClick('dashboard')} 
             className="flex items-center gap-3 cursor-pointer group"
           >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-blue-700 flex items-center justify-center text-white shadow-md shadow-blue-500/25 group-hover:scale-105 transition-transform">
+            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs transition-transform group-hover:scale-105">
               <Navigation className="w-5 h-5 fill-current" />
             </div>
             <div>
@@ -49,7 +49,7 @@ export default function Navbar({ activePage, setActivePage, user, onLogout, _myG
                   Thapar Journey Connect
                 </span>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">
+              <p className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block font-medium">
                 Shared rides for TIET students
               </p>
             </div>

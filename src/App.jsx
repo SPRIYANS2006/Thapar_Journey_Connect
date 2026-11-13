@@ -753,7 +753,7 @@ function AppContent() {
                   triggerToast({
                     id: `post_err_${Date.now()}`,
                     type: 'error',
-                    title: 'Could Not Post',
+                    title: 'Could not post',
                     message: err.message
                   });
                 }
@@ -780,14 +780,14 @@ function AppContent() {
                   triggerToast({
                     id: `prof_${Date.now()}`,
                     type: 'success',
-                    title: 'Profile Updated',
+                    title: 'Profile updated',
                     message: 'Preferences saved.'
                   });
                 } catch (err) {
                   triggerToast({
                     id: `prof_err_${Date.now()}`,
                     type: 'error',
-                    title: 'Update Failed',
+                    title: 'Update failed',
                     message: err.message
                   });
                 }
@@ -819,15 +819,15 @@ function AppContent() {
       <NotificationToast notifications={notifications} onDismiss={dismissToast} />
 
       {/* Persistent Footer */}
-      <footer className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-6 text-center text-xs text-slate-500 dark:text-slate-400 transition-colors">
+      <footer className="bg-white dark:bg-slate-900 border-t border-slate-200/80 dark:border-slate-800 py-6 text-center text-xs text-slate-500 dark:text-slate-400 transition-colors">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-800 dark:text-slate-200">Thapar Journey Connect</span>
+            <span className="font-semibold text-slate-800 dark:text-slate-200">Thapar Journey Connect</span>
             <span>•</span>
             <span>Made for TIET students</span>
           </div>
           <p className="text-slate-400 dark:text-slate-500">
-            Campus ride sharing for Thapar students.
+            Shared rides for TIET students.
           </p>
         </div>
       </footer>

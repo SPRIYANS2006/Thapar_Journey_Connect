@@ -146,15 +146,11 @@ export default function AuthPage({ onLoginSuccess }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col justify-between relative overflow-hidden transition-colors duration-200 selection:bg-blue-500 selection:text-white">
-      {/* Ambient Glows */}
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/10 dark:bg-blue-600/15 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-indigo-500/10 dark:bg-indigo-600/15 rounded-full blur-3xl pointer-events-none" />
-
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 flex flex-col justify-between relative overflow-hidden transition-colors duration-200 selection:bg-blue-500 selection:text-white">
       {/* Top Navigation Bar */}
       <header className="max-w-7xl mx-auto w-full px-4 sm:px-6 py-6 flex items-center justify-between z-10">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-blue-700 flex items-center justify-center text-white shadow-md shadow-blue-500/25">
+          <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-xs">
             <Navigation className="w-5 h-5 fill-current" />
           </div>
           <div>
@@ -193,12 +189,12 @@ export default function AuthPage({ onLoginSuccess }) {
         <div className="lg:col-span-7 space-y-6 text-left">
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/70 border border-blue-200 dark:border-blue-800/80 text-blue-700 dark:text-blue-300 text-xs font-bold shadow-2xs">
             <Sparkles className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-            <span>Official TIET Campus Transit Network</span>
+            <span>Made for TIET students</span>
           </div>
 
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 dark:text-white tracking-tight leading-[1.1]">
             Share a cab.<br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-500 dark:from-blue-400 dark:via-indigo-300 dark:to-purple-400">
+            <span className="text-blue-600 dark:text-blue-400">
               Save up to 75%.
             </span>
           </h1>
@@ -209,19 +205,19 @@ export default function AuthPage({ onLoginSuccess }) {
 
           {/* Feature Highlights Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-4">
-            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-1">
+            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-1">
               <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               <h4 className="font-bold text-slate-900 dark:text-white text-xs">Every 15 minutes</h4>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">96 flexible departure slots daily.</p>
             </div>
 
-            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-1">
-              <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-1">
+              <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               <h4 className="font-bold text-slate-900 dark:text-white text-xs">Hostel quad meetups</h4>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">Meet co-riders at your hostel gate.</p>
             </div>
 
-            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-1">
+            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-1">
               <Car className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
               <h4 className="font-bold text-slate-900 dark:text-white text-xs">Equal fare split</h4>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">Cut airport cabs down to ₹300.</p>
@@ -231,10 +227,10 @@ export default function AuthPage({ onLoginSuccess }) {
 
         {/* Right Auth Card */}
         <div className="lg:col-span-5">
-          <div className="bg-white dark:bg-slate-900/95 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl dark:shadow-2xl dark:shadow-black/50 backdrop-blur-xl transition-colors">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-6 sm:p-8 shadow-xs transition-colors">
             
             {error && (
-              <div className="mb-5 p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs flex items-start gap-2.5 animate-in fade-in duration-150">
+              <div className="mb-5 p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs flex items-start gap-2.5 animate-in fade-in duration-150">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600 dark:text-rose-400" />
                 <span className="leading-relaxed font-semibold">{error}</span>
               </div>
@@ -318,7 +314,7 @@ export default function AuthPage({ onLoginSuccess }) {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 text-white font-extrabold rounded-xl text-sm flex items-center justify-center gap-2 transition-all shadow-md shadow-blue-500/25 cursor-pointer active:scale-[0.98]"
+                className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer active:scale-[0.98]"
               >
                 {loading ? (
                   <>

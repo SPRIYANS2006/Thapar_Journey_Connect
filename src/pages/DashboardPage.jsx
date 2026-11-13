@@ -284,14 +284,14 @@ export default function DashboardPage({
       <DisclaimerBanner />
 
       {/* PART 1: STICKY SEARCH CARD */}
-      <div className="sticky top-20 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-xl dark:shadow-2xl dark:shadow-black/40 p-4 sm:p-6 transition-colors">
+      <div className="sticky top-20 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs p-4 sm:p-6 transition-colors">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="w-2.5 h-2.5 rounded-full bg-blue-600 dark:bg-blue-400 animate-pulse" />
-            <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">
               Find a ride
             </h2>
-            <span className="text-[11px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 px-2.5 py-0.5 rounded-full border border-blue-200 dark:border-blue-800 hidden sm:inline-block">
+            <span className="text-[11px] font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 px-2.5 py-0.5 rounded-full border border-blue-200 dark:border-blue-800 hidden sm:inline-block">
               Every 15 min
             </span>
           </div>
@@ -649,7 +649,7 @@ export default function DashboardPage({
 
               <button
                 type="submit"
-                className="w-full py-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-sm rounded-2xl shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-[0.98]"
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl shadow-xs flex items-center justify-center gap-2 transition-colors cursor-pointer active:scale-[0.98]"
               >
                 <Search className="w-4 h-4" />
                 <span>Find rides</span>
@@ -685,22 +685,22 @@ export default function DashboardPage({
 
       {/* Active Trip Quick Banner (If user belongs to a group) */}
       {activeUserGroup && (
-        <div className="bg-white dark:bg-slate-900 border border-blue-200/90 dark:border-blue-900/60 rounded-3xl p-5 sm:p-6 shadow-sm space-y-4 ring-1 ring-blue-500/10 dark:ring-blue-500/20 transition-colors">
+        <div className="bg-white dark:bg-slate-900 border border-blue-200/90 dark:border-blue-900/60 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4 transition-colors">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white font-black flex items-center justify-center text-sm shadow-md shadow-blue-500/20 shrink-0">
+              <div className="w-11 h-11 rounded-xl bg-blue-600 text-white font-bold flex items-center justify-center text-sm shadow-xs shrink-0">
                 #{activeUserGroup.id}
               </div>
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold bg-blue-100 dark:bg-blue-950/70 text-blue-800 dark:text-blue-300 px-2 py-0.5 rounded-md">
+                  <span className="text-[10px] font-bold bg-blue-50 dark:bg-blue-950/70 text-blue-800 dark:text-blue-300 px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-900">
                     Active ride
                   </span>
                   <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                     {activeUserGroup.members?.length || 1}/{activeUserGroup.maxMembers || 4} riders
                   </span>
                 </div>
-                <h4 className="font-extrabold text-slate-900 dark:text-white text-base">
+                <h4 className="font-bold text-slate-900 dark:text-white text-base">
                   TIET ➔ {activeUserGroup.destinationName}
                 </h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2 flex-wrap">
@@ -779,44 +779,40 @@ export default function DashboardPage({
         <div className="space-y-10 animate-in fade-in duration-300">
           
           {/* Hero Welcome Showcase */}
-          <div className="relative rounded-3xl bg-gradient-to-br from-blue-600 via-indigo-600 to-slate-900 text-white p-8 sm:p-12 overflow-hidden shadow-xl">
-            {/* Background Glow Accents */}
-            <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-400/20 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
-
-            <div className="relative z-10 max-w-3xl space-y-4">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold text-blue-200">
-                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+          <div className="relative rounded-2xl bg-[#10264E] dark:bg-[#0c1e3d] text-white p-6 sm:p-10 border border-blue-900/40 shadow-xs space-y-6 transition-colors">
+            <div className="relative z-10 max-w-3xl space-y-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-xs border border-white/15 text-xs font-semibold text-blue-200">
+                <Sparkles className="w-3.5 h-3.5 text-blue-300" />
                 <span>Verified Thapar Transit Network</span>
               </div>
 
-              <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-white leading-tight">
+              <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white leading-tight">
                 Share a cab from campus.<br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-200 via-indigo-200 to-sky-300">
+                <span className="text-blue-300">
                   Save up to 75% on every trip.
                 </span>
               </h1>
 
-              <p className="text-slate-200 text-sm sm:text-base leading-relaxed max-w-2xl">
+              <p className="text-slate-200 text-sm sm:text-base leading-relaxed max-w-2xl font-normal">
                 Match with students departing from your hostel quad. Book 15-minute departure slots to Chandigarh Airport, Delhi, Patiala stations, or join your hometown city community.
               </p>
 
               {/* Stat Highlights */}
-              <div className="pt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-3 text-center">
-                  <div className="text-xl sm:text-2xl font-black text-white">96</div>
+              <div className="pt-2 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-white/10 backdrop-blur-xs border border-white/15 rounded-xl p-3 text-center">
+                  <div className="text-xl sm:text-2xl font-bold text-white">96</div>
                   <div className="text-[11px] text-blue-200 font-medium">Slots daily (every 15m)</div>
                 </div>
-                <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-3 text-center">
-                  <div className="text-xl sm:text-2xl font-black text-white">4 max</div>
+                <div className="bg-white/10 backdrop-blur-xs border border-white/15 rounded-xl p-3 text-center">
+                  <div className="text-xl sm:text-2xl font-bold text-white">4 max</div>
                   <div className="text-[11px] text-blue-200 font-medium">Riders per cab</div>
                 </div>
-                <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-3 text-center">
-                  <div className="text-xl sm:text-2xl font-black text-white">75%</div>
+                <div className="bg-white/10 backdrop-blur-xs border border-white/15 rounded-xl p-3 text-center">
+                  <div className="text-xl sm:text-2xl font-bold text-white">75%</div>
                   <div className="text-[11px] text-blue-200 font-medium">Fare savings</div>
                 </div>
-                <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-3 text-center">
-                  <div className="text-xl sm:text-2xl font-black text-white">100%</div>
+                <div className="bg-white/10 backdrop-blur-xs border border-white/15 rounded-xl p-3 text-center">
+                  <div className="text-xl sm:text-2xl font-bold text-white">100%</div>
                   <div className="text-[11px] text-blue-200 font-medium">@thapar.edu verified</div>
                 </div>
               </div>
@@ -827,7 +823,7 @@ export default function DashboardPage({
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
                   <Compass className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                   <span>Popular campus destinations</span>
                 </h2>
@@ -839,7 +835,6 @@ export default function DashboardPage({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {DESTINATIONS.map((dest) => {
-                // Calculate split estimate per rider
                 const approxSplit = dest.id === 'chd_airport' 
                   ? '₹300 - ₹375'
                   : dest.id === 'del_airport'
@@ -852,20 +847,20 @@ export default function DashboardPage({
                   <div
                     key={dest.id}
                     onClick={() => handleQuickDestinationSelect(dest.id)}
-                    className="group bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-5 shadow-sm hover:shadow-xl hover:border-blue-400 dark:hover:border-blue-500 transition-all cursor-pointer flex flex-col justify-between"
+                    className="group bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-2xs hover:border-blue-400 dark:hover:border-blue-500 transition-all cursor-pointer flex flex-col justify-between"
                   >
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-3xl p-2 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700/80 group-hover:scale-110 transition-transform">
+                        <span className="text-3xl p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700/80 group-hover:scale-105 transition-transform">
                           {dest.icon}
                         </span>
-                        <span className="text-[10px] font-extrabold bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 px-2.5 py-1 rounded-full border border-blue-200 dark:border-blue-800">
+                        <span className="text-[10px] font-semibold bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 px-2.5 py-1 rounded-full border border-blue-200 dark:border-blue-800">
                           Save 75%
                         </span>
                       </div>
 
                       <div>
-                        <h3 className="font-extrabold text-slate-900 dark:text-white text-base group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                        <h3 className="font-bold text-slate-900 dark:text-white text-base group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                           {dest.name}
                         </h3>
                         <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
@@ -881,7 +876,7 @@ export default function DashboardPage({
                     <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
                       <div>
                         <span className="text-[10px] text-slate-400 dark:text-slate-500 block font-semibold">Your split</span>
-                        <span className="text-sm font-black text-blue-600 dark:text-blue-400">{approxSplit} <span className="text-[10px] font-normal text-slate-400">/ rider</span></span>
+                        <span className="text-sm font-bold text-blue-600 dark:text-blue-400">{approxSplit} <span className="text-[10px] font-normal text-slate-400">/ rider</span></span>
                       </div>
                       <span className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 group-hover:bg-blue-600 group-hover:text-white flex items-center justify-center transition-colors">
                         <ArrowRight className="w-4 h-4" />
@@ -893,10 +888,10 @@ export default function DashboardPage({
             </div>
           </div>
 
-          {/* SECTION 2: EXPLORE THE FULL PLATFORM (Directly prompts users to explore!) */}
+          {/* SECTION 2: EXPLORE THE FULL PLATFORM */}
           <div className="space-y-4">
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-amber-500" />
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               <span>Explore Thapar Journey Network</span>
             </h2>
 
@@ -905,58 +900,58 @@ export default function DashboardPage({
               {/* Feature 1: Hometown City Communities */}
               <div 
                 onClick={() => onNavigateToCommunities && onNavigateToCommunities()}
-                className="group bg-gradient-to-br from-indigo-50/70 to-blue-50/70 dark:from-slate-900 dark:to-indigo-950/40 rounded-3xl border border-indigo-200/80 dark:border-indigo-900/50 p-6 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
+                className="group bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs hover:border-blue-400 dark:hover:border-blue-600 transition-all cursor-pointer flex flex-col justify-between"
               >
                 <div className="space-y-3">
-                  <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20">
-                    <Users className="w-6 h-6" />
+                  <div className="w-11 h-11 rounded-xl bg-blue-50 dark:bg-blue-950/70 border border-blue-200/60 dark:border-blue-900/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                    <Users className="w-5 h-5" />
                   </div>
-                  <h3 className="text-lg font-black text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                     Hometown City Hubs
                   </h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-normal">
                     Heading home to Delhi, Ludhiana, Jaipur, Gurgaon, or Chandigarh for the break? Connect with students from your hometown to coordinate direct cabs and train cohorts.
                   </p>
                 </div>
-                <div className="pt-4 flex items-center text-xs font-bold text-indigo-600 dark:text-indigo-400 gap-1.5 group-hover:gap-2.5 transition-all">
+                <div className="pt-4 flex items-center text-xs font-semibold text-blue-600 dark:text-blue-400 gap-1.5 group-hover:gap-2.5 transition-all">
                   <span>Explore City Hubs</span>
                   <ArrowRight className="w-4 h-4" />
                 </div>
               </div>
 
               {/* Feature 2: Hostel Quad Pickups */}
-              <div className="bg-gradient-to-br from-emerald-50/70 to-teal-50/70 dark:from-slate-900 dark:to-emerald-950/40 rounded-3xl border border-emerald-200/80 dark:border-emerald-900/50 p-6 shadow-sm flex flex-col justify-between">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs flex flex-col justify-between">
                 <div className="space-y-3">
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-500/20">
-                    <Home className="w-6 h-6" />
+                  <div className="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-200/60 dark:border-emerald-900/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                    <Home className="w-5 h-5" />
                   </div>
-                  <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
                     Hostel Quad Pickups
                   </h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-normal">
                     Never drag heavy luggage across campus to the Main Gate. Select your hostel (Hostels A–M, PG, and girls' quads) so your co-passengers meet right at your quad gate.
                   </p>
                 </div>
-                <div className="pt-4 flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                <div className="pt-4 flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
                   <CheckCircle2 className="w-4 h-4" />
                   <span>Selectable in search above</span>
                 </div>
               </div>
 
               {/* Feature 3: Verified & Safe Rides */}
-              <div className="bg-gradient-to-br from-blue-50/70 to-cyan-50/70 dark:from-slate-900 dark:to-cyan-950/40 rounded-3xl border border-blue-200/80 dark:border-blue-900/50 p-6 shadow-sm flex flex-col justify-between">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs flex flex-col justify-between">
                 <div className="space-y-3">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20">
-                    <ShieldCheck className="w-6 h-6" />
+                  <div className="w-11 h-11 rounded-xl bg-blue-50 dark:bg-blue-950/70 border border-blue-200/60 dark:border-blue-900/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                    <ShieldCheck className="w-5 h-5" />
                   </div>
-                  <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
                     Verified Students Only
                   </h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-normal">
                     All accounts require official @thapar.edu authentication. View co-rider reliability ratings, trip history, and coordinate via secure group chats.
                   </p>
                 </div>
-                <div className="pt-4 flex items-center gap-1.5 text-xs font-bold text-blue-700 dark:text-blue-400">
+                <div className="pt-4 flex items-center gap-1.5 text-xs font-semibold text-blue-700 dark:text-blue-400">
                   <CheckCircle2 className="w-4 h-4" />
                   <span>Private in-app chat included</span>
                 </div>
@@ -966,7 +961,7 @@ export default function DashboardPage({
           </div>
 
           {/* SECTION 3: HOW IT WORKS IN 3 SIMPLE STEPS */}
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8 shadow-xs space-y-6 transition-colors">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8 shadow-xs space-y-6 transition-colors">
             <div className="text-center max-w-xl mx-auto space-y-1">
               <h3 className="text-xl font-black text-slate-900 dark:text-white">
                 How Thapar Journey Connect works

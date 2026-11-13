@@ -144,7 +144,7 @@ export default function RescheduleSlotModal({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-      <div className="relative w-full max-w-4xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh] transition-colors">
+      <div className="relative w-full max-w-4xl bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh] transition-colors">
         
         {/* Modal Header */}
         <div className="px-6 py-5 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-850">
@@ -258,10 +258,10 @@ export default function RescheduleSlotModal({
         {/* Confirmation & Penalty Dialog Overlay */}
         {showConfirm && targetSlot && (
           <div className="absolute inset-0 z-50 bg-slate-900/70 dark:bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4 animate-in zoom-in-95 duration-200 transition-colors">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-md w-full shadow-xl border border-slate-200 dark:border-slate-800 space-y-4 animate-in zoom-in-95 duration-200 transition-colors">
               <div className="flex items-center gap-3">
                 <div
-                  className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
+                  className={`w-12 h-12 rounded-xl flex items-center justify-center ${
                     penaltyPreview?.willIncurPenalty
                       ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400'
                       : 'bg-blue-100 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400'
@@ -284,7 +284,7 @@ export default function RescheduleSlotModal({
               </div>
 
               {penaltyPreview?.willIncurPenalty ? (
-                <div className="p-4 bg-amber-50 dark:bg-amber-950/60 rounded-2xl border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 space-y-1.5">
+                <div className="p-4 bg-amber-50 dark:bg-amber-950/60 rounded-xl border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 space-y-1.5">
                   <div className="font-bold flex items-center gap-1.5 text-amber-800 dark:text-amber-300">
                     <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                     <span>Late rescheduling notice</span>
@@ -300,7 +300,7 @@ export default function RescheduleSlotModal({
                   </p>
                 </div>
               ) : (
-                <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300 space-y-1">
+                <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300 space-y-1">
                   <p>
                     You are moving from <strong>{group.departureTime}</strong> to{' '}
                     <strong>{targetSlot.time}</strong> ({selectedDate}).

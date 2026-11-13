@@ -49,18 +49,18 @@ export default function AddFriendModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/75 backdrop-blur-xs animate-in fade-in duration-200">
       <div 
-        className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden transition-colors"
+        className="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden transition-colors"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="px-6 py-5 bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-700 dark:to-indigo-800 text-white flex items-center justify-between">
+        <div className="px-6 py-5 bg-[#10264E] dark:bg-[#0c1e3d] text-white flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-white/15 flex items-center justify-center backdrop-blur-xs">
+            <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center backdrop-blur-xs">
               <UserPlus className="w-5 h-5 text-white" />
             </div>
             <div>
               <h3 className="font-extrabold text-lg text-white">Add a friend</h3>
-              <p className="text-blue-100 text-xs">Reserve a seat for your friend</p>
+              <p className="text-blue-200 text-xs">Reserve a seat for your friend</p>
             </div>
           </div>
           <button
@@ -73,7 +73,7 @@ export default function AddFriendModal({
 
         {/* Modal Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div className="bg-blue-50 dark:bg-blue-950/60 border border-blue-200/80 dark:border-blue-900/60 rounded-2xl p-3.5 flex items-center justify-between text-xs">
+          <div className="bg-blue-50 dark:bg-blue-950/60 border border-blue-200/80 dark:border-blue-900/60 rounded-xl p-3.5 flex items-center justify-between text-xs">
             <span className="font-bold text-blue-900 dark:text-blue-200">{groupDestination}</span>
             <span className="font-extrabold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/60 px-2 py-0.5 rounded-full">
               {seatsLeft} {seatsLeft === 1 ? 'seat' : 'seats'} left
@@ -81,7 +81,7 @@ export default function AddFriendModal({
           </div>
 
           {error && (
-            <div className="bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 rounded-2xl p-3 text-xs font-semibold text-rose-800 dark:text-rose-200 flex items-center gap-2">
+            <div className="bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 rounded-xl p-3 text-xs font-semibold text-rose-800 dark:text-rose-200 flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" />
               <span>{error}</span>
             </div>
@@ -121,7 +121,7 @@ export default function AddFriendModal({
             />
           </div>
 
-          <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-3 text-[11px] text-slate-600 dark:text-slate-400 space-y-1 border border-slate-200/60 dark:border-slate-700/80">
+          <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3 text-[11px] text-slate-600 dark:text-slate-400 space-y-1 border border-slate-200/60 dark:border-slate-700/80">
             <div className="flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-300">
               <Users className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
               <span>How it works:</span>

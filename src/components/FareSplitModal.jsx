@@ -32,12 +32,12 @@ export default function FareSplitModal({ group, onClose, onShareToChat }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in fade-in zoom-in-95 duration-200 transition-colors">
+      <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in fade-in zoom-in-95 duration-200 transition-colors">
         
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-700 to-indigo-700 dark:from-blue-800 dark:to-indigo-900 text-white p-6 flex items-center justify-between">
+        <div className="bg-[#10264E] dark:bg-[#0c1e3d] text-white p-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-white/10 rounded-2xl">
+            <div className="p-2.5 bg-white/10 rounded-xl">
               <Calculator className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -109,10 +109,10 @@ export default function FareSplitModal({ group, onClose, onShareToChat }) {
           </div>
 
           {/* Calculation Result Cards */}
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 border border-blue-200 dark:border-blue-900/60 rounded-2xl p-5 space-y-4">
+          <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 rounded-xl p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-xs font-bold text-blue-700 dark:text-blue-300">Cost per student</span>
+                <span className="text-xs font-bold text-blue-600 dark:text-blue-400">Cost per student</span>
                 <div className="text-3xl font-black text-slate-900 dark:text-white mt-0.5">
                   ₹{perPerson}
                   <span className="text-xs text-slate-500 dark:text-slate-400 font-normal"> / student</span>
@@ -131,13 +131,13 @@ export default function FareSplitModal({ group, onClose, onShareToChat }) {
             </div>
 
             {/* Members split breakdown */}
-            <div className="pt-3 border-t border-blue-200/60 dark:border-blue-800/60 space-y-2">
+            <div className="pt-3 border-t border-slate-200/80 dark:border-slate-700 space-y-2">
               <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Student breakdown:</span>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 {group?.members?.map((m) => (
-                  <div key={m.id} className="flex items-center justify-between bg-white dark:bg-slate-850 px-3 py-1.5 rounded-xl border border-blue-100 dark:border-blue-900/50">
+                  <div key={m.id} className="flex items-center justify-between bg-white dark:bg-slate-850 px-3 py-1.5 rounded-lg border border-slate-200/60 dark:border-slate-750">
                     <span className="font-semibold text-slate-700 dark:text-slate-300 truncate max-w-[100px]">{m.name.split(' ')[0]}</span>
-                    <span className="font-bold text-blue-700 dark:text-blue-300">₹{perPerson}</span>
+                    <span className="font-bold text-blue-600 dark:text-blue-400">₹{perPerson}</span>
                   </div>
                 ))}
               </div>

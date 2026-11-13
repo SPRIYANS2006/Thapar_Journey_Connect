@@ -92,10 +92,10 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200 transition-colors">
+      <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200 transition-colors">
         
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-slate-900 dark:from-blue-800 dark:via-indigo-900 dark:to-slate-950 text-white p-6 relative">
+        <div className="bg-[#10264E] dark:bg-[#0c1e3d] text-white p-6 relative">
           <button
             onClick={onClose}
             className="absolute top-5 right-5 text-white/80 hover:text-white p-1.5 rounded-full hover:bg-white/10 transition-colors cursor-pointer"
@@ -104,7 +104,7 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
           </button>
           
           <div className="flex items-center gap-3 mb-2">
-            <span className="text-3xl p-2 bg-white/10 rounded-2xl border border-white/20">
+            <span className="text-3xl p-2 bg-white/10 rounded-xl border border-white/20">
               {selectedDestObj.icon}
             </span>
             <div>
@@ -372,7 +372,7 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
                   onClick={() => setTransport(pref.id)}
                   className={`py-2.5 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                     transport === pref.id
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
                       : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
                   }`}
                 >
@@ -385,7 +385,7 @@ export default function JourneyFormModal({ destination, user, onClose, onSubmitJ
           {/* Submit Button */}
           <button
             type="submit"
-            className="w-full py-3.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-base rounded-2xl shadow-lg shadow-blue-500/25 hover:from-blue-700 hover:to-indigo-700 transition-all flex items-center justify-center gap-2 mt-4 cursor-pointer active:scale-98"
+            className="w-full py-3.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-base rounded-xl shadow-xs shadow-blue-600/20 transition-all flex items-center justify-center gap-2 mt-4 cursor-pointer active:scale-98"
           >
             <CheckCircle2 className="w-5 h-5" />
             <span>Find rides</span>

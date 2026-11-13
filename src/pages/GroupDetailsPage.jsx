@@ -217,11 +217,11 @@ export default function GroupDetailsPage({
       </div>
 
       {/* Group Header Card */}
-      <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 dark:from-slate-950 dark:via-indigo-950 dark:to-slate-950 text-white rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden border border-slate-800/60 transition-colors">
+      <div className="bg-[#10264E] dark:bg-[#0c1e3d] text-white rounded-2xl p-6 sm:p-8 shadow-xs relative overflow-hidden border border-slate-800/20 dark:border-slate-800 transition-colors">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
           <div className="space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-bold bg-blue-500/30 text-blue-200 border border-blue-400/30 px-3 py-0.5 rounded-full">
+              <span className="text-xs font-bold bg-white/10 text-blue-200 border border-white/15 px-3 py-0.5 rounded-full">
                 Group #{group.id}
               </span>
 
@@ -243,8 +243,8 @@ export default function GroupDetailsPage({
                   : 'Open'}
               </span>
 
-              <span className="text-xs bg-slate-800 text-slate-300 px-3 py-0.5 rounded-full border border-slate-700">
-                Vehicle: {group.transport || 'Shared Cab'}
+              <span className="text-xs bg-white/10 text-slate-300 px-3 py-0.5 rounded-full border border-white/10">
+                Vehicle: {group.transport || 'Cab'}
               </span>
 
               {group.direction === 'returning' ? (
@@ -258,16 +258,16 @@ export default function GroupDetailsPage({
               )}
             </div>
 
-            <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
               {group.direction === 'returning'
-                ? `${group.origin || 'Pickup'} → Thapar Institute`
-                : `Thapar Institute → ${group.destinationName}`}
+                ? `${group.origin || 'Pickup'} ➔ Thapar Institute`
+                : `Thapar Institute ➔ ${group.destinationName}`}
             </h1>
 
             <div className="flex items-center gap-4 text-xs text-slate-300 pt-1 flex-wrap">
               <span className="flex items-center gap-1.5 font-semibold text-blue-200">
                 <Clock className="w-4 h-4 text-blue-400" />
-                Target Departure: {formatTime24to12(group.departureTime)} ({group.date || 'Today'})
+                Target departure: {formatTime24to12(group.departureTime)} ({group.date || 'Today'})
               </span>
               <span>•</span>
               <span className="flex items-center gap-1.5 text-slate-300">
@@ -283,16 +283,16 @@ export default function GroupDetailsPage({
               <>
                 <button
                   onClick={() => onOpenChat && onOpenChat(group.id)}
-                  className="px-5 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-2xl shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95"
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95"
                 >
                   <MessageSquare className="w-4 h-4" />
-                  <span>Open Group Chat</span>
+                  <span>Open group chat</span>
                 </button>
 
                 {!isCompleted && !group.isCommunityRide && (
                   <button
                     onClick={() => setShowRescheduleModal(true)}
-                    className="px-4 py-3 bg-indigo-600/90 hover:bg-indigo-600 text-white font-bold text-xs rounded-2xl border border-indigo-400/40 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md active:scale-95"
+                    className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl border border-white/20 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95"
                     title="Move to another 15-minute time slot"
                   >
                     <Clock className="w-4 h-4" />
@@ -303,18 +303,18 @@ export default function GroupDetailsPage({
                 {!isConfirmed && !isCompleted && isAdmin && (
                   <button
                     onClick={() => onConfirmJourney && onConfirmJourney(group.id)}
-                    className="px-5 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-2xl shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95"
+                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95"
                   >
                     <CheckCircle className="w-4 h-4" />
-                    <span>Confirm Journey</span>
+                    <span>Confirm journey</span>
                   </button>
                 )}
 
                 {(isConfirmed || isCompleted) && (
                   <div className="flex items-center gap-2">
-                    <div className="px-4 py-3 bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 font-bold text-xs rounded-2xl flex items-center justify-center gap-2">
+                    <div className="px-4 py-2.5 bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 font-bold text-xs rounded-xl flex items-center justify-center gap-2">
                       <CheckCircle className="w-4 h-4" />
-                      <span>{isCompleted ? 'Completed' : 'Journey Confirmed'}</span>
+                      <span>{isCompleted ? 'Completed' : 'Journey confirmed'}</span>
                     </div>
                     <a
                       href={`https://wa.me/?text=${encodeURIComponent(
@@ -322,7 +322,7 @@ export default function GroupDetailsPage({
                       )}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-4 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-2xl shadow-md flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                      className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-95"
                       title="Share details to WhatsApp"
                     >
                       <span>Share on WhatsApp</span>
@@ -333,12 +333,12 @@ export default function GroupDetailsPage({
                 {onLeaveGroup && (
                   <button
                     onClick={() => setShowLeaveConfirm(true)}
-                    className={`px-4 py-3 font-bold text-xs rounded-2xl border transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 ${
+                    className={`px-4 py-2.5 font-bold text-xs rounded-xl border transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 ${
                       isCriticalCancellation
                         ? 'bg-rose-900/60 hover:bg-rose-800 text-rose-200 border-rose-500/50'
                         : isLateCancellation
                         ? 'bg-amber-900/60 hover:bg-amber-800 text-amber-200 border-amber-500/50'
-                        : 'bg-slate-800/80 hover:bg-red-900/60 text-slate-300 hover:text-red-200 border-slate-700'
+                        : 'bg-white/10 hover:bg-rose-900/50 text-slate-300 hover:text-white border-white/15'
                     }`}
                   >
                     <LogOut className="w-3.5 h-3.5" />
@@ -354,15 +354,15 @@ export default function GroupDetailsPage({
                 )}
               </>
             ) : isFull ? (
-              <div className="px-5 py-3 bg-slate-800 text-slate-400 font-bold text-xs rounded-2xl border border-slate-700 text-center">
-                Group Full ({group.members?.length || 0}/{group.capacity || 4})
+              <div className="px-5 py-2.5 bg-white/10 text-slate-400 font-bold text-xs rounded-xl border border-white/15 text-center">
+                Group full ({group.members?.length || 0}/{group.capacity || 4})
               </div>
             ) : (
               <button
                 onClick={() => onJoinGroup && onJoinGroup(group.id)}
-                className="px-6 py-3.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-sm rounded-2xl shadow-xl shadow-blue-500/40 flex items-center justify-center gap-2.5 transition-all cursor-pointer ring-2 ring-white/30 active:scale-95"
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95"
               >
-                <UserPlus className="w-5 h-5" />
+                <UserPlus className="w-4 h-4" />
                 <span>
                   Join Group #{group.id} ({group.members?.length || 0}/{group.capacity || 4})
                 </span>
@@ -374,7 +374,7 @@ export default function GroupDetailsPage({
 
       {/* Cancellation Policy Banner */}
       <div
-        className={`p-4 rounded-2xl border text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
+        className={`p-4 rounded-xl border text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
           isCriticalCancellation
             ? 'bg-rose-50 dark:bg-rose-950/60 border-rose-200 dark:border-rose-800 text-rose-900 dark:text-rose-200'
             : isLateCancellation
@@ -385,22 +385,22 @@ export default function GroupDetailsPage({
         <div className="flex items-center gap-2">
           <Clock className="w-4 h-4 shrink-0 text-slate-500 dark:text-slate-400" />
           <span>
-            <strong>Cancellation Policy:</strong> Free cancellation up to 4 hours before departure. Cancellations within 4 hours incur a <strong>-0.3⭐</strong> reliability penalty (<strong>-0.8⭐</strong> in the final 30 minutes).
+            <strong>Cancellation policy:</strong> Free cancellation up to 4 hours before departure. Cancellations within 4 hours incur a <strong>-0.3⭐</strong> reliability penalty (<strong>-0.8⭐</strong> in the final 30 minutes).
           </span>
         </div>
         <span className="font-bold text-[11px] whitespace-nowrap px-2.5 py-1 rounded-xl bg-white/80 dark:bg-slate-800/80 border border-current shadow-xs">
           {hoursLeft <= 0.5
-            ? '⚠️ < 30 Mins Left (-0.8⭐)'
+            ? '⚠️ < 30 mins left (-0.8⭐)'
             : hoursLeft <= 4
-            ? `⚠️ ~${Math.max(1, Math.round(hoursLeft * 60))} Mins Left (-0.3⭐)`
-            : '✅ Free Cancellation Active'}
+            ? `⚠️ ~${Math.max(1, Math.round(hoursLeft * 60))} mins left (-0.3⭐)`
+            : '✓ Free cancellation active'}
         </span>
       </div>
 
       {/* Pickup Point Card with Admin Selector */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-colors">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-colors">
         <div className="flex items-center gap-3 flex-1">
-          <div className="p-3 bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400 rounded-2xl border border-blue-100 dark:border-blue-900/50 shrink-0">
+          <div className="p-3 bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400 rounded-xl border border-blue-100 dark:border-blue-900/50 shrink-0">
             <MapPin className="w-6 h-6" />
           </div>
           <div className="flex-1">
@@ -445,22 +445,22 @@ export default function GroupDetailsPage({
           </div>
         </div>
 
-        <div className="bg-slate-50 dark:bg-slate-800/70 px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300 font-semibold w-full md:w-auto text-center shrink-0">
+        <div className="bg-slate-50 dark:bg-slate-800/70 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300 font-semibold w-full md:w-auto text-center shrink-0">
           Capacity:{' '}
-          <strong className="text-indigo-600 dark:text-indigo-400 font-extrabold text-sm">
+          <strong className="text-blue-600 dark:text-blue-400 font-extrabold text-sm">
             {(group.members || []).length}/{group.capacity || 4}
           </strong>{' '}
-          Seats ({group.transport || 'Shared Cab'})
+          Seats ({group.transport || 'Cab'})
         </div>
       </div>
 
       {/* Members Grid */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-            <Users className="w-5 h-5 text-indigo-600" />
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             <span>
-              Group Members ({(group.members || []).length}/{group.capacity || group.maxMembers || 4})
+              Group members ({(group.members || []).length}/{group.capacity || group.maxMembers || 4})
             </span>
           </h2>
           <div className="flex items-center gap-2">
@@ -469,13 +469,13 @@ export default function GroupDetailsPage({
                 type="button"
                 onClick={() => setIsAddFriendOpen(true)}
                 disabled={friendActionLoading}
-                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <UserPlus className="w-3.5 h-3.5" />
-                <span>+ Add Friend</span>
+                <span>+ Add friend</span>
               </button>
             )}
-            <span className="text-xs text-slate-500 hidden sm:inline">Verified TIET Student Profiles</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400 hidden sm:inline">Verified TIET student profiles</span>
           </div>
         </div>
 
@@ -491,10 +491,10 @@ export default function GroupDetailsPage({
             return (
               <div
                 key={member.userId || member.id}
-                className={`bg-white dark:bg-slate-900 rounded-3xl border p-6 shadow-sm transition-all flex flex-col justify-between relative overflow-hidden ${
+                className={`bg-white dark:bg-slate-900 rounded-2xl border p-6 shadow-2xs transition-all flex flex-col justify-between relative overflow-hidden ${
                   isMe 
                     ? 'border-blue-500/80 bg-blue-50/30 dark:bg-blue-950/20' 
-                    : 'border-slate-200/90 dark:border-slate-800'
+                    : 'border-slate-200/80 dark:border-slate-800'
                 }`}
               >
                 {isMe && (
@@ -578,9 +578,9 @@ export default function GroupDetailsPage({
                       type="button"
                       onClick={() => handleRemoveFriend(member.id || member.userId || member.user_id, member.name)}
                       disabled={friendActionLoading}
-                      className="text-rose-600 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-300 bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 dark:hover:bg-rose-900/60 px-2 py-0.5 rounded-md font-bold transition-colors cursor-pointer"
+                      className="text-rose-600 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-300 bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 dark:hover:bg-rose-900/60 px-2 py-0.5 rounded-lg font-bold transition-colors cursor-pointer"
                     >
-                      Remove Friend
+                      Remove friend
                     </button>
                   ) : (
                     <span className="text-emerald-600 dark:text-emerald-400 font-semibold">✓ Verified TIET</span>

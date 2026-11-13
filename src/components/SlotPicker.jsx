@@ -413,7 +413,7 @@ export default function SlotPicker({
                       type="button"
                       onClick={() => onJoinSlot && onJoinSlot(slot)}
                       disabled={isJoiningThis}
-                      className="w-full py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-xs rounded-xl shadow-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-[0.98] disabled:opacity-50"
+                      className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer active:scale-[0.98] disabled:opacity-50"
                     >
                       {isJoiningThis ? (
                         <span>Joining...</span>

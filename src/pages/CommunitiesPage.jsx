@@ -299,17 +299,15 @@ export default function CommunitiesPage({
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-in fade-in duration-300">
       
       {/* Hero Banner */}
-      <div className="bg-gradient-to-r from-blue-700 via-indigo-700 to-slate-900 dark:from-blue-900 dark:via-indigo-900 dark:to-slate-950 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden transition-colors">
-        <div className="absolute right-0 top-0 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
-        
+      <div className="bg-[#10264E] dark:bg-[#0c1e3d] rounded-2xl p-6 sm:p-8 text-white shadow-xs border border-slate-800/20 dark:border-slate-800 relative overflow-hidden transition-colors">
         <div className="relative z-10 max-w-3xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-blue-200 text-xs font-semibold mb-3 border border-white/10">
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-xs rounded-full text-blue-200 text-xs font-semibold mb-3 border border-white/10">
             <Users className="w-3.5 h-3.5 text-blue-300" />
             <span>Thapar City Communities</span>
           </div>
 
-          <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-            Connect with your hometown peers.
+          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+            Connect with your hometown peers
           </h1>
 
           <p className="text-slate-200 text-sm sm:text-base mt-2 font-normal leading-relaxed">
@@ -317,8 +315,8 @@ export default function CommunitiesPage({
           </p>
 
           {/* User's current community status pill */}
-          <div className="mt-5 inline-flex items-center gap-3 bg-white/15 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/20 text-xs">
-            <span className="text-blue-200 font-medium">Your Active Community:</span>
+          <div className="mt-5 inline-flex items-center gap-3 bg-white/10 backdrop-blur-xs px-4 py-2 rounded-xl border border-white/15 text-xs">
+            <span className="text-blue-200 font-medium">Your active community:</span>
             {user?.joinedCommunity ? (
               <span className="font-bold text-white flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
@@ -338,7 +336,7 @@ export default function CommunitiesPage({
         <div className="lg:col-span-5 space-y-4">
           
           {/* Search & State Filters */}
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-4 sm:p-5 shadow-xs space-y-3 transition-colors">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-5 shadow-xs space-y-3 transition-colors">
             <div className="relative">
               <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
@@ -369,28 +367,28 @@ export default function CommunitiesPage({
             {/* Add Custom Community Hub Trigger Button */}
             <button
               onClick={() => handleOpenCreateModal(searchQuery)}
-              className="w-full py-2.5 px-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-[0.98]"
+              className="w-full py-2.5 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer active:scale-[0.98]"
             >
               <Plus className="w-4 h-4" />
-              <span>Can't find your city? Add Community Hub</span>
+              <span>Can't find your city? Add community hub</span>
             </button>
           </div>
 
           {/* Communities List */}
           <div className="space-y-3 max-h-[640px] overflow-y-auto pr-1">
             {filteredCommunities.length === 0 ? (
-              <div className="text-center py-8 bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-300 dark:border-slate-800 p-6 space-y-3">
+              <div className="text-center py-8 bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 p-6 space-y-3">
                 <Building2 className="w-8 h-8 text-slate-400 dark:text-slate-500 mx-auto" />
                 <div>
                   <p className="text-sm font-bold text-slate-700 dark:text-slate-300">No community found for "{searchQuery}"</p>
-                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Be the first to start a hub for your hometown!</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Be the first to start a hub for your hometown.</p>
                 </div>
                 <button
                   onClick={() => handleOpenCreateModal(searchQuery)}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm inline-flex items-center gap-1.5 cursor-pointer"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs inline-flex items-center gap-1.5 cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>Add "{searchQuery || 'New City'}" as Hub</span>
+                  <span>Add "{searchQuery || 'New city'}" as hub</span>
                 </button>
               </div>
             ) : (
@@ -404,8 +402,8 @@ export default function CommunitiesPage({
                     onClick={() => setSelectedCommunityId(c.id)}
                     className={`p-4 sm:p-5 rounded-2xl border cursor-pointer transition-all ${
                       isSelected
-                        ? 'bg-blue-50/70 dark:bg-blue-950/60 border-blue-400 dark:border-blue-500 shadow-sm ring-1 ring-blue-400/50'
-                        : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-xs'
+                        ? 'bg-blue-50/70 dark:bg-blue-950/60 border-blue-500 dark:border-blue-500 shadow-2xs ring-1 ring-blue-500/30'
+                        : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-2xs'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -447,8 +445,8 @@ export default function CommunitiesPage({
                     </div>
 
                     <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                      <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wider">
-                        Cab • Bus • Train Rides
+                      <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold">
+                        Cab • Bus • Train rides
                       </span>
                       <button
                         type="button"
@@ -458,7 +456,7 @@ export default function CommunitiesPage({
                         }}
                         className="px-2.5 py-1 bg-blue-50 dark:bg-blue-950/70 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 text-blue-700 dark:text-blue-300 text-[11px] font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
                       >
-                        <span>Open City Page</span>
+                        <span>Open city page</span>
                         <ArrowRight className="w-3 h-3" />
                       </button>
                     </div>
@@ -473,16 +471,16 @@ export default function CommunitiesPage({
         <div className="lg:col-span-7 space-y-6">
           
           {/* Community Header Card */}
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-6 sm:p-8 shadow-xs transition-colors">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8 shadow-xs transition-colors">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-6">
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-indigo-950/70 border border-blue-200 dark:border-slate-700 flex items-center justify-center text-3xl shadow-xs">
+                <div className="w-16 h-16 rounded-2xl bg-blue-50 dark:bg-slate-800 border border-blue-100 dark:border-slate-700 flex items-center justify-center text-3xl shadow-2xs">
                   {activeCommunity.icon}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
                     <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-                      {activeCommunity.name} Community
+                      {activeCommunity.name} community
                     </h2>
                   </div>
                   <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
@@ -508,9 +506,9 @@ export default function CommunitiesPage({
                 ) : (
                   <button
                     onClick={() => onJoinCommunity(activeCommunity.id)}
-                    className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs rounded-xl shadow-md shadow-blue-500/25 transition-all flex items-center gap-1.5 cursor-pointer active:scale-[0.98]"
+                    className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-[0.98]"
                   >
-                    <Plus className="w-4 h-4" /> Join Community
+                    <Plus className="w-4 h-4" /> Join community
                   </button>
                 )}
               </div>
@@ -518,13 +516,13 @@ export default function CommunitiesPage({
 
             {/* Quick Metrics & Travel Action */}
             <div className="pt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 border border-slate-100 dark:border-slate-800">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Total Enrolled</span>
-                <p className="text-lg font-black text-slate-900 dark:text-white mt-0.5">{activeCommunity.membersCount} Students</p>
+              <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-4 border border-slate-200/60 dark:border-slate-800">
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Total enrolled</span>
+                <p className="text-lg font-black text-slate-900 dark:text-white mt-0.5">{activeCommunity.membersCount} students</p>
               </div>
 
-              <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 border border-slate-100 dark:border-slate-800">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Popular Commute Mode</span>
+              <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-4 border border-slate-200/60 dark:border-slate-800">
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Popular commute mode</span>
                 <p className="text-xs font-bold text-slate-800 dark:text-slate-200 mt-1 truncate">{activeCommunity.popularTransport}</p>
               </div>
             </div>
@@ -536,10 +534,10 @@ export default function CommunitiesPage({
               </p>
               <button
                 onClick={() => onOpenCityHub ? onOpenCityHub(activeCommunity) : onSelectCommunityTravel(activeCommunity)}
-                className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs rounded-xl shadow-md shadow-blue-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-[0.98]"
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-[0.98]"
               >
                 <Car className="w-4 h-4" />
-                <span>Open {activeCommunity.name} Travel Page (Cab, Bus, Train)</span>
+                <span>Open {activeCommunity.name} travel page (cab, bus, train)</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -550,7 +548,7 @@ export default function CommunitiesPage({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <h3 className="font-extrabold text-lg text-slate-900 dark:text-white">
-                  Community Board & Ride Requests
+                  Community board & ride requests
                 </h3>
                 <span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2.5 py-0.5 rounded-full font-bold">
                   {activePosts.length} posts
@@ -561,26 +559,26 @@ export default function CommunitiesPage({
                 !isPosting && (
                   <button
                     onClick={() => setIsPosting(true)}
-                    className="px-3.5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                    className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
-                    <span>Post Notice / Carpool</span>
+                    <span>Post notice / carpool</span>
                   </button>
                 )
               ) : (
                 <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700">
                   <Lock className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Members Only</span>
+                  <span>Members only</span>
                 </div>
               )}
             </div>
 
             {/* Post Creator Box */}
             {isUserJoined && isPosting && (
-              <form onSubmit={handlePostSubmit} className="bg-white dark:bg-slate-900 rounded-3xl border border-blue-200 dark:border-blue-800 p-5 shadow-xs space-y-3 animate-in fade-in transition-colors">
+              <form onSubmit={handlePostSubmit} className="bg-white dark:bg-slate-900 rounded-2xl border border-blue-200 dark:border-blue-800 p-5 shadow-xs space-y-3 animate-in fade-in transition-colors">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-blue-700 dark:text-blue-300 flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" /> Post in {activeCommunity.name} Community
+                    <Sparkles className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" /> Post in {activeCommunity.name} community
                   </span>
                   <button
                     type="button"
@@ -594,7 +592,7 @@ export default function CommunitiesPage({
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <input
                     type="text"
-                    placeholder="Short Title (e.g. Innova cab to Jalandhar)"
+                    placeholder="Short title (e.g. Innova cab to Jalandhar)"
                     value={postTitle}
                     onChange={(e) => setPostTitle(e.target.value)}
                     required
@@ -631,10 +629,10 @@ export default function CommunitiesPage({
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl flex items-center gap-1 shadow-xs cursor-pointer"
+                    className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl flex items-center gap-1 shadow-xs cursor-pointer"
                   >
                     <Send className="w-3.5 h-3.5" />
-                    <span>Publish Post</span>
+                    <span>Publish post</span>
                   </button>
                 </div>
               </form>
@@ -642,21 +640,21 @@ export default function CommunitiesPage({
 
             {/* Posts Stream or Locked Screen */}
             {!isUserJoined ? (
-              <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-8 sm:p-10 text-white text-center shadow-xl border border-indigo-900/50 space-y-6 animate-in fade-in">
-                <div className="w-16 h-16 rounded-3xl bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 flex items-center justify-center mx-auto shadow-inner">
-                  <Lock className="w-8 h-8 text-indigo-300" />
+              <div className="bg-[#10264E] dark:bg-[#0c1e3d] rounded-2xl p-8 sm:p-10 text-white text-center shadow-xs border border-slate-800/30 dark:border-slate-800 space-y-6 animate-in fade-in">
+                <div className="w-16 h-16 rounded-2xl bg-white/10 border border-white/20 text-white flex items-center justify-center mx-auto shadow-inner">
+                  <Lock className="w-8 h-8 text-white" />
                 </div>
                 <div className="max-w-md mx-auto space-y-2">
                   <h3 className="text-xl sm:text-2xl font-black tracking-tight text-white">
-                    {activeCommunity.name} Community Hub is Private
+                    {activeCommunity.name} community hub is private
                   </h3>
                   <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                    Under Thapar Hometown Privacy Policy, community discussion boards, carpools, and train cohort notices are restricted exclusively to enrolled members of <strong>{activeCommunity.name}</strong>.
+                    Under Thapar hometown privacy policy, community discussion boards, carpools, and train cohort notices are restricted exclusively to enrolled members of <strong>{activeCommunity.name}</strong>.
                   </p>
                 </div>
 
                 {user?.joinedCommunity ? (
-                  <div className="bg-white/10 backdrop-blur-md rounded-2xl p-5 max-w-md mx-auto border border-white/15 text-xs text-slate-200 space-y-3">
+                  <div className="bg-white/10 backdrop-blur-xs rounded-xl p-5 max-w-md mx-auto border border-white/15 text-xs text-slate-200 space-y-3">
                     <p className="leading-relaxed">
                       You are currently enrolled in the <strong>{communities.find(c => c.id === user.joinedCommunity)?.name || 'another'} Community</strong>.
                     </p>
@@ -666,7 +664,7 @@ export default function CommunitiesPage({
                     <button
                       type="button"
                       onClick={() => setShowSwitchConfirm(true)}
-                      className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                      className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <span>Switch to {activeCommunity.name} Community</span>
                       <ArrowRight className="w-4 h-4" />
@@ -677,10 +675,10 @@ export default function CommunitiesPage({
                     <button
                       type="button"
                       onClick={() => onJoinCommunity(activeCommunity.id)}
-                      className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-blue-500/30 transition-all inline-flex items-center gap-2 cursor-pointer"
+                      className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all inline-flex items-center gap-2 cursor-pointer"
                     >
                       <Plus className="w-4 h-4" />
-                      <span>Join {activeCommunity.name} to Unlock Board & Notices</span>
+                      <span>Join {activeCommunity.name} to unlock board & notices</span>
                     </button>
                   </div>
                 )}
@@ -693,7 +691,7 @@ export default function CommunitiesPage({
                   </div>
                 )}
                 {activePosts.length === 0 ? (
-                  <div className="bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 p-8 text-center space-y-2">
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-8 text-center space-y-2">
                     <MessageSquare className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto" />
                     <p className="text-sm font-bold text-slate-700 dark:text-slate-200">No community notices yet</p>
                     <p className="text-xs text-slate-400 dark:text-slate-500">
@@ -703,7 +701,7 @@ export default function CommunitiesPage({
                       onClick={() => setIsPosting(true)}
                       className="mt-2 inline-flex items-center gap-1 px-3 py-1.5 bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-xs font-bold rounded-xl hover:bg-blue-100 cursor-pointer"
                     >
-                      <Plus className="w-3.5 h-3.5" /> Create First Post
+                      <Plus className="w-3.5 h-3.5" /> Create first post
                     </button>
                   </div>
                 ) : (
@@ -849,8 +847,8 @@ export default function CommunitiesPage({
 
       {/* Modal: Create New Community Hub */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-100 dark:border-slate-800 max-h-[90vh] overflow-y-auto space-y-5 transition-colors">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/75 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full p-6 sm:p-8 shadow-xl border border-slate-200 dark:border-slate-800 max-h-[90vh] overflow-y-auto space-y-5 transition-colors">
             
             {/* Modal Header */}
             <div className="flex items-start justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
@@ -860,7 +858,7 @@ export default function CommunitiesPage({
                   <span>TIET City Network</span>
                 </div>
                 <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
-                  Add Hometown Community Hub
+                  Add hometown community hub
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                   Start a hub for students traveling between Thapar and your hometown.

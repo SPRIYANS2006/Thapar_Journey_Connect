@@ -422,7 +422,7 @@ router.post('/:id/rides', async (req, res, next) => {
       date: date.trim(),
       time: time.trim(),
       mode: selectedMode,
-      pickup_point: (pickupPoint && pickupPoint.trim()) || 'Main Gate (Near Executive Mess)',
+      pickup_point: mode === 'Cab' ? 'Main Gate (Near Executive Mess)' : (pickupPoint && pickupPoint.trim()) || 'Main Gate (Near Executive Mess)',
       total_fare: fareNum,
       max_capacity: capacityNum,
       current_members_count: 1,
@@ -761,7 +761,6 @@ router.get('/:id/slots', async (req, res, next) => {
         const isFillingFast = seatsFilled >= 2 && !isFull;
 
         const totalFareNum = ride ? ride.total_fare : defaultCabFare;
-        const perPersonFare = seatsFilled > 0 ? Math.round(totalFareNum / seatsFilled) : Math.round(totalFareNum / maxSeats);
 
         const slotDest = ride
           ? ride.destination
@@ -790,7 +789,7 @@ router.get('/:id/slots', async (req, res, next) => {
           isJoined,
           isPast,
           isFillingFast,
-          estimatedFarePerPerson: perPersonFare,
+          estimatedFarePerPerson: null,
           totalFare: totalFareNum,
           rideId: ride ? ride.id : null,
           status: ride ? ride.status : 'Open',
@@ -841,7 +840,7 @@ router.post('/:id/slots/join', async (req, res, next) => {
       );
     }
 
-    const { date, time, destination, pickupPoint, direction } = req.body;
+    const { date, time, destination, direction } = req.body;
     if (!time) {
       throw new HttpError(400, 'Departure time is required.');
     }
@@ -863,13 +862,8 @@ router.post('/:id/slots/join', async (req, res, next) => {
     const cityLandmark = (destination && destination.trim()) || `${community.name} (City Center)`;
     const resolvedOrigin = isReturn ? cityLandmark : 'Thapar Campus (Main Gate)';
     const resolvedDest = isReturn ? 'Thapar Campus (Main Gate)' : cityLandmark;
-    const defaultPickup = isReturn
-      ? `${community.name} (Central Terminal / Station Exit)`
-      : 'Main Gate (Near Executive Mess)';
-    const resolvedPickup = (pickupPoint && pickupPoint.trim()) || defaultPickup;
+    const resolvedPickup = 'Main Gate (Near Executive Mess)';
 
-    const distKm = parseInt(community.distance_from_thapar, 10) || 200;
-    const defaultFare = Math.round(distKm * 12);
 
     const slotKey = isReturn
       ? `${community.id}_ret_${travelDate}_${time}_Cab`
@@ -1017,7 +1011,7 @@ router.post('/:id/slots/join', async (req, res, next) => {
         time,
         mode: selectedMode,
         pickup_point: resolvedPickup,
-        total_fare: defaultFare,
+        total_fare: 0,
         max_capacity: maxCapacity,
         current_members_count: 1,
         transit_details: 'Sedan AC Cab via Highway',

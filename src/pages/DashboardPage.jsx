@@ -40,7 +40,6 @@ function getCurrentSlotTime() {
 }
 
 export default function DashboardPage({ 
-  user, 
   onNavigateMyJourneys,
   communities: _communities = [], 
   onNavigateToCommunities, 
@@ -75,7 +74,7 @@ export default function DashboardPage({
   const [selectedDate, setSelectedDate] = useState(dateOptions[0].value);
   const [selectedTime, setSelectedTime] = useState(() => getCurrentSlotTime());
   const [selectedVehicle, setSelectedVehicle] = useState('Shared Cab');
-  const selectedHostel = user?.hostel || 'Main Gate (Near Executive Mess)';
+  const selectedHostel = 'Main Gate (Near Executive Mess)';
   const direction = 'departing';
 
   // Slots State
@@ -163,7 +162,7 @@ export default function DashboardPage({
     return subset.map((s) => ({
       ...s,
       time12: s.time12 || s.time,
-      farePerRider: Number.isFinite(s.estimatedFarePerPerson) ? `₹${s.estimatedFarePerPerson} estimated` : 'Fare unavailable'
+
     }));
   }, [slots, selectedTime]);
 
@@ -337,7 +336,6 @@ export default function DashboardPage({
                             </div>
                             <div className="text-[10px] text-slate-400 dark:text-slate-500">{dest.distance}</div>
                           </div>
-                          <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{dest.avgCabFare}</span>
                         </button>
                       ))}
                     </div>
@@ -520,15 +518,7 @@ export default function DashboardPage({
                           <Clock className="w-4 h-4 text-blue-600" />
                           <span>{slot.time12 || slot.time}</span>
                         </span>
-                        <div className="text-right">
-                          <span className="font-extrabold text-slate-900 dark:text-white text-sm">
-                            {slot.farePerRider || 'Fare unavailable'}
-                          </span>
-                          <span className="text-[10px] text-slate-400 dark:text-slate-500 block">
-                            per rider
-                          </span>
                         </div>
-                      </div>
                       <div className="text-xs text-slate-600 dark:text-slate-400 font-medium mt-2">
                         {slot.vehicle === 'Shared Cab' ? 'Cab' : 'Auto'} • {slot.seatsFilled ?? 0} / {slot.maxSeats} seats
                       </div>

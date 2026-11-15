@@ -23,15 +23,6 @@ import AddFriendModal from '../components/AddFriendModal';
 import { formatTime24to12 } from '../utils/timeSlots';
 import { api } from '../services/api';
 
-const PICKUP_POINTS = [
-  'Main Gate (Near Executive Mess)',
-  'Hostel-J Gate',
-  'Hostel-M / Anantam Roundabout',
-  'Hostel-PG Quad',
-  'COS Complex Gate',
-  'Library Forecourt',
-  'Nirvana Roundabout'
-];
 
 export default function GroupDetailsPage({ 
   group, 
@@ -41,7 +32,6 @@ export default function GroupDetailsPage({
   onConfirmJourney,
   onLeaveGroup,
   onJoinGroup,
-  onChangePickupPoint,
   onRescheduleSuccess,
   triggerToast
 }) {
@@ -53,7 +43,6 @@ export default function GroupDetailsPage({
   const [showSafety, setShowSafety] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
-  const [isUpdatingPickup, setIsUpdatingPickup] = useState(false);
   const [isAddFriendOpen, setIsAddFriendOpen] = useState(false);
   const [friendActionLoading, setFriendActionLoading] = useState(false);
 
@@ -167,19 +156,6 @@ export default function GroupDetailsPage({
   const isLateCancellation = !group.isCommunityRide && hoursLeft >= 0 && hoursLeft <= 4;
   const isCriticalCancellation = !group.isCommunityRide && hoursLeft >= 0 && hoursLeft <= 0.5;
 
-  const handlePickupChange = async (e) => {
-    const newPoint = e.target.value;
-    if (!newPoint || newPoint === group.pickupPoint) return;
-    setIsUpdatingPickup(true);
-    try {
-      if (onChangePickupPoint) {
-        await onChangePickupPoint(group.id, newPoint);
-      }
-    } finally {
-      setIsUpdatingPickup(false);
-    }
-  };
-
   const getLeaveConfirmMessage = () => {
     if (group.isCommunityRide) return 'Leave this community ride? No automated reliability deduction applies. Please let your co-riders know. You can report exceptional circumstances under Safety & privacy.';
     if (isCriticalCancellation) {
@@ -215,7 +191,7 @@ export default function GroupDetailsPage({
         </div>
       </div>
 
-      <FareEstimate group={group} />
+      <FareEstimate key={group.id} group={group} currentUser={currentUser} onSaved={onRescheduleSuccess} />
 
       {/* Group Header Card */}
       <div className="bg-[#10264E] dark:bg-[#0c1e3d] text-white rounded-2xl p-6 sm:p-8 shadow-xs relative overflow-hidden border border-slate-800/20 dark:border-slate-800 transition-colors">
@@ -410,39 +386,14 @@ export default function GroupDetailsPage({
               <span className="text-xs font-bold text-blue-600 dark:text-blue-400">
                 Pickup point
               </span>
-              {isAdmin && (
-                <span className="text-[10px] font-bold bg-indigo-100 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-full">
-                  Admin editable
-                </span>
-              )}
             </div>
 
-            {isAdmin ? (
-              <div className="mt-1 flex items-center gap-3">
-                <select
-                  value={group.pickupPoint}
-                  onChange={handlePickupChange}
-                  disabled={isUpdatingPickup}
-                  className="bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                >
-                  {PICKUP_POINTS.map((pt) => (
-                    <option key={pt} value={pt} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-                      {pt}
-                    </option>
-                  ))}
-                </select>
-                {isUpdatingPickup && (
-                  <span className="text-xs text-slate-400">Updating...</span>
-                )}
-              </div>
-            ) : (
               <h3 className="font-bold text-slate-900 dark:text-white text-lg mt-0.5">
                 {group.pickupPoint}
               </h3>
-            )}
 
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Optimized for member hostels. All members meet here 5 minutes prior to departure.
+              All members meet at Main Gate 5 minutes prior to departure.
             </p>
           </div>
         </div>

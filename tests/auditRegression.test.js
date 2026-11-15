@@ -138,6 +138,27 @@ describe('Audit regressions', () => {
       assert.equal(trip.members.find(member => member.user_id === user.id).hostel, 'Hostel J');
     }
   });
+  it('only the cab admin sets a fare and legacy estimates stay hidden', async () => {
+    await group();
+    let response = await request(app).get('/api/groups/original').set('Authorization', 'Bearer ' + token);
+    assert.equal(response.body.adminFare, null);
+    response = await post('/api/groups/original/fare', { totalFare: 600 });
+    assert.equal(response.status, 200);
+    assert.equal(response.body.group.adminFare, 600);
+    for (const totalFare of [0, -1, '600', 100001]) assert.equal((await post('/api/groups/original/fare', {totalFare})).status, 400);
+    const other = await User.create({ id: 'other', name: 'Other', email: 'other@thapar.edu' });
+    response = await request(app).post('/api/groups/original/fare').set('Authorization', 'Bearer ' + generateSessionToken(other)).send({totalFare: 900});
+    assert.equal(response.status, 403);
+    await Group.updateOne({id: 'original'}, {transport: 'Shared Auto'});
+    assert.equal((await post('/api/groups/original/fare', {totalFare: 500})).status, 400);
+  });
+  it('community cab admin sets fare and pickup is always Main Gate', async () => {
+    await CityRide.create({ id: 'cr_fare', community_id: 'del', community_name: 'Delhi', creator_id: user.id, creator_name: user.name, destination: 'Delhi', date, time: '12:00', mode: 'Cab', pickup_point: 'Hostel J', total_fare: 999, members: [{user_id:user.id, name:user.name}] });
+    const response = await post('/api/groups/cr_fare/fare', {totalFare: 700});
+    assert.equal(response.status, 200);
+    assert.equal(response.body.group.adminFare, 700);
+    assert.equal(response.body.group.pickupPoint, 'Main Gate (Near Executive Mess)');
+  });
   it('profile settings survive a new session fetch', async () => {
     const saved = await request(app).put('/api/auth/profile').set('Authorization', `Bearer ${token}`).send({ rollNumber: '1234', preferredTransport: 'Auto', timeWindow: 'Every 30 Minutes', frequentRoutes: ['Delhi'], rideNotifications: false });
     assert.equal(saved.status, 200);

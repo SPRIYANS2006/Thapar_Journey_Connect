@@ -332,15 +332,6 @@ export default function SlotPicker({
                       </div>
                     </div>
 
-                    <div className="text-right">
-                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 block">
-                        Fare
-                      </span>
-                      <div className="text-base font-black text-blue-700 dark:text-blue-400 leading-none">
-                        ₹{slot.estimatedFarePerPerson}{' '}
-                        <span className="text-[10px] font-normal text-slate-500 dark:text-slate-400">/ rider</span>
-                      </div>
-                    </div>
                   </div>
 
                   {/* Co-riders Avatars */}

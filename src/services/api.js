@@ -104,6 +104,7 @@ async function request(endpoint, options = {}) {
 }
 
 export const api = {
+  setCabFare: (id, totalFare) => request('/groups/' + id + '/fare', { method: 'POST', body: JSON.stringify({ totalFare }) }),
   getMyJourneyFeed: options => request('/my-journeys', options),
   submitSafetyReport: data => request('/safety/reports', { method: 'POST', body: JSON.stringify(data) }),
   getSafetyReports: () => request('/safety/reports'),

@@ -27,15 +27,6 @@ export function generateTenMinuteSlots(dateStr, destObj, vehicle, existingGroups
     }
   }
 
-  // Parse destination base fare
-  let baseFareNum = 200;
-  if (destObj?.avg_cab_fare) {
-    const match = String(destObj.avg_cab_fare).match(/\d[\d,]*/);
-    if (match) {
-      baseFareNum = parseInt(match[0].replace(/,/g, ''), 10) || 200;
-    }
-  }
-
   for (let h = 0; h < 24; h++) {
     for (let m = 0; m < 60; m += 15) {
       const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
@@ -61,9 +52,6 @@ export function generateTenMinuteSlots(dateStr, destObj, vehicle, existingGroups
       );
 
       const isFillingFast = seatsFilled >= 2 && !isFull;
-      const perPersonFare = seatsFilled > 0
-        ? Math.round(baseFareNum / seatsFilled)
-        : Math.round(baseFareNum / maxSeats);
 
       slots.push({
         slotKey,
@@ -80,8 +68,8 @@ export function generateTenMinuteSlots(dateStr, destObj, vehicle, existingGroups
         isJoined,
         isPast,
         isFillingFast,
-        estimatedFarePerPerson: perPersonFare,
-        totalFare: baseFareNum,
+        estimatedFarePerPerson: null,
+        totalFare: null,
         groupId: group ? group.id : null,
         status: group ? group.status : 'Open',
         members: (group?.members || []).map((mem) => {
@@ -206,7 +194,7 @@ export async function joinSlot(req, res, next) {
       ? `${destinationId}_ret_${travelDate}_${time}_${selectedVehicle}`
       : `${destinationId}_${travelDate}_${time}_${selectedVehicle}`;
     const maxCapacity = selectedVehicle === 'Shared Auto' ? 3 : 4;
-    const resolvedPickupPoint = pickupPoint || defaultPickup;
+    const resolvedPickupPoint = selectedVehicle === 'Shared Cab' ? 'Main Gate (Near Executive Mess)' : pickupPoint || defaultPickup;
 
     // Single-Ride Policy check across regular Groups & City Community Rides
     const activeGroup = await Group.findOne({
@@ -540,7 +528,7 @@ async function rescheduleGroupSlotInternal({
   const defaultPickup = isTargetReturn
     ? `${destName} (Arrivals / Main Exit)`
     : 'Main Gate (Near Executive Mess)';
-  const resolvedPickup = targetPickupPoint || oldGroup.pickup_point || defaultPickup;
+  const resolvedPickup = oldGroup.transport === 'Shared Cab' ? 'Main Gate (Near Executive Mess)' : targetPickupPoint || oldGroup.pickup_point || defaultPickup;
 
   // Step 1: Join or create target slot ATOMICALLY first
   let targetGroup = await Group.findOne({

@@ -50,7 +50,8 @@ function serializeCityRideAsGroup(ride, viewingUserId) {
     origin: ride.origin || 'Thapar Campus (Main Gate)',
     direction: ride.direction || 'departing',
     maxMembers: ride.max_capacity || 4,
-    pickupPoint: ride.pickup_point,
+    pickupPoint: ride.mode === 'Cab' ? 'Main Gate (Near Executive Mess)' : ride.pickup_point,
+    adminFare: ride.mode === 'Cab' ? ride.admin_fare ?? null : null,
     adminId: ride.creator_id,
     creatorId: ride.creator_id,
     isCommunityRide: true,
@@ -463,6 +464,7 @@ router.post('/:id/confirm', async (req, res, next) => {
 const handlePickupPointUpdate = async (req, res, next) => {
   try {
     const { pickupPoint } = req.body;
+    if (pickupPoint !== 'Main Gate (Near Executive Mess)') throw new HttpError(400, 'Pickup is Main Gate only.');
     if (!pickupPoint || !ALLOWED_PICKUP_POINTS.includes(pickupPoint.trim())) {
       throw new HttpError(
         400,
@@ -495,6 +497,24 @@ const handlePickupPointUpdate = async (req, res, next) => {
     next(err);
   }
 };
+
+router.post('/:id/fare', async (req, res, next) => {
+  try {
+    const { group, cityRide } = await findGroupOrCityRide(req.params.id);
+    const ride = group || cityRide;
+    if (!ride) throw new HttpError(404, 'Group not found.');
+    const isCab = group ? group.transport === 'Shared Cab' : ride.mode === 'Cab';
+    if (!isCab) throw new HttpError(400, 'Fares can only be set for cabs.');
+    if ((group ? ride.admin_id : ride.creator_id) !== req.user.id) throw new HttpError(403, 'Only the group admin can set the cab fare.');
+    if (!['Open', 'Full', 'Confirmed'].includes(ride.status)) throw new HttpError(409, 'This ride is closed.');
+    const fare = req.body.totalFare;
+    if (typeof fare !== 'number' || !Number.isFinite(fare) || fare <= 0 || fare > 100000 || Math.round(fare * 100) !== fare * 100) throw new HttpError(400, 'Enter a valid total cab fare up to ₹100,000.');
+    ride.admin_fare = fare;
+    await ride.save();
+    notifyGroupMembersUpdated(ride);
+    res.json({ success: true, group: group ? serializeGroup(ride, req.user.id) : serializeCityRideAsGroup(ride, req.user.id) });
+  } catch (error) { next(error); }
+});
 
 router.post('/:id/pickup-point', handlePickupPointUpdate);
 router.patch('/:id/pickup-point', handlePickupPointUpdate);

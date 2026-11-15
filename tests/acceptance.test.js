@@ -463,7 +463,7 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
   });
 
   // 15. Pickup-point update accepts both POST and PATCH
-  it('15. Pickup-point update accepts both POST and PATCH methods', async () => {
+  it('15. Pickup-point update rejects locations outside Main Gate', async () => {
     const { user: admin, token: adminToken } = await createTestStudent({ name: 'Admin Student' });
     const group = await Group.create({
       id: 701,
@@ -483,8 +483,7 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ pickupPoint: 'Gate 1' });
 
-    assert.equal(resPost.status, 200);
-    assert.equal(resPost.body.pickupPoint, 'Gate 1');
+    assert.equal(resPost.status, 400);
 
     // Test PATCH
     const resPatch = await request(app)
@@ -492,8 +491,7 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ pickupPoint: 'Gate 2' });
 
-    assert.equal(resPatch.status, 200);
-    assert.equal(resPatch.body.pickupPoint, 'Gate 2');
+    assert.equal(resPatch.status, 400);
   });
 
   // 16. Ride rating: requires { targetUserId, rating }, only on Completed rides, enforces 1 rating per co-rider per ride
@@ -1544,7 +1542,7 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     assert.equal(slot10AM.isFull, false);
     assert.equal(slot10AM.isJoined, false);
     assert.equal(slot10AM.rideId, null);
-    assert.ok(slot10AM.estimatedFarePerPerson > 0, 'Estimated per person fare must be calculated');
+    assert.equal(slot10AM.estimatedFarePerPerson, null);
   });
 
   // 45. City Community Slots: Atomic slot join, lazy group creation with sequential Group #id, and Single-Ride Policy enforcement

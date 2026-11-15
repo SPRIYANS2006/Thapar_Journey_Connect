@@ -1,9 +1,12 @@
+import { mutationLimit } from '../middleware/abuseLimit.js';
+import { transactionalRouter } from '../services/transactions.js';
+import { evictUserFromRoom } from '../services/notifications.js';
 import express from 'express';
 import crypto from 'node:crypto';
 import { Community, CommunityPost, User, CityRide, Group, getNextGroupId } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { HttpError } from '../middleware/errors.js';
-import { normalizeDateStr, getHoursUntilDeparture } from '../utils/time.js';
+import { normalizeDateStr, getHoursUntilDeparture, validateTravelDateTime } from '../utils/time.js';
 import { notifyUser, notifyGroupMembersUpdated } from '../services/notifications.js';
 import {
   validateCommunityPost,
@@ -15,10 +18,10 @@ import {
   serializeCityRide
 } from '../services/serializers.js';
 
-const router = express.Router();
+const router = transactionalRouter(express.Router());
 
 // All community routes require authentication
-router.use(requireAuth);
+router.use(requireAuth, mutationLimit);
 
 // 1. List all communities
 router.get('/', async (req, res, next) => {
@@ -374,6 +377,8 @@ router.post('/:id/rides', async (req, res, next) => {
       throw new HttpError(400, 'Bus feature has been removed. Only Cab and Train modes are supported.');
     }
 
+    const dateValidation = validateTravelDateTime(date, time);
+    if (!dateValidation.valid) throw new HttpError(400, dateValidation.error);
     // Single-Ride Policy: Check if user is already in an active Group or CityRide
     const activeExistingGroup = await Group.findOne({
       status: { $in: ['Open', 'Confirmed'] },
@@ -402,6 +407,7 @@ router.post('/:id/rides', async (req, res, next) => {
 
     const defaultCapacity = selectedMode === 'Cab' ? 4 : 6;
     const capacityNum = Number(maxCapacity) > 0 ? Number(maxCapacity) : defaultCapacity;
+    if (!Number.isInteger(capacityNum) || capacityNum > (selectedMode === 'Cab' ? 4 : 100)) throw new HttpError(400, 'Invalid vehicle capacity.');
     const fareNum = Number(totalFare) >= 0 ? Number(totalFare) : 0;
     const groupId = await getNextGroupId();
 
@@ -468,6 +474,7 @@ router.post('/:id/rides/:rideId/join', async (req, res, next) => {
       );
     }
 
+    if (!['Open', 'Full'].includes(ride.status)) throw new HttpError(409, 'This ride is closed.');
     const isMember = (ride.members || []).some((m) => m.user_id === req.user.id);
     if (isMember) {
       throw new HttpError(400, 'You are already a member of this ride.');
@@ -587,11 +594,14 @@ router.post('/:id/rides/:rideId/leave', async (req, res, next) => {
     }
 
     const leavingWasAdmin = ride.members[memberIndex].role === 'Admin';
-    ride.members.splice(memberIndex, 1);
+    evictUserFromRoom(req.user.id, `group_${ride.id}`);
+    ride.members = ride.members.filter(m => m.user_id !== req.user.id && m.added_by !== req.user.id);
     ride.current_members_count = ride.members.length;
 
     if (leavingWasAdmin && ride.members.length > 0) {
       ride.members[0].role = 'Admin';
+      ride.creator_id = ride.members[0].user_id;
+      ride.creator_name = ride.members[0].name;
     }
 
     if (ride.members.length === 0) {
@@ -665,7 +675,11 @@ router.post('/:id/rides/:rideId/complete', async (req, res, next) => {
       throw new HttpError(400, 'This ride has already been marked as completed.');
     }
 
+    if (!['Open', 'Full', 'Confirmed'].includes(ride.status)) throw new HttpError(409, 'This ride is closed.');
+    if (getHoursUntilDeparture(ride.date, ride.time) > 0) throw new HttpError(400, 'Cannot complete a ride before departure.');
+
     ride.status = 'Completed';
+    ride.completed_by = req.user.id;
     await ride.save();
 
     const memberUserIds = (ride.members || []).map((m) => m.user_id).filter(Boolean);
@@ -712,7 +726,8 @@ router.get('/:id/slots', async (req, res, next) => {
       community_id: community.id,
       date: travelDate,
       status: { $in: ['Open', 'Confirmed', 'Full'] },
-      direction: isReturn ? 'returning' : { $in: ['departing', null] }
+      direction: isReturn ? 'returning' : { $in: ['departing', null] },
+      mode: 'Cab'
     };
 
     const existingRides = await CityRide.find(rideQuery).lean();
@@ -836,6 +851,8 @@ router.post('/:id/slots/join', async (req, res, next) => {
     const tripDirection = isReturn ? 'returning' : 'departing';
 
     // Departure time cannot be in past
+    const valid = validateTravelDateTime(travelDate, time);
+    if (!valid.valid || Number(time?.split(':')[1]) % 15 !== 0) throw new HttpError(400, valid.error || 'Select a 15-minute departure slot.');
     const hoursLeft = getHoursUntilDeparture(travelDate, time);
     if (hoursLeft < -5 / 60) {
       throw new HttpError(400, 'Cannot book a travel slot in the past.');
@@ -882,7 +899,8 @@ router.post('/:id/slots/join', async (req, res, next) => {
         activeExistingRide.slot_key === slotKey ||
         (activeExistingRide.community_id === community.id &&
           activeExistingRide.date === travelDate &&
-          activeExistingRide.time === time);
+          activeExistingRide.time === time &&
+          (activeExistingRide.direction || 'departing') === tripDirection);
 
       if (isAlreadyInThisSlot) {
         return res.json({

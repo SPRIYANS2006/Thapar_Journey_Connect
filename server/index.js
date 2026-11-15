@@ -13,6 +13,9 @@ import { User, Group, CityRide, CommunityGroup, TravelGroup } from './models/ind
 const PORT = process.env.PORT || 5000;
 
 async function bootstrap() {
+  if (process.env.NODE_ENV === 'production' && (!process.env.APP_ORIGIN || !process.env.GOOGLE_CLIENT_ID)) {
+    throw new Error('APP_ORIGIN and GOOGLE_CLIENT_ID are required in production.');
+  }
   // 1. Connect to MongoDB Atlas (Fail-fast in production)
   await connectDB();
 
@@ -40,7 +43,7 @@ async function bootstrap() {
   const io = new Server(server, {
     cors: {
       origin: (origin, callback) => {
-        if (!origin || socketOrigins.includes(origin) || origin.endsWith('.onrender.com')) {
+        if (!origin || socketOrigins.includes(origin)) {
           return callback(null, true);
         }
         if (process.env.NODE_ENV !== 'production') {
@@ -67,10 +70,11 @@ async function bootstrap() {
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
       const user = await User.findOne({ id: decoded.userId });
-      if (!user || user.token_version !== decoded.tokenVersion) {
+      if (!user || user.disabled || user.token_version !== decoded.tokenVersion) {
         return next(new Error('Authentication error: Session invalid or expired.'));
       }
       socket.user = user;
+      socket.sessionExpiresAt = decoded.exp * 1000;
       next();
     } catch {
       return next(new Error('Authentication error: Invalid token.'));
@@ -78,6 +82,15 @@ async function bootstrap() {
   });
 
   io.on('connection', (socket) => {
+    let expiryTimer;
+    const expireSession = () => {
+      const remaining = socket.sessionExpiresAt - Date.now();
+      if (remaining <= 0) return socket.disconnect(true);
+      expiryTimer = setTimeout(expireSession, Math.min(remaining, 2147483647));
+      expiryTimer.unref?.();
+    };
+    expireSession();
+    socket.on('disconnect', () => clearTimeout(expiryTimer));
     // Join private per-user notification room
     socket.join(`user_${socket.user.id}`);
 

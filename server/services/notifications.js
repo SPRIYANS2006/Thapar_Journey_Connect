@@ -1,3 +1,4 @@
+import { afterCommit } from './transactions.js';
 let ioInstance = null;
 
 export function setSocketIO(io) {
@@ -8,17 +9,33 @@ export function getSocketIO() {
   return ioInstance;
 }
 
+export function disconnectUserSessions(userId) {
+  ioInstance?.in(`user_${userId}`).disconnectSockets(true);
+}
+
 export function notifyUser(userId, event, payload) {
+  afterCommit(() => notifyUserNow(userId, event, payload));
+}
+
+function notifyUserNow(userId, event, payload) {
   if (!ioInstance || !userId) return;
   ioInstance.to(`user_${userId}`).emit(event, payload);
 }
 
 export function notifyGroup(groupId, event, payload) {
+  afterCommit(() => notifyGroupNow(groupId, event, payload));
+}
+
+function notifyGroupNow(groupId, event, payload) {
   if (!ioInstance || !groupId) return;
   ioInstance.to(`group_${groupId}`).emit(event, payload);
 }
 
 export function notifyGroupMembersUpdated(group) {
+  afterCommit(() => notifyGroupMembersUpdatedNow(group));
+}
+
+function notifyGroupMembersUpdatedNow(group) {
   if (!ioInstance || !group) return;
   const memberUserIds = (group.members || []).map((m) => m.user_id || m.userId || m.id);
   for (const uid of memberUserIds) {
@@ -36,6 +53,10 @@ export function notifyGroupMembersUpdated(group) {
 }
 
 export function evictUserFromRoom(userId, roomName) {
+  afterCommit(() => evictUserFromRoomNow(userId, roomName));
+}
+
+function evictUserFromRoomNow(userId, roomName) {
   if (!ioInstance || !userId || !roomName) return;
   try {
     const userRoom = ioInstance.sockets?.adapter?.rooms?.get(`user_${userId}`);

@@ -114,7 +114,7 @@ export default function MyJourneysPage({
 
                   <div className="space-y-1">
                     <h3 className="font-bold text-slate-900 dark:text-white text-base">
-                      Thapar → {group.destinationName || 'Destination'}
+                      {group.direction === 'returning' ? `${group.origin || 'Origin'} → Thapar` : `Thapar → ${group.destinationName || 'Destination'}`}
                     </h3>
                     <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
                       <span className="flex items-center gap-1">
@@ -145,10 +145,10 @@ export default function MyJourneysPage({
                 <div className="text-xs text-slate-600 dark:text-slate-300">
                   <div className="flex items-center gap-1">
                     <Car className="w-3.5 h-3.5 text-slate-400" />
-                    <span className="font-semibold">{group.vehicle || 'Cab'}</span>
+                    <span className="font-semibold">{group.transport || 'Vehicle unavailable'}</span>
                   </div>
                   <div className="mt-0.5">
-                    <strong className="text-slate-900 dark:text-white font-bold text-sm">₹{group.farePerPerson || group.totalFare || 350}</strong> <span className="text-[11px] text-slate-400">per rider</span>
+                    <strong className="text-slate-900 dark:text-white font-bold text-sm">{Number.isFinite(group.farePerPerson) ? `₹${group.farePerPerson} estimated` : 'Fare unavailable'}</strong> <span className="text-[11px] text-slate-400">per rider</span>
                   </div>
                 </div>
 
@@ -184,6 +184,8 @@ export default function MyJourneysPage({
 
                   <button
                     type="button"
+                    disabled={group.isCommunityRide || !['Open', 'Confirmed'].includes(group.status)}
+                    title={group.isCommunityRide ? 'Leave this community ride and choose another slot to change your travel.' : undefined}
                     onClick={() => setRescheduleGroup(group)}
                     className="px-3.5 py-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs rounded-xl transition-colors cursor-pointer flex items-center gap-1.5"
                   >
@@ -239,7 +241,8 @@ export default function MyJourneysPage({
 
                   <div className="space-y-1">
                     <h3 className="font-bold text-slate-900 dark:text-white text-base">
-                      Thapar → {trip.destinationName || 'Destination'}
+                      {trip.status === 'Completed' && !trip.completionVerified && <span className="block text-xs font-normal">Scheduled departure passed · arrival unverified</span>}
+                      {trip.direction === 'returning' ? `${trip.origin || 'Origin'} → Thapar` : `Thapar → ${trip.destinationName || 'Destination'}`}
                     </h3>
                     <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
                       <span className="flex items-center gap-1">
@@ -270,10 +273,10 @@ export default function MyJourneysPage({
                 <div className="text-xs text-slate-600 dark:text-slate-300">
                   <div className="flex items-center gap-1">
                     <Car className="w-3.5 h-3.5 text-slate-400" />
-                    <span className="font-semibold">{trip.vehicle || 'Cab'}</span>
+                    <span className="font-semibold">{trip.transport || 'Vehicle unavailable'}</span>
                   </div>
                   <div className="mt-0.5">
-                    <strong className="text-slate-900 dark:text-white font-bold text-sm">₹{trip.farePerPerson || 700}</strong> <span className="text-[11px] text-slate-400">per rider</span>
+                    <strong className="text-slate-900 dark:text-white font-bold text-sm">{Number.isFinite(trip.farePerPerson) ? `₹${trip.farePerPerson} estimated` : 'Fare unavailable'}</strong> <span className="text-[11px] text-slate-400">per rider</span>
                   </div>
                 </div>
 
@@ -285,7 +288,7 @@ export default function MyJourneysPage({
                       : 'bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800 flex items-center gap-1.5'
                   }`}>
                     {isCancelled ? <X className="w-3.5 h-3.5" /> : <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
-                    <span>{isCancelled ? 'Cancelled' : 'Confirmed'}</span>
+                    <span>{isCancelled ? 'Cancelled' : trip.completionVerified ? 'Completed by group' : 'Departure passed'}</span>
                   </span>
 
                   <button

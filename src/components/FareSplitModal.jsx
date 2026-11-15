@@ -1,7 +1,9 @@
+import { useModalFocus } from '../hooks/useModalFocus';
 import React, { useState } from 'react';
 import { X, Calculator, Check, Copy, Sparkles } from 'lucide-react';
 
 export default function FareSplitModal({ group, onClose, onShareToChat }) {
+  const dialogRef = useModalFocus(true, onClose);
   const [totalFare, setTotalFare] = useState(
     group?.destinationId === 'chd_airport' ? 1400 :
     group?.destinationId === 'del_airport' ? 5000 :
@@ -15,15 +17,14 @@ export default function FareSplitModal({ group, onClose, onShareToChat }) {
   const perPerson = Math.ceil(grandTotal / numMembers);
   const soloCost = grandTotal;
   const savings = Math.max(0, soloCost - perPerson);
-  const savingsPercent = Math.round((savings / soloCost) * 100);
+  const savingsPercent = soloCost > 0 ? Math.round((savings / soloCost) * 100) : 0;
 
   const handleCopy = () => {
     const text = `🚕 Fare Split for Group #${group.id} (${group.destinationName}):\n` +
       `• Total Fare: ₹${grandTotal} (split among ${numMembers} students)\n` +
       `• Your Share: ₹${perPerson} each\n` +
       `• Saved ₹${savings} (${savingsPercent}%) by sharing!`;
-    navigator.clipboard.writeText(text);
-    setCopied(true);
+    navigator.clipboard?.writeText(text).then(() => setCopied(true)).catch(() => setCopied(false));
     setTimeout(() => setCopied(false), 2000);
     if (onShareToChat) {
       onShareToChat(text);
@@ -31,7 +32,7 @@ export default function FareSplitModal({ group, onClose, onShareToChat }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-4">
+    <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1} className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in fade-in zoom-in-95 duration-200 transition-colors">
         
         {/* Header */}

@@ -240,7 +240,7 @@ npm run build
 ### 1. Prerequisites
 - **Node.js**: $\ge 22.0.0$
 - **npm**: $\ge 10.0.0$
-- **MongoDB Atlas Connection URI** (or local MongoDB)
+- **MongoDB Atlas Connection URI** (or a local MongoDB replica set; ride writes use transactions)
 
 ### 2. Installation
 ```bash
@@ -285,6 +285,8 @@ Ensure the following environment variables are set in your Render dashboard:
 - `SESSION_SECRET` (at least 32 characters)
 - `GOOGLE_CLIENT_ID`
 - `APP_ORIGIN` (your production frontend URL)
+
+Read [FIXES_AND_DEPLOYMENT.md](FIXES_AND_DEPLOYMENT.md) before deployment, including the required database credential rotation, staging checks, safety limitations and administrator setup. Tests use an isolated MongoDB replica set.
 
 ---
 

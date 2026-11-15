@@ -29,19 +29,19 @@ import { api } from '../services/api';
 import { useAuth } from '../context/useAuth';
 
 export default function ProfilePage({ user, communities = [], onUpdateProfile }) {
-  const [name, setName] = useState(user?.name || 'Priyanshu');
-  const [degree, setDegree] = useState(user?.degree || 'B.Tech (Computer Science and Engineering)');
-  const [year, setYear] = useState(user?.year || '3rd Year');
-  const [hostel, setHostel] = useState(user?.hostel && user.hostel !== 'HA' ? user.hostel : 'Agira Hostel');
-  const [phone, setPhone] = useState(user?.phone || '+91 98765 43210');
-  const [rollNumber, setRollNumber] = useState(user?.rollNumber || '102215043');
-  const [homeCity, setHomeCity] = useState(user?.homeCity || user?.hometown || 'Patiala');
+  const [name, setName] = useState(user?.name || '');
+  const [degree, setDegree] = useState(user?.degree || '');
+  const [year, setYear] = useState(user?.year || '');
+  const [hostel, setHostel] = useState(user?.hostel || '');
+  const [phone, setPhone] = useState(user?.phone || '');
+  const [rollNumber, setRollNumber] = useState(user?.rollNumber || '');
+  const [homeCity, setHomeCity] = useState(user?.homeCity || user?.hometown || '');
   
   // Preferences
   const [prefTransport, setPrefTransport] = useState(user?.preferredTransport || 'Cab');
   const [timeWindow, setTimeWindow] = useState(user?.timeWindow || 'Every 15 Minutes');
-  const [frequentRoutes, setFrequentRoutes] = useState(user?.frequentRoutes || ['Patiala', 'Chandigarh', 'Delhi']);
-  const [rideNotifications, setRideNotifications] = useState(true);
+  const [frequentRoutes, setFrequentRoutes] = useState(user?.frequentRoutes || []);
+  const [rideNotifications, setRideNotifications] = useState(user?.rideNotifications ?? true);
 
   const [savedSuccess, setSavedSuccess] = useState(false);
 
@@ -59,13 +59,17 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
   const [passwordSuccessMsg, setPasswordSuccessMsg] = useState('');
   const [passwordError, setPasswordError] = useState('');
 
-  const handleSave = (e) => {
+  const [saveError, setSaveError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const handleSave = async (e) => {
     if (e) e.preventDefault();
-    const commObj = communities.find(c => c.name.toLowerCase() === homeCity.toLowerCase() || c.id === homeCity);
+    setSaving(true);
+    setSaveError('');
+    try {
     if (onUpdateProfile) {
-      onUpdateProfile({
+      await onUpdateProfile({
         ...user,
-        name: name.trim() || user?.name,
+      name: name.trim() || user?.name,
         degree: degree.trim() || user?.degree,
         year: year.trim() || user?.year,
         hostel,
@@ -76,21 +80,27 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
         preferredTransport: prefTransport,
         timeWindow,
         frequentRoutes,
-        joinedCommunity: commObj ? commObj.id : user?.joinedCommunity
+        rideNotifications
       });
     }
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 3000);
+    } catch (err) { setSaveError(err.message || 'Could not save profile.'); }
+    finally { setSaving(false); }
   };
 
   const handleReset = () => {
-    setName(user?.name || 'Priyanshu');
-    setDegree(user?.degree || 'B.Tech (Computer Science and Engineering)');
-    setYear(user?.year || '3rd Year');
-    setHostel(user?.hostel && user.hostel !== 'HA' ? user.hostel : 'Agira Hostel');
-    setPhone(user?.phone || '+91 98765 43210');
-    setRollNumber(user?.rollNumber || '102215043');
-    setHomeCity(user?.homeCity || user?.hometown || 'Patiala');
+    setName(user?.name || '');
+    setDegree(user?.degree || '');
+    setYear(user?.year || '');
+    setHostel(user?.hostel || '');
+    setPhone(user?.phone || '');
+    setRollNumber(user?.rollNumber || '');
+    setHomeCity(user?.homeCity || user?.hometown || '');
+    setPrefTransport(user?.preferredTransport || 'Cab');
+    setTimeWindow(user?.timeWindow || 'Every 15 Minutes');
+    setFrequentRoutes(user?.frequentRoutes || []);
+    setRideNotifications(user?.rideNotifications ?? true);
   };
 
   const removeRoute = (routeToRemove) => {
@@ -154,9 +164,9 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
     return hName.replace(/\s*\(Previously.*\)/i, '').replace(/\s*Hall/i, ' Hostel');
   };
 
-  const displayName = name || user?.name || 'Priyanshu';
+  const displayName = name || user?.name || '';
   const displayInitial = (displayName.charAt(0) || 'P').toUpperCase();
-  const displayEmail = user?.email || 'priyanshu.btech22@thapar.edu';
+  const displayEmail = user?.email || '';
 
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-300">
@@ -433,6 +443,7 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
 
                 </div>
 
+                {saveError && <p role="alert" className="text-red-600 text-sm">{saveError}</p>}
                 {/* Footer Buttons */}
                 <div className="flex items-center justify-end gap-3 pt-4">
                   <button
@@ -443,7 +454,7 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
                     Cancel
                   </button>
                   <button
-                    type="submit"
+                    type="submit" disabled={saving}
                     className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-[0.98]"
                   >
                     Save Changes
@@ -468,7 +479,7 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
                     Travel Preferences
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    Help us show you more relevant ride options.
+                    Saved preferences for planning. Use the dashboard filters to choose each ride.
                   </p>
                 </div>
               </div>
@@ -645,7 +656,7 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
                     Account Security
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Campus encryption password
+                    Campus sign-in password
                   </p>
                 </div>
               </div>
@@ -682,7 +693,7 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
                     <span className="font-semibold text-slate-600 dark:text-slate-300">Password status:</span>
                     <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
                       <ShieldCheck className="w-3.5 h-3.5" />
-                      bcrypt encrypted
+                      Password securely hashed
                     </span>
                   </div>
                   <div className="relative">

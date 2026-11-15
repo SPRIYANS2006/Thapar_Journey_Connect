@@ -13,6 +13,12 @@ export function serializeUser(user) {
     degree: user.degree || '',
     year: user.year || '',
     hometown: user.hometown || '',
+    rollNumber: user.roll_number || '',
+    preferredTransport: user.preferred_transport || 'Cab',
+    timeWindow: user.time_window || 'Every 15 Minutes',
+    frequentRoutes: user.frequent_routes || [],
+    rideNotifications: user.ride_notifications ?? true,
+    mutedUsers: user.muted_users || [],
     reliability: typeof user.reliability === 'number' ? +(user.reliability.toFixed(1)) : 5.0,
     tripsCompleted: user.trips_completed || 0,
     role: user.role || 'student',
@@ -70,6 +76,7 @@ export function serializeGroup(group, viewingUserId = null) {
     adminId: group.admin_id,
     members,
     confirmedAt: group.confirmed_at ? new Date(group.confirmed_at).toISOString() : null,
+    completionVerified: Boolean(group.completed_by && group.completed_by !== 'system_scheduler'),
     completedAt: group.completed_at ? new Date(group.completed_at).toISOString() : null,
     createdAt: group.created_at ? new Date(group.created_at).toISOString() : new Date().toISOString()
   };

@@ -1,3 +1,4 @@
+import { useModalFocus } from '../hooks/useModalFocus';
 import React from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 
@@ -11,10 +12,12 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel
 }) {
+  const dialogRef = useModalFocus(isOpen, onCancel);
   if (!isOpen) return null;
 
   return (
     <div
+      ref={dialogRef} tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-dialog-title"

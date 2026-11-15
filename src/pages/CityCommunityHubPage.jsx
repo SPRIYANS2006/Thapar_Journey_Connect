@@ -41,8 +41,9 @@ function makeCityToastId(prefix) {
 
 function getCurrentSlotTime() {
   const now = new Date();
-  let minutes = Math.ceil(now.getMinutes() / 15) * 15;
-  let hours = now.getHours();
+  const [istHour, istMinute] = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata', hour12: false, hour: '2-digit', minute: '2-digit' }).split(':').map(Number);
+  let minutes = Math.ceil(istMinute / 15) * 15;
+  let hours = istHour;
   if (minutes >= 60) {
     minutes = 0;
     hours = (hours + 1) % 24;
@@ -150,10 +151,10 @@ export default function CityCommunityHubPage({
     const now = new Date();
     for (let i = 0; i < 31; i++) {
       const d = new Date(now.getTime() + i * 24 * 60 * 60 * 1000);
-      const isoDate = d.toISOString().split('T')[0];
-      const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
-      const month = d.toLocaleDateString('en-US', { month: 'short' });
-      const day = d.getDate();
+      const isoDate = d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' });
+      const weekday = d.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'Asia/Kolkata' });
+      const month = d.toLocaleDateString('en-US', { month: 'short', timeZone: 'Asia/Kolkata' });
+      const day = d.toLocaleDateString('en-US', { day: 'numeric', timeZone: 'Asia/Kolkata' });
 
       let label = `${weekday}, ${month} ${day}`;
       if (i === 0) label = `Today (${weekday}, ${month} ${day})`;
@@ -825,6 +826,7 @@ export default function CityCommunityHubPage({
                 <span className="text-[11px] font-bold bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-800 hidden sm:inline-block">
                   Every 15 min
                 </span>
+                <p className="w-full text-xs text-slate-500">Citywide groups share a departure time. Agree exact stops and pickup in chat; a slot does not book a cab.</p>
               </div>
 
               {/* Direction Switcher & Swap Button */}

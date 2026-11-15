@@ -1,3 +1,6 @@
+import { mutationLimit } from '../middleware/abuseLimit.js';
+import { transactionalRouter, afterCommit } from '../services/transactions.js';
+import { evictUserFromRoom } from '../services/notifications.js';
 import express from 'express';
 import crypto from 'node:crypto';
 import {
@@ -12,12 +15,12 @@ import {
   serializeTravelGroupMessage
 } from '../services/serializers.js';
 import { getSocketIO } from '../services/notifications.js';
-import { normalizeDateStr } from '../utils/time.js';
+import { normalizeDateStr, validateTravelDateTime } from '../utils/time.js';
 
-const router = express.Router();
+const router = transactionalRouter(express.Router());
 
 // All travel group operations require authentication
-router.use(requireAuth);
+router.use(requireAuth, mutationLimit);
 
 // 1. List and search travel groups (Train / Bus) across all or specific communities
 router.get('/', async (req, res, next) => {
@@ -143,6 +146,8 @@ router.post('/', async (req, res, next) => {
       throw new HttpError(400, 'Valid departure time in HH:mm format is required.');
     }
     const cleanTime = departureTime.trim();
+    const validation = validateTravelDateTime(normalizedDate, cleanTime);
+    if (!validation.valid) throw new HttpError(400, validation.error);
 
     // Validate boardingPoint & destination
     if (!boardingPoint || typeof boardingPoint !== 'string' || !boardingPoint.trim()) {
@@ -278,12 +283,15 @@ router.post('/:id/leave', async (req, res, next) => {
     }
 
     const leavingWasAdmin = group.members[memberIndex].role === 'Admin';
+    evictUserFromRoom(req.user.id, `tg_${group.id}`);
     group.members.splice(memberIndex, 1);
     group.members_count = group.members.length;
 
     // Admin succession if admin left
     if (leavingWasAdmin && group.members.length > 0) {
       group.members[0].role = 'Admin';
+      group.creator_id = group.members[0].user_id;
+      group.creator_name = group.members[0].name;
     }
 
     // Clean up if no members left
@@ -376,10 +384,10 @@ router.post('/:id/messages', async (req, res, next) => {
     // Broadcast to travel group room via Socket.IO
     const io = getSocketIO();
     if (io) {
-      io.to(`tg_${group.id}`).emit('new_travel_group_message', {
+      afterCommit(() => io.to(`tg_${group.id}`).emit('new_travel_group_message', {
         groupId: group.id,
         message: serialized
-      });
+      }));
     }
 
     res.status(201).json({

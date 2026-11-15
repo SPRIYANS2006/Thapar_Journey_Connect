@@ -23,6 +23,7 @@ export default function Navbar({ activePage, setActivePage, user, onLogout, _myG
     { id: 'communities', label: 'City Communities', icon: Users },
     { id: 'my-journeys', label: 'My Journeys', icon: MapPin },
     { id: 'profile', label: 'Profile', icon: User },
+    { id: 'safety', label: 'Safety & privacy', icon: Users },
   ];
 
   const handleNavClick = (pageId) => {

@@ -1,3 +1,4 @@
+import { useModalFocus } from '../hooks/useModalFocus';
 import React, { useState, useEffect, useRef } from 'react';
 import Avatar from './Avatar';
 import { X, Send, Users, MapPin, AlertCircle } from 'lucide-react';
@@ -17,6 +18,7 @@ function formatMsgTime(timeStr) {
 }
 
 export default function GroupChatModal({ group, currentUser, onClose, onSendMessage }) {
+  const dialogRef = useModalFocus(true, onClose);
   const [messages, setMessages] = useState(group?.chatMessages || []);
   const [inputText, setInputText] = useState('');
   const messagesEndRef = useRef(null);
@@ -154,7 +156,7 @@ export default function GroupChatModal({ group, currentUser, onClose, onSendMess
   if (!group) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4">
+    <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1} className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4">
       <div className="bg-white dark:bg-slate-900 w-full max-w-2xl h-[95vh] sm:h-[650px] max-h-[96vh] sm:max-h-[90vh] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 transition-colors">
         {/* Header */}
         <div className="bg-[#10264E] dark:bg-[#0c1e3d] text-white p-3.5 px-4 sm:p-4 sm:px-6 border-b border-slate-800/60 flex items-center justify-between shrink-0">
@@ -222,7 +224,7 @@ export default function GroupChatModal({ group, currentUser, onClose, onSendMess
               </p>
             </div>
           ) : (
-            messages.map((msg, idx) => {
+            messages.filter(msg => !(currentUser?.mutedUsers || []).includes(msg.senderId || msg.sender_id)).map((msg, idx) => {
               const isMe =
                 (msg.senderId && msg.senderId === currentUser?.id) ||
                 (msg.sender_id && msg.sender_id === currentUser?.id);

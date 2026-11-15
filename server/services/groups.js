@@ -1,4 +1,6 @@
+import { evictUserFromRoom } from './notifications.js';
 import crypto from 'node:crypto';
+import { runCommittedTransaction } from './transactions.js';
 import { Group, Journey, User, Message, getNextGroupId, RideRecord, CityRide } from '../models/index.js';
 import { HttpError } from '../middleware/errors.js';
 import { getHoursUntilDeparture, normalizeDateStr, validateTravelDateTime, getCircularMinuteDiff } from '../utils/time.js';
@@ -350,12 +352,15 @@ export async function leaveGroup(user, groupId) {
     throw new HttpError(400, 'You are not a member of this travel group.');
   }
 
+    evictUserFromRoom(user.id, `group_${groupId}`);
+  if (!['Open', 'Confirmed'].includes(group.status)) throw new HttpError(409, 'This ride is closed.');
+
   // Calculate hours left until departure
   const hoursLeft = getHoursUntilDeparture(group.date, group.departure_time);
   let penalty = 0.0;
-  if (hoursLeft <= 0.5) {
+  if (hoursLeft >= 0 && hoursLeft <= 0.5) {
     penalty = 0.8;
-  } else if (hoursLeft <= 4.0) {
+  } else if (hoursLeft >= 0 && hoursLeft <= 4.0) {
     penalty = 0.3;
   }
 
@@ -400,7 +405,7 @@ export async function leaveGroup(user, groupId) {
 
     // Post policy notice in group chat
     const penaltyNotice = penalty > 0
-      ? ` (Late cancellation penalty of -${penalty}⭐ applied)`
+      ? ` (Departure plans changed)`
       : '';
     await Message.create({
       id: crypto.randomUUID(),
@@ -462,6 +467,10 @@ export function scheduleBackgroundCleanup() {
 // 1. Confirmed groups whose departure time has passed -> transition to 'Completed' (kept as ride history).
 // 2. Unconfirmed Open groups whose departure time has passed -> removed from campus.
 export async function cleanupExpiredGroups() {
+  return runCommittedTransaction(cleanupExpiredGroupsInternal);
+}
+
+async function cleanupExpiredGroupsInternal() {
   try {
     const activeGroups = await Group.find({
       status: { $in: ['Open', 'Confirmed'] }
@@ -515,7 +524,7 @@ export async function cleanupExpiredGroups() {
             if (memberUserIds.length > 0) {
               await User.updateMany(
                 { id: { $in: memberUserIds } },
-                { $inc: { trips_completed: 1 }, $set: { active_group_id: null } }
+                { $set: { active_group_id: null } }
               );
 
               await Journey.updateMany(
@@ -563,6 +572,7 @@ export async function cleanupExpiredGroups() {
         if ((ride.members && ride.members.length > 0) || ride.status === 'Full' || ride.status === 'Confirmed') {
           ride.status = 'Completed';
           ride.completed_at = new Date();
+          ride.completed_by = 'system_scheduler';
           await ride.save();
 
           const memberUserIds = (ride.members || [])
@@ -572,7 +582,7 @@ export async function cleanupExpiredGroups() {
           if (memberUserIds.length > 0) {
             await User.updateMany(
               { id: { $in: memberUserIds } },
-              { $inc: { trips_completed: 1 }, $set: { active_group_id: null } }
+              { $set: { active_group_id: null } }
             );
           }
         } else {

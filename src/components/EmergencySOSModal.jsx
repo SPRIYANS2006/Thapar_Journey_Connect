@@ -1,40 +1,13 @@
+import { useModalFocus } from '../hooks/useModalFocus';
 import React from 'react';
 import { X, ShieldAlert, PhoneCall, AlertTriangle, ShieldCheck } from 'lucide-react';
 
 export default function EmergencySOSModal({ onClose }) {
-  const emergencyContacts = [
-    {
-      title: 'TIET Campus Security Control Room',
-      number: '0175-2393333',
-      desc: '24x7 Main Control Room & Quick Response Team',
-      action: 'tel:01752393333',
-      priority: 'high'
-    },
-    {
-      title: 'TIET Executive Mess Gate / Guard Post',
-      number: '0175-2393111',
-      desc: 'Security point for airport & highway cab pickups',
-      action: 'tel:01752393111',
-      priority: 'normal'
-    },
-    {
-      title: 'Women Safety Helpline (Punjab / TIET)',
-      number: '1091',
-      desc: 'Direct helpline for female students travelling at night',
-      action: 'tel:1091',
-      priority: 'high'
-    },
-    {
-      title: 'Police Emergency Central',
-      number: '112',
-      desc: 'All-India unified emergency assistance',
-      action: 'tel:112',
-      priority: 'normal'
-    }
-  ];
+  const dialogRef = useModalFocus(true, onClose);
+  const emergencyContacts = []; // Campus numbers require direct institutional verification before publication.
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/70 dark:bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+    <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1} className="fixed inset-0 z-50 bg-slate-900/70 dark:bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-xl border border-red-200 dark:border-red-900/60 overflow-hidden animate-in fade-in zoom-in-95 duration-200 transition-colors">
         
         {/* Header */}
@@ -62,7 +35,7 @@ export default function EmergencySOSModal({ onClose }) {
           <div className="p-3.5 bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800 rounded-xl flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
             <p className="text-xs text-red-800 dark:text-red-200 leading-relaxed">
-              If you feel unsafe at any point during your commute, contact the campus security desk immediately or tap any number below.
+              If you feel unsafe at any point during your commute, use your phone to contact local emergency services or campus security using a contact you have independently verified. This app does not monitor emergencies.
             </p>
           </div>
 
@@ -99,8 +72,8 @@ export default function EmergencySOSModal({ onClose }) {
             </div>
             <ul className="list-disc list-inside space-y-1 text-[11px] text-slate-500 dark:text-slate-400">
               <li>Always meet matched group members at the designated campus gate first.</li>
-              <li>Verify the cab license plate matches the app booking before boarding.</li>
-              <li>Share live trip status with a hostel roommate or local guardian.</li>
+              <li>Verify the cab license plate and driver against the booking you arranged directly.</li>
+              <li>Share your route and expected arrival time with a hostel roommate or local guardian.</li>
             </ul>
           </div>
 

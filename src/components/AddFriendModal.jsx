@@ -129,7 +129,7 @@ export default function AddFriendModal({
             <ul className="list-disc list-inside space-y-0.5 text-slate-500 dark:text-slate-400 pl-1">
               <li>Reserves a seat in your slot.</li>
               <li>Fare splits equally among all riders.</li>
-              <li>You can remove your friend anytime.</li>
+              <li>Add personal details only with your friend’s permission. Companions are not independently verified.</li>
             </ul>
           </div>
 

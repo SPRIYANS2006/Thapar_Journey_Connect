@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Avatar from '../components/Avatar';
 import { 
   ArrowLeft, 
@@ -47,6 +47,11 @@ export default function GroupDetailsPage({
   triggerToast
 }) {
   const [showFareSplit, setShowFareSplit] = useState(false);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNowMs(Date.now()), 15000);
+    return () => clearInterval(timer);
+  }, []);
   const [showSOS, setShowSOS] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
@@ -132,6 +137,9 @@ export default function GroupDetailsPage({
   // Helper to calculate hours left until ride departure
   const calculateHoursUntilDeparture = (dateStr, timeStr) => {
     if (!timeStr) return 999;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr || '')) {
+      return (Date.parse(`${dateStr}T${timeStr}:00+05:30`) - nowMs) / 3600000;
+    }
     const now = new Date();
     const target = new Date();
 
@@ -158,8 +166,8 @@ export default function GroupDetailsPage({
   };
 
   const hoursLeft = calculateHoursUntilDeparture(group.date, group.departureTime);
-  const isLateCancellation = hoursLeft <= 4;
-  const isCriticalCancellation = hoursLeft <= 0.5;
+  const isLateCancellation = !group.isCommunityRide && hoursLeft >= 0 && hoursLeft <= 4;
+  const isCriticalCancellation = !group.isCommunityRide && hoursLeft >= 0 && hoursLeft <= 0.5;
 
   const handlePickupChange = async (e) => {
     const newPoint = e.target.value;
@@ -175,6 +183,7 @@ export default function GroupDetailsPage({
   };
 
   const getLeaveConfirmMessage = () => {
+    if (group.isCommunityRide) return 'Leave this community ride? No automated reliability deduction applies. Please let your co-riders know. You can report exceptional circumstances under Safety & privacy.';
     if (isCriticalCancellation) {
       return `⚠️ CRITICAL CANCELLATION WARNING:\nThis ride departs in less than 30 minutes!\nUnder Thapar Travel Reliability Policy:\n• Dropping out leaves co-passengers stranded with high fare splits.\n• Your reliability rating will decrease by -0.8⭐.\n\nAre you sure you want to proceed?`;
     }
@@ -182,7 +191,7 @@ export default function GroupDetailsPage({
       const minsRemaining = Math.max(1, Math.round(hoursLeft * 60));
       return `⚠️ LATE CANCELLATION WARNING:\nThis ride departs in less than 4 hours (~${minsRemaining} mins remaining).\nUnder Thapar Travel Reliability Policy:\n• Free cancellation is permitted up to 4 hours before departure.\n• Leaving now will decrease your reliability rating by -0.3⭐.\n\nAre you sure you want to proceed?`;
     }
-    return `Are you sure you want to leave Group #${group.id}?\n\n(Free cancellation: more than 4 hours remain before scheduled departure)`;
+    return `Leave Group #${group.id}? No reliability deduction applies at this time. Contact your co-riders if plans change. You can request a rating review under Safety & privacy.`;
   };
 
   return (
@@ -291,6 +300,7 @@ export default function GroupDetailsPage({
 
                 {!isCompleted && !group.isCommunityRide && (
                   <button
+                    disabled={group.isCommunityRide || !['Open', 'Confirmed'].includes(group.status)}
                     onClick={() => setShowRescheduleModal(true)}
                     className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl border border-white/20 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95"
                     title="Move to another 15-minute time slot"
@@ -330,7 +340,7 @@ export default function GroupDetailsPage({
                   </div>
                 )}
 
-                {onLeaveGroup && (
+                {onLeaveGroup && !isCompleted && (
                   <button
                     onClick={() => setShowLeaveConfirm(true)}
                     className={`px-4 py-2.5 font-bold text-xs rounded-xl border transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 ${

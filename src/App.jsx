@@ -7,6 +7,7 @@ import MatchingResultsPage from './pages/MatchingResultsPage';
 import GroupDetailsPage from './pages/GroupDetailsPage';
 import MyJourneysPage from './pages/MyJourneysPage';
 import ProfilePage from './pages/ProfilePage';
+import SafetyPage from './pages/SafetyPage';
 import CommunitiesPage from './pages/CommunitiesPage';
 import CityCommunityHubPage from './pages/CityCommunityHubPage';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -24,7 +25,7 @@ import { useJourneys } from './hooks/useJourneys';
 import { getSocket } from './services/api';
 
 function AppContent() {
-  const { user, token, logout, updateProfile, refreshUser } = useAuth();
+  const { user, token, loading, logout, updateProfile, refreshUser } = useAuth();
   const {
     groups,
     activeGroup,
@@ -99,6 +100,7 @@ function AppContent() {
     const handleNewChatMessage = (msgData) => {
       if (!msgData) return;
       if (msgData.senderId === user.id) return;
+      if ((user.mutedUsers || []).includes(msgData.senderId)) return;
 
       if (!(isChatOpen && String(chatGroupId) === String(msgData.groupId))) {
         triggerToast({
@@ -119,6 +121,7 @@ function AppContent() {
     };
 
     const handleGroupFound = (data) => {
+      if (user.rideNotifications === false) return;
       triggerToast({
         id: `found_${Date.now()}_${Math.random().toString(36).substring(7)}`,
         type: 'match',
@@ -133,6 +136,7 @@ function AppContent() {
     };
 
     const handleMemberJoined = (data) => {
+      if (user.rideNotifications === false) { fetchGroups(); return; }
       if (!data) return;
       if (data.joinerId === user.id) return;
 
@@ -151,6 +155,7 @@ function AppContent() {
     };
 
     const handleMemberLeft = (data) => {
+      if (user.rideNotifications === false) { fetchGroups(); return; }
       if (!data) return;
       if (data.leaverId === user.id) return;
 
@@ -462,6 +467,7 @@ function AppContent() {
     (chatGroupId ? { id: chatGroupId, destinationName: 'Ride Group', members: [] } : null);
 
   // If not logged in, render AuthPage
+  if (loading) return <div role="status" className="min-h-screen grid place-items-center">Loading your session…</div>;
   if (!token || !user) {
     return <AuthPage onLoginSuccess={() => setActivePage('dashboard')} />;
   }
@@ -492,6 +498,7 @@ function AppContent() {
       {/* Main View Area */}
       <main className="flex-1 pb-16">
         <ErrorBoundary onReset={() => setActivePage('dashboard')}>
+          {activePage === 'safety' && <SafetyPage user={user} />}
           {activePage === 'dashboard' && (
             <DashboardPage
               user={user}
@@ -791,6 +798,7 @@ function AppContent() {
                     title: 'Update failed',
                     message: err.message
                   });
+                  throw err;
                 }
               }}
             />

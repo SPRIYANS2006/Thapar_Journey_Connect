@@ -7,7 +7,7 @@ const router = express.Router();
 // 1. Health check - reports DB readiness
 router.get('/health', (req, res) => {
   const dbReady = isDbConnected();
-  res.status(200).json({
+  res.status(dbReady ? 200 : 503).json({
     status: dbReady ? 'ok' : 'degraded',
     database: dbReady ? 'connected' : 'connecting',
     timestamp: new Date().toISOString()
@@ -73,7 +73,7 @@ router.get('/stats', async (req, res, next) => {
       verifiedStudentsCount: totalUsers,
       activeRidesCount: activeGroups,
       communitiesCount: communitiesCount,
-      carbonSavedKg: activeGroups * 14
+      carbonSavedKg: null
     });
   } catch (err) {
     next(err);

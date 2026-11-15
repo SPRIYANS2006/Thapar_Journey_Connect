@@ -1,3 +1,6 @@
+import { mutationLimit } from '../middleware/abuseLimit.js';
+import { transactionalRouter, afterCommit } from '../services/transactions.js';
+import { evictUserFromRoom } from '../services/notifications.js';
 import express from 'express';
 import crypto from 'node:crypto';
 import {
@@ -14,10 +17,10 @@ import {
 } from '../services/serializers.js';
 import { getSocketIO } from '../services/notifications.js';
 
-const router = express.Router();
+const router = transactionalRouter(express.Router());
 
 // All community group operations require authentication
-router.use(requireAuth);
+router.use(requireAuth, mutationLimit);
 
 // 1. List and search community groups with optional community and category filters
 router.get('/', async (req, res, next) => {
@@ -212,12 +215,15 @@ router.post('/:id/leave', async (req, res, next) => {
     }
 
     const leavingWasAdmin = group.members[memberIndex].role === 'Admin';
+    evictUserFromRoom(req.user.id, `cg_${group.id}`);
     group.members.splice(memberIndex, 1);
     group.members_count = group.members.length;
 
     // If leaving member was admin and other members remain, designate next member as Admin
     if (leavingWasAdmin && group.members.length > 0) {
       group.members[0].role = 'Admin';
+      group.creator_id = group.members[0].user_id;
+      group.creator_name = group.members[0].name;
     }
 
     if (group.members.length === 0) {
@@ -309,10 +315,10 @@ router.post('/:id/messages', async (req, res, next) => {
     // Notify connected socket clients in group room if socket server available
     const io = getSocketIO();
     if (io) {
-      io.to(`cg_${group.id}`).emit('new_community_group_message', {
+      afterCommit(() => io.to(`cg_${group.id}`).emit('new_community_group_message', {
         groupId: group.id,
         message: serialized
-      });
+      }));
     }
 
     res.status(201).json({

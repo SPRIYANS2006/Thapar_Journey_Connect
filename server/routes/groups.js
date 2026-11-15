@@ -1,3 +1,6 @@
+import { mutationLimit } from '../middleware/abuseLimit.js';
+import { transactionalRouter } from '../services/transactions.js';
+import { evictUserFromRoom } from '../services/notifications.js';
 import express from 'express';
 import crypto from 'node:crypto';
 import { Group, Message, User, CityRide } from '../models/index.js';
@@ -72,6 +75,7 @@ function serializeCityRideAsGroup(ride, viewingUserId) {
       addedBy: m.added_by || null,
       companionName: m.companion_name || ''
     })),
+    completionVerified: Boolean(ride.completed_by && ride.completed_by !== 'system_scheduler'),
     createdAt: ride.created_at ? new Date(ride.created_at).toISOString() : new Date().toISOString()
   };
 }
@@ -87,10 +91,10 @@ async function findGroupOrCityRide(id) {
   return { group: null, cityRide };
 }
 
-const router = express.Router();
+const router = transactionalRouter(express.Router());
 
 // All group routes require authentication
-router.use(requireAuth);
+router.use(requireAuth, mutationLimit);
 
 // 1. Group list endpoints return caller's active groups & joined community rides (GET /api/groups/mine & GET /api/groups)
 router.get('/', async (req, res, next) => {
@@ -231,6 +235,7 @@ router.post('/:id/join', async (req, res, next) => {
     }
 
     if (cityRide) {
+      if (!['Open', 'Full'].includes(cityRide.status)) throw new HttpError(409, 'This ride is closed.');
       if (req.user.joined_community !== cityRide.community_id) {
         throw new HttpError(
           403,
@@ -353,7 +358,8 @@ router.post('/:id/leave', async (req, res, next) => {
       if (memberIdx === -1) {
         throw new HttpError(400, 'You are not a member of this travel group.');
       }
-      cityRide.members.splice(memberIdx, 1);
+    evictUserFromRoom(req.user.id, `group_${cityRide.id}`);
+      cityRide.members = cityRide.members.filter(m => m.user_id !== req.user.id && m.added_by !== req.user.id);
       cityRide.current_members_count = cityRide.members.length;
       if (cityRide.members.length === 0) {
         await CityRide.deleteOne({ id: cityRide.id });
@@ -732,7 +738,7 @@ router.post('/:id/fare-split', async (req, res, next) => {
 
     const totalAmount = Number(req.body.totalAmount);
     const tip = Number(req.body.tip) || 0;
-    if (isNaN(totalAmount) || totalAmount <= 0) {
+    if (!Number.isFinite(totalAmount) || totalAmount <= 0 || !Number.isFinite(tip) || tip < 0) {
       throw new HttpError(400, 'Please enter a valid total fare amount.');
     }
 

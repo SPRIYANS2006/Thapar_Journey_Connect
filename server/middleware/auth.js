@@ -1,4 +1,3 @@
-import crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/index.js';
 import { HttpError } from './errors.js';
@@ -10,8 +9,7 @@ let resolvedSecret = (rawSecret && rawSecret.trim().length >= 32) ? rawSecret.tr
 
 if (!resolvedSecret) {
   if (isProduction) {
-    console.warn('⚠️ WARNING: SESSION_SECRET not set in production. Generating an ephemeral cryptographically strong 256-bit secret.');
-    resolvedSecret = crypto.randomBytes(32).toString('hex');
+    throw new Error('SESSION_SECRET must contain at least 32 characters in production.');
   } else {
     resolvedSecret = 'thapar_dev_session_secret_at_least_32_chars_testing_entropy_token';
   }
@@ -66,7 +64,7 @@ export async function requireAuth(req, res, next) {
     }
 
     const user = await User.findOne({ id: decoded.userId });
-    if (!user) {
+    if (!user || user.disabled) {
       throw new HttpError(401, 'Unauthorized: User account not found.');
     }
 
@@ -75,8 +73,14 @@ export async function requireAuth(req, res, next) {
     }
 
     req.user = user;
+    req.sessionToken = token;
     next();
   } catch (err) {
     next(err);
   }
+}
+
+export function optionalAuth(req, res, next) {
+  if (!req.headers.authorization && !parseCookieToken(req)) return next();
+  return requireAuth(req, res, next);
 }

@@ -20,6 +20,6 @@ export function errorHandler(err, req, res, _next) {
   }
 
   res.status(status).json({
-    error: message
+    error: status >= 500 && process.env.NODE_ENV === 'production' ? 'The request could not be completed. Please try again.' : message
   });
 }

@@ -1,8 +1,9 @@
+const futureTestDate = () => new Date(Date.now() + 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 import { describe, it, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import request from 'supertest';
 import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { MongoMemoryReplSet } from 'mongodb-memory-server';
 
 process.env.NODE_ENV = 'test';
 process.env.SESSION_SECRET = 'test-secret-at-least-32-characters-long-1234567890';
@@ -20,7 +21,7 @@ describe('Train Groups & Bus Groups - Feature Acceptance Tests', () => {
 
   before(async () => {
     if (mongoose.connection.readyState === 0) {
-      mongod = await MongoMemoryServer.create();
+      mongod = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
       const uri = mongod.getUri();
       process.env.MONGODB_URI = uri;
       await mongoose.connect(uri);
@@ -67,7 +68,7 @@ describe('Train Groups & Bus Groups - Feature Acceptance Tests', () => {
       type: 'Train',
       title: 'Shatabdi Express Cohort to Delhi',
       communityId: 'del',
-      date: '2026-11-25',
+      date: futureTestDate(),
       departureTime: '17:30',
       boardingPoint: 'Patiala Railway Station',
       destination: 'New Delhi Railway Station (NDLS)',
@@ -105,7 +106,7 @@ describe('Train Groups & Bus Groups - Feature Acceptance Tests', () => {
         type: 'Train',
         title: 'Train to Delhi',
         communityId: 'del',
-        date: '2026-11-25',
+        date: futureTestDate(),
         departureTime: '17:30',
         boardingPoint: 'Patiala Railway Station',
         destination: 'New Delhi'
@@ -122,7 +123,7 @@ describe('Train Groups & Bus Groups - Feature Acceptance Tests', () => {
         type: 'Train',
         title: 'Train to Delhi',
         communityId: 'del',
-        date: '2026-11-25',
+        date: futureTestDate(),
         departureTime: 'evening 5pm',
         boardingPoint: 'Patiala Railway Station',
         destination: 'New Delhi',
@@ -141,7 +142,7 @@ describe('Train Groups & Bus Groups - Feature Acceptance Tests', () => {
       type: 'Bus',
       title: 'PRTC AC Bus to Sector 43 Chandigarh',
       communityId: 'chd',
-      date: '2026-11-26',
+      date: futureTestDate(),
       departureTime: '09:15',
       boardingPoint: 'Patiala Bus Stand (Counter 4)',
       destination: 'Chandigarh ISBT Sector 43',
@@ -172,7 +173,7 @@ describe('Train Groups & Bus Groups - Feature Acceptance Tests', () => {
         type: 'Bus',
         title: 'Bus to Chandigarh',
         communityId: 'chd',
-        date: '2026-11-26',
+        date: futureTestDate(),
         departureTime: '09:00',
         boardingPoint: 'Patiala Bus Stand',
         destination: 'Chandigarh'
@@ -195,7 +196,7 @@ describe('Train Groups & Bus Groups - Feature Acceptance Tests', () => {
         type: 'Bus',
         title: 'Weekend Bus to Chandigarh',
         communityId: 'chd',
-        date: '2026-11-27',
+        date: futureTestDate(),
         departureTime: '10:00',
         boardingPoint: 'Patiala Bypass',
         destination: 'Chandigarh',
@@ -245,7 +246,7 @@ describe('Train Groups & Bus Groups - Feature Acceptance Tests', () => {
         type: 'Train',
         title: 'Intercity to Ambala',
         communityId: 'del',
-        date: '2026-11-28',
+        date: futureTestDate(),
         departureTime: '14:00',
         boardingPoint: 'Patiala Station',
         destination: 'Ambala Cantt',
@@ -279,7 +280,7 @@ describe('Train Groups & Bus Groups - Feature Acceptance Tests', () => {
         type: 'Train',
         title: 'Shatabdi to Ludhiana',
         communityId: 'del',
-        date: '2026-11-29',
+        date: futureTestDate(),
         departureTime: '18:00',
         boardingPoint: 'Patiala',
         destination: 'Ludhiana',
@@ -324,7 +325,7 @@ describe('Train Groups & Bus Groups - Feature Acceptance Tests', () => {
         type: 'Bus',
         title: 'Delhi Volvo Group',
         communityId: 'del',
-        date: '2026-11-30',
+        date: futureTestDate(),
         departureTime: '07:30',
         boardingPoint: 'Patiala Bus Stand',
         destination: 'ISBT Kashmiri Gate',

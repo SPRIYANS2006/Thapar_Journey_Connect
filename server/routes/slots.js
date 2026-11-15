@@ -1,13 +1,16 @@
+import { mutationLimit } from '../middleware/abuseLimit.js';
+import { runCommittedTransaction, transactionalRouter } from '../services/transactions.js';
 import express from 'express';
 import crypto from 'node:crypto';
 import { Group, Destination, User, CityRide, Message, getNextGroupId } from '../models/index.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, optionalAuth } from '../middleware/auth.js';
 import { HttpError } from '../middleware/errors.js';
-import { normalizeDateStr, getHoursUntilDeparture } from '../utils/time.js';
+import { normalizeDateStr, getHoursUntilDeparture, validateTravelDateTime } from '../utils/time.js';
 import { serializeGroup } from '../services/serializers.js';
-import { notifyUser, notifyGroupMembersUpdated } from '../services/notifications.js';
+import { evictUserFromRoom, notifyUser, notifyGroupMembersUpdated } from '../services/notifications.js';
 
-const router = express.Router();
+const router = transactionalRouter(express.Router());
+router.use((req, res, next) => ['GET', 'HEAD', 'OPTIONS'].includes(req.method) ? next() : requireAuth(req, res, error => error ? next(error) : mutationLimit(req, res, next)));
 
 export function generateTenMinuteSlots(dateStr, destObj, vehicle, existingGroups = [], currentUserId = null, direction = 'departing') {
   const slots = [];
@@ -95,7 +98,7 @@ export function generateTenMinuteSlots(dateStr, destObj, vehicle, existingGroups
 }
 
 // 1. GET /api/slots: Returns merged list of 15-minute slots (virtual and real, 96 slots per day)
-router.get('/', async (req, res, next) => {
+router.get('/', optionalAuth, async (req, res, next) => {
   try {
     const { destinationId, date, vehicle, direction } = req.query;
 
@@ -175,6 +178,8 @@ router.post('/join', requireAuth, async (req, res, next) => {
     const tripDirection = isReturn ? 'returning' : 'departing';
 
     // Departure time cannot be in the past
+    const valid = validateTravelDateTime(travelDate, time);
+    if (!valid.valid || Number(time?.split(':')[1]) % 15 !== 0) throw new HttpError(400, valid.error || 'Select a 15-minute departure slot.');
     const hoursLeft = getHoursUntilDeparture(travelDate, time);
     if (hoursLeft < -5 / 60) {
       throw new HttpError(400, 'Cannot book a travel slot in the past.');
@@ -213,7 +218,8 @@ router.post('/join', requireAuth, async (req, res, next) => {
         activeGroup.slot_key === slotKey ||
         (activeGroup.destination_id === destinationId &&
           activeGroup.date === travelDate &&
-          activeGroup.departure_time === time);
+          activeGroup.departure_time === time &&
+          (activeGroup.direction || 'departing') === tripDirection && activeGroup.transport === selectedVehicle);
 
       if (isAlreadyInThisSlot) {
         return res.json({
@@ -416,11 +422,13 @@ router.post('/reschedule/preview', requireAuth, async (req, res, next) => {
     if (!oldGroup) {
       throw new HttpError(404, 'Current group not found.');
     }
+    if (!oldGroup.members.some(m => (m.user_id || m.userId || m.id) === req.user.id)) throw new HttpError(403, 'Only members can preview a change.');
+    if (!['Open', 'Confirmed'].includes(oldGroup.status)) throw new HttpError(409, 'This ride is closed.');
     const hoursLeft = getHoursUntilDeparture(oldGroup.date, oldGroup.departure_time);
     let penalty = 0.0;
-    if (hoursLeft <= 0.5) {
+    if (hoursLeft >= 0 && hoursLeft <= 0.5) {
       penalty = 0.8;
-    } else if (hoursLeft <= 4.0) {
+    } else if (hoursLeft >= 0 && hoursLeft <= 4.0) {
       penalty = 0.3;
     }
     res.json({
@@ -437,7 +445,11 @@ router.post('/reschedule/preview', requireAuth, async (req, res, next) => {
 });
 
 // 4. POST /api/slots/reschedule: Atomic reschedule between slots with penalty enforcement & rollback safety
-export async function rescheduleGroupSlot({
+export async function rescheduleGroupSlot(args) {
+  return runCommittedTransaction(() => rescheduleGroupSlotInternal(args));
+}
+
+async function rescheduleGroupSlotInternal({
   user,
   oldGroupId,
   targetDestinationId,
@@ -492,6 +504,10 @@ export async function rescheduleGroupSlot({
   }
 
   // Departure time cannot be in the past
+  const valid = validateTravelDateTime(normalizedDate, targetTime);
+  if (!valid.valid || Number(targetTime?.split(':')[1]) % 15 !== 0) throw new HttpError(400, valid.error || 'Select a 15-minute departure slot.');
+  if (!['Open', 'Confirmed'].includes(oldGroup.status)) throw new HttpError(409, 'This ride is closed.');
+  if (oldGroup.members.some(m => m.added_by === user.id)) throw new HttpError(409, 'Remove your companions before changing slots, then add them to the new ride.');
   const hoursToTarget = getHoursUntilDeparture(normalizedDate, targetTime);
   if (hoursToTarget < -5 / 60) {
     throw new HttpError(400, 'Cannot move to a travel slot in the past.');
@@ -500,9 +516,9 @@ export async function rescheduleGroupSlot({
   // Check penalty on oldGroup departure
   const hoursLeftOld = getHoursUntilDeparture(oldGroup.date, oldGroup.departure_time);
   let penalty = 0.0;
-  if (hoursLeftOld <= 0.5) {
+  if (hoursLeftOld >= 0 && hoursLeftOld <= 0.5) {
     penalty = 0.8;
-  } else if (hoursLeftOld <= 4.0) {
+  } else if (hoursLeftOld >= 0 && hoursLeftOld <= 4.0) {
     penalty = 0.3;
   }
 
@@ -617,6 +633,7 @@ export async function rescheduleGroupSlot({
   // Step 2 & 3: Safely remove member from oldGroup and update user with compensation rollback
   try {
     oldGroup.members.splice(memberIndex, 1);
+    evictUserFromRoom(user.id, `group_${oldGroup.id}`);
 
     if (oldGroup.members.length === 0) {
       await Group.deleteOne({ id: oldGroup.id });

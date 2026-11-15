@@ -114,6 +114,12 @@ export function getHoursUntilDeparture(dateStr, timeStr) {
 // Validate date is not past and within 15-day window
 export function validateTravelDateTime(dateStr, timeStr) {
   const normalized = normalizeDateStr(dateStr);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized) ||
+      typeof timeStr !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(timeStr) ||
+      !Number.isFinite(Date.parse(`${normalized}T00:00:00Z`)) ||
+      new Date(`${normalized}T00:00:00Z`).toISOString().slice(0, 10) !== normalized) {
+    return { valid: false, error: 'A valid date and HH:mm departure time are required.' };
+  }
   const hoursLeft = getHoursUntilDeparture(normalized, timeStr);
 
   // Allow 5 minutes clock skew margin for "just departing"
@@ -122,8 +128,8 @@ export function validateTravelDateTime(dateStr, timeStr) {
   }
 
   // Maximum 15 days in future (15 * 24 = 360 hours)
-  if (hoursLeft > 360 + 24) {
-    return { valid: false, error: 'Departure date must be within the next 15 days.' };
+  if (hoursLeft > 31 * 24) {
+    return { valid: false, error: 'Departure date must be within the next 30 days.' };
   }
 
   return { valid: true, normalizedDate: normalized };

@@ -5,20 +5,15 @@ import { api, getToken, setToken, clearToken, onUnauthorized, disconnectSocket }
 export function AuthProvider({ children }) {
   const [token, setTokenState] = useState(() => getToken());
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(() => Boolean(getToken()));
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const refreshUser = useCallback(async () => {
-    const currentToken = getToken();
-    if (!currentToken) {
-      setUser(null);
-      setLoading(false);
-      return null;
-    }
-
     try {
       const res = await api.getMe();
       if (res && res.user) {
+        setToken(res.token);
+        setTokenState(res.token);
         setUser(res.user);
         setError(null);
         return res.user;
@@ -38,12 +33,13 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     let active = true;
-    const tokenOnMount = getToken();
-    if (tokenOnMount) {
+    {
       api.getMe()
         .then((res) => {
           if (!active) return;
           if (res?.user) {
+            setToken(res.token);
+            setTokenState(res.token);
             setUser(res.user);
             setError(null);
           }

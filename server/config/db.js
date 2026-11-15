@@ -2,14 +2,12 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { Destination, Hostel, Community, Counter, CommunityGroup, CityRide, User } from '../models/index.js';
 
-const FALLBACK_MONGODB_URI = 'mongodb+srv://psoni1be24_db_user:g1A5fLmc2frxKZtN@thaparclusters.mk83gfu.mongodb.net/thapar_journey?retryWrites=true&w=majority';
 
 export async function connectDB(customUri) {
-  const isProd = process.env.NODE_ENV === 'production';
-  const uri = customUri || process.env.MONGODB_URI || FALLBACK_MONGODB_URI;
+  const uri = customUri || process.env.MONGODB_URI;
 
-  if (!process.env.MONGODB_URI && isProd) {
-    console.warn('⚠️ WARNING: Using fallback MONGODB_URI. Set MONGODB_URI in Render dashboard to complete rotation.');
+  if (!uri) {
+    throw new Error('MONGODB_URI is required.');
   }
 
   try {
@@ -27,8 +25,8 @@ export async function connectDB(customUri) {
     return true;
   } catch (err) {
     console.error('❌ MongoDB connection error:', err.message);
-    // Don't crash immediately; allow healthcheck and server to stay up so Render deploy succeeds
-    return false;
+    // Refuse to serve an unusable deployment.
+    throw err;
   }
 }
 
@@ -242,8 +240,13 @@ export async function seedDefaultData() {
       ]
     });
 
+    if (process.env.NODE_ENV === 'production') {
+      const demoIds = ['student_aarav', 'student_diya', 'student_aarav_alias', 'student_diya_alias', 'admin_thapar'];
+      await User.updateMany({ id: { $in: demoIds } }, { $set: { disabled: true, password_hash: null }, $inc: { token_version: 1 } });
+    }
+
     // 6. Seed test student accounts for instant password sign-in (testing without Google in non-production only)
-    if (process.env.NODE_ENV !== 'production' || process.env.SEED_DEMO_ACCOUNTS === 'true') {
+    if (process.env.NODE_ENV !== 'production') {
       const testPasswordHash = await bcrypt.hash('Thapar@123', 10);
       const testAccounts = [
         {
@@ -335,5 +338,6 @@ export async function seedDefaultData() {
     console.log('🌱 Seeded default data (Destinations, Hostels, Communities, Counters, Test Accounts)');
   } catch (err) {
     console.error('Error during default data seed:', err.message);
+    throw err;
   }
 }

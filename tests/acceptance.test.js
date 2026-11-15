@@ -1,8 +1,9 @@
+const futureTestDate = () => new Date(Date.now() + 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 import { describe, it, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import request from 'supertest';
 import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { MongoMemoryReplSet } from 'mongodb-memory-server';
 
 // Configure test environment before loading application
 process.env.NODE_ENV = 'test';
@@ -22,7 +23,7 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
   let app;
 
   before(async () => {
-    mongod = await MongoMemoryServer.create();
+    mongod = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
     const uri = mongod.getUri();
     process.env.MONGODB_URI = uri;
 
@@ -1291,7 +1292,7 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
       .post('/api/communities/del/rides')
       .set('Authorization', `Bearer ${token1}`)
       .send({
-        date: '2026-11-12',
+        date: new Date(Date.now() + 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }),
         time: '16:00',
         mode: 'Cab',
         destination: 'Delhi South Extension',
@@ -1361,7 +1362,7 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
       .post('/api/communities/del/rides')
       .set('Authorization', `Bearer ${creatorToken}`)
       .send({
-        date: '2026-11-13',
+        date: new Date(Date.now() + 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }),
         time: '06:00',
         mode: 'Train',
         destination: 'New Delhi Railway Station (NDLS)',
@@ -1410,7 +1411,7 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
       .post('/api/communities/del/rides')
       .set('Authorization', `Bearer ${token1}`)
       .send({
-        date: '2026-11-15',
+        date: new Date(Date.now() + 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }),
         time: '14:00',
         mode: 'Cab',
         destination: 'Delhi Airport T3',
@@ -1458,7 +1459,7 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
       .post('/api/communities/del/rides')
       .set('Authorization', `Bearer ${token1}`)
       .send({
-        date: '2026-11-16',
+        date: futureTestDate(),
         time: '15:00',
         mode: 'Train',
         destination: 'New Delhi Railway Station (NDLS)',
@@ -1475,6 +1476,8 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
       .post(`/api/communities/del/rides/${rideId}/join`)
       .set('Authorization', `Bearer ${token2}`);
 
+    // Simulate departure before allowing completion.
+    await CityRide.updateOne({ id: rideId }, { $set: { date: new Date(Date.now() - 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }) } });
     // Creator completes the community ride
     const resComplete = await request(app)
       .post(`/api/communities/del/rides/${rideId}/complete`)
@@ -1517,7 +1520,7 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
       .post('/api/communities/del/rides')
       .set('Authorization', `Bearer ${token1}`)
       .send({
-        date: '2026-11-20',
+        date: futureTestDate(),
         time: '12:00',
         mode: 'Cab',
         destination: 'Delhi South Extension',
@@ -1534,7 +1537,7 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
       .post('/api/communities/del/rides')
       .set('Authorization', `Bearer ${otherCreatorToken}`)
       .send({
-        date: '2026-11-20',
+        date: futureTestDate(),
         time: '14:00',
         mode: 'Train',
         destination: 'NDLS',
@@ -1558,7 +1561,7 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
       .post('/api/communities/del/rides')
       .set('Authorization', `Bearer ${token1}`)
       .send({
-        date: '2026-11-21',
+        date: futureTestDate(),
         time: '10:00',
         mode: 'Cab',
         destination: 'Delhi Airport',

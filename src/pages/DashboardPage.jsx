@@ -36,8 +36,9 @@ function makeToastId(prefix) {
 
 function getCurrentSlotTime() {
   const now = new Date();
-  let minutes = Math.ceil(now.getMinutes() / 15) * 15;
-  let hours = now.getHours();
+  const [istHour, istMinute] = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata', hour12: false, hour: '2-digit', minute: '2-digit' }).split(':').map(Number);
+  let minutes = Math.ceil(istMinute / 15) * 15;
+  let hours = istHour;
   if (minutes >= 60) {
     minutes = 0;
     hours = (hours + 1) % 24;
@@ -67,10 +68,10 @@ export default function DashboardPage({
     const now = new Date();
     for (let i = 0; i < 31; i++) {
       const d = new Date(now.getTime() + i * 24 * 60 * 60 * 1000);
-      const isoDate = d.toISOString().split('T')[0];
-      const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
-      const month = d.toLocaleDateString('en-US', { month: 'short' });
-      const day = d.getDate();
+      const isoDate = d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' });
+      const weekday = d.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'Asia/Kolkata' });
+      const month = d.toLocaleDateString('en-US', { month: 'short', timeZone: 'Asia/Kolkata' });
+      const day = d.toLocaleDateString('en-US', { day: 'numeric', timeZone: 'Asia/Kolkata' });
 
       let label = `${weekday}, ${month} ${day}`;
       if (i === 0) label = `Today (${weekday}, ${month} ${day})`;
@@ -161,20 +162,18 @@ export default function DashboardPage({
       return [];
     }
 
-    let subset = slots;
+    const available = slots.filter(slot => !slot.isPast);
+    let subset = available;
     if (selectedTime) {
-      const idx = slots.findIndex((s) => s.time >= selectedTime);
+      const idx = available.findIndex((s) => s.time >= selectedTime);
       if (idx !== -1) {
-        subset = slots.slice(idx, idx + 3);
-      }
-    }
-    if (subset.length < 3) {
-      subset = slots.slice(0, 3);
+        subset = available.slice(idx, idx + 3);
+      } else { subset = []; }
     }
     return subset.map((s) => ({
       ...s,
       time12: s.time12 || s.time,
-      farePerRider: s.farePerRider || (s.fare && s.capacity ? `₹${Math.round(s.fare / s.capacity)}` : '₹350')
+      farePerRider: Number.isFinite(s.estimatedFarePerPerson) ? `₹${s.estimatedFarePerPerson} estimated` : 'Fare unavailable'
     }));
   }, [slots, selectedTime]);
 
@@ -214,7 +213,7 @@ export default function DashboardPage({
         date: slot.date,
         time: slot.time,
         vehicle: slot.vehicle,
-        pickupPoint: defaultPickup,
+        pickupPoint: isReturn ? defaultPickup : selectedHostel,
         direction: slot.direction || direction
       });
 
@@ -791,7 +790,7 @@ export default function DashboardPage({
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
               {featuredSlots.map((slot, idx) => {
-                const isFull = (slot.memberCount || slot.members?.length || 0) >= (slot.capacity || 4);
+                const isFull = slot.isFull;
                 return (
                   <div
                     key={slot.slotKey || `featured_${idx}`}
@@ -805,7 +804,7 @@ export default function DashboardPage({
                         </span>
                         <div className="text-right">
                           <span className="font-extrabold text-slate-900 dark:text-white text-sm">
-                            {slot.farePerRider || '₹350'}
+                            {slot.farePerRider || 'Fare unavailable'}
                           </span>
                           <span className="text-[10px] text-slate-400 dark:text-slate-500 block">
                             per rider
@@ -813,7 +812,7 @@ export default function DashboardPage({
                         </div>
                       </div>
                       <div className="text-xs text-slate-600 dark:text-slate-400 font-medium mt-2">
-                        {slot.vehicle === 'Shared Cab' ? 'Cab' : 'Auto'} • {slot.memberCount || slot.members?.length || 0} / {slot.capacity || 4} seats
+                        {slot.vehicle === 'Shared Cab' ? 'Cab' : 'Auto'} • {slot.seatsFilled ?? 0} / {slot.maxSeats} seats
                       </div>
                     </div>
 
@@ -826,10 +825,10 @@ export default function DashboardPage({
                         <button
                           type="button"
                           onClick={() => handleJoinSlot(slot)}
-                          disabled={joiningSlotKey === slot.slotKey}
+                          disabled={joiningSlotKey === slot.slotKey || slot.isPast || slot.isJoined}
                           className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer text-center"
                         >
-                          {joiningSlotKey === slot.slotKey ? 'Joining...' : 'Join Slot'}
+                          {slot.isPast ? 'Departed' : slot.isJoined ? 'Joined' : joiningSlotKey === slot.slotKey ? 'Joining...' : 'Join Slot'}
                         </button>
                       )}
                     </div>

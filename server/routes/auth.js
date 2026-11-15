@@ -8,6 +8,8 @@ import { generateSessionToken, requireAuth, parseCookieToken, JWT_SECRET } from 
 import { authRateLimiter } from '../middleware/rateLimit.js';
 import { serializeUser } from '../services/serializers.js';
 
+import { disconnectUserSessions } from '../services/notifications.js';
+
 const router = express.Router();
 export const googleClient = new OAuth2Client();
 
@@ -112,6 +114,7 @@ router.post('/google', authRateLimiter, async (req, res, next) => {
       await user.save();
     }
 
+    if (user.disabled) return res.status(403).json({ error: 'This account is disabled.' });
     const token = generateSessionToken(user);
     setSessionCookie(res, token);
     res.json({
@@ -139,7 +142,7 @@ router.post('/login', authRateLimiter, async (req, res, next) => {
 
     // Must NOT auto-create account and must NOT set the first submitted password
     const user = await User.findOne({ email: cleanEmail });
-    if (!user || !user.password_hash) {
+    if (!user || user.disabled || !user.password_hash) {
       return res.status(401).json({
         error: 'Invalid email or password. If you haven\'t set a password yet, please sign in with Google first.'
       });
@@ -150,6 +153,7 @@ router.post('/login', authRateLimiter, async (req, res, next) => {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
+    if (user.disabled) return res.status(403).json({ error: 'This account is disabled.' });
     const token = generateSessionToken(user);
     setSessionCookie(res, token);
     res.json({
@@ -191,7 +195,9 @@ router.post('/password', requireAuth, async (req, res, next) => {
     req.user.token_version = (req.user.token_version || 1) + 1;
     await req.user.save();
 
+    disconnectUserSessions(req.user.id);
     const freshToken = generateSessionToken(req.user);
+    setSessionCookie(res, freshToken);
     res.json({
       success: true,
       message: 'Password saved.',
@@ -205,8 +211,10 @@ router.post('/password', requireAuth, async (req, res, next) => {
 
 // 4. Get Current User Session (strictly from session token)
 router.get('/me', requireAuth, (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
   res.json({
     success: true,
+    token: req.sessionToken,
     user: serializeUser(req.user)
   });
 });
@@ -216,6 +224,10 @@ router.put('/profile', requireAuth, async (req, res, next) => {
   try {
     const { name, hostel, phone, degree, year, hometown } = req.body;
     const user = req.user;
+
+    if (typeof phone === 'string' && phone.trim() && !/^\+?[\d ()-]{7,20}$/.test(phone.trim())) {
+      return res.status(400).json({ error: 'Enter a valid contact phone number.' });
+    }
 
     if (typeof name === 'string' && name.trim()) {
       user.name = name.trim().slice(0, 100);
@@ -246,6 +258,11 @@ router.put('/profile', requireAuth, async (req, res, next) => {
       user.hometown = hometown.trim().slice(0, 100);
     }
 
+    for (const [input, field] of [['rollNumber', 'roll_number'], ['preferredTransport', 'preferred_transport'], ['timeWindow', 'time_window']]) {
+      if (typeof req.body[input] === 'string') user[field] = req.body[input].trim().slice(0, 100);
+    }
+    if (Array.isArray(req.body.frequentRoutes)) user.frequent_routes = req.body.frequentRoutes.filter(v => typeof v === 'string').slice(0, 10).map(v => v.trim().slice(0, 100));
+    if (typeof req.body.rideNotifications === 'boolean') user.ride_notifications = req.body.rideNotifications;
     await user.save();
     res.json({
       success: true,
@@ -271,6 +288,7 @@ router.post('/logout', async (req, res) => {
       const decoded = jwt.verify(token, JWT_SECRET);
       if (decoded?.userId) {
         await User.updateOne({ id: decoded.userId }, { $inc: { token_version: 1 } });
+        disconnectUserSessions(decoded.userId);
       }
     }
   } catch {

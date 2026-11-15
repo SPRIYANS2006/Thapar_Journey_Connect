@@ -316,7 +316,7 @@ export default function AuthPage({ onLoginSuccess }) {
                 <div className="text-right mt-1">
                   <button
                     type="button"
-                    onClick={() => setError('Contact campus IT or sign in with your @thapar.edu Google account.')}
+                    onClick={() => setError('Sign in with your @thapar.edu Google account to update your app password from Profile.')}
                     className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-semibold cursor-pointer"
                   >
                     Forgot password?
@@ -351,8 +351,7 @@ export default function AuthPage({ onLoginSuccess }) {
               <button
                 type="button"
                 onClick={() => {
-                  setEmail('student@thapar.edu');
-                  setPassword('Password123!');
+                  setError('Use Continue with Google above with your official @thapar.edu account to create your account.');
                 }}
                 className="text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer"
               >
@@ -367,6 +366,7 @@ export default function AuthPage({ onLoginSuccess }) {
       {/* Footer */}
       <footer className="max-w-7xl mx-auto w-full px-6 py-4 text-center text-xs text-slate-400 dark:text-slate-600 z-10">
         Thapar Journey Connect • Made for TIET students
+        <a className="block underline mt-2" href="/privacy.html">Privacy & safety information</a>
       </footer>
     </div>
   );

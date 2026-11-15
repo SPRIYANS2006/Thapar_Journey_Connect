@@ -2,7 +2,10 @@
 import { io } from 'socket.io-client';
 
 const API_BASE = '/api';
-const TOKEN_KEY = 'tiet_token';
+let sessionToken = null;
+// Migrate away from persistent browser-readable tokens. Reloads restore the
+// session through the server's HttpOnly cookie instead.
+if (typeof window !== 'undefined') localStorage.removeItem('tiet_token');
 
 let socketInstance = null;
 const unauthorizedListeners = new Set();
@@ -23,22 +26,15 @@ function notifyUnauthorized() {
 }
 
 export function getToken() {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem(TOKEN_KEY);
+  return sessionToken;
 }
 
 export function setToken(token) {
-  if (typeof window === 'undefined') return;
-  if (token) {
-    localStorage.setItem(TOKEN_KEY, token);
-  } else {
-    localStorage.removeItem(TOKEN_KEY);
-  }
+  sessionToken = token || null;
 }
 
 export function clearToken() {
-  if (typeof window === 'undefined') return;
-  localStorage.removeItem(TOKEN_KEY);
+  sessionToken = null;
 }
 
 export function getSocket() {
@@ -102,6 +98,10 @@ async function request(endpoint, options = {}) {
 }
 
 export const api = {
+  submitSafetyReport: data => request('/safety/reports', { method: 'POST', body: JSON.stringify(data) }),
+  getSafetyReports: () => request('/safety/reports'),
+  reviewSafetyReport: id => request(`/safety/reports/${id}`, { method: 'PATCH' }),
+  muteUser: (userId, muted) => request('/safety/mute', { method: 'PUT', body: JSON.stringify({ userId, muted }) }),
   // Config & Metadata (Public)
   getConfig: () => request('/config'),
   getDestinations: () => request('/destinations'),

@@ -58,6 +58,7 @@ const cityRideSchema = new mongoose.Schema({
     enum: ['departing', 'returning'],
     default: 'departing'
   },
+  completed_by: { type: String },
   members: [cityRideMemberSchema],
   slot_key: { type: String },
   created_at: { type: Date, default: Date.now }

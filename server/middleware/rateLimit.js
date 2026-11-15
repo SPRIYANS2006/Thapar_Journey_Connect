@@ -3,6 +3,7 @@
 
 import mongoose from 'mongoose';
 import { RateLimit } from '../models/RateLimit.js';
+import { consumeLimit } from './abuseLimit.js';
 
 const WINDOW_MS = 15 * 60 * 1000;
 const MAX_ATTEMPTS = 20;
@@ -42,6 +43,13 @@ export async function authRateLimiter(req, res, next) {
   }
 
   const key = `auth:${ip}:${email}`;
+  if (mongoose.connection.readyState === 1) {
+    try {
+      const ipAllowed = await consumeLimit(`auth-ip:${ip}`, 100, WINDOW_MS);
+      const accountAllowed = await consumeLimit(`auth-account:${email}`, 50, WINDOW_MS);
+      if (!ipAllowed || !accountAllowed) return res.status(429).json({ error: 'Too many authentication attempts. Please try again later.' });
+    } catch (error) { return next(error); }
+  }
   const now = new Date();
 
   // Primary: Shared MongoDB persistence

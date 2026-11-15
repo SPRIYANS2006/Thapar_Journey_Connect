@@ -1,3 +1,4 @@
+import { useModalFocus } from '../hooks/useModalFocus';
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, 
@@ -18,6 +19,7 @@ export default function TravelGroupChatModal({
   currentUser,
   triggerToast
 }) {
+  const dialogRef = useModalFocus(isOpen, onClose);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [inputText, setInputText] = useState('');
@@ -111,7 +113,7 @@ export default function TravelGroupChatModal({
   const isTrain = group.type === 'Train';
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1} className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 max-w-xl w-full h-[600px] max-h-[90vh] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
         
         {/* Header */}
@@ -207,7 +209,7 @@ export default function TravelGroupChatModal({
               </p>
             </div>
           ) : (
-            messages.map((m) => {
+            messages.filter(m => !(currentUser?.mutedUsers || []).includes(m.senderId || m.sender_id)).map((m) => {
               const isMe = m.senderId === currentUser?.id;
               const senderInitial = (m.senderName?.charAt(0) || 'S').toUpperCase();
 

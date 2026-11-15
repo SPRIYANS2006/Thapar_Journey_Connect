@@ -1,3 +1,4 @@
+import { useModalFocus } from '../hooks/useModalFocus';
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, AlertTriangle, Clock, MapPin, CheckCircle2 } from 'lucide-react';
 import SlotPicker from './SlotPicker';
@@ -13,6 +14,7 @@ export default function RescheduleSlotModal({
   onSuccess,
   triggerToast
 }) {
+  const dialogRef = useModalFocus(isOpen, onClose);
   const [selectedDate, setSelectedDate] = useState(group?.date || 'Today');
   const [selectedVehicle, setSelectedVehicle] = useState(group?.transport || 'Shared Cab');
   const [slots, setSlots] = useState([]);
@@ -34,7 +36,8 @@ export default function RescheduleSlotModal({
         const res = await api.getSlots({
           destinationId: destId,
           date: selectedDate,
-          vehicle: selectedVehicle
+          vehicle: selectedVehicle,
+          direction: group.direction
         });
         if (!cancelled && res && res.slots) {
           setSlots(res.slots);
@@ -65,14 +68,14 @@ export default function RescheduleSlotModal({
   for (let i = 0; i < 30; i++) {
     const d = new Date(now);
     d.setDate(now.getDate() + i);
-    const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
-    const monthName = d.toLocaleDateString('en-US', { month: 'short' });
-    const dayNum = d.getDate();
+    const dayName = d.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'Asia/Kolkata' });
+    const monthName = d.toLocaleDateString('en-US', { month: 'short', timeZone: 'Asia/Kolkata' });
+    const dayNum = d.toLocaleDateString('en-US', { day: 'numeric', timeZone: 'Asia/Kolkata' });
     let label = `${dayName}, ${dayNum} ${monthName}`;
     if (i === 0) label = 'Today';
     else if (i === 1) label = 'Tomorrow';
     dateOptions.push({
-      value: label,
+      value: d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }),
       display: `${label} (${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`
     });
   }
@@ -81,7 +84,7 @@ export default function RescheduleSlotModal({
     // Prevent selecting current slot
     const isSameSlot =
       (group.slotKey && slot.slotKey && group.slotKey === slot.slotKey) ||
-      (group.date === selectedDate && group.departureTime === slot.time);
+      (group.date === selectedDate && group.departureTime === slot.time && group.transport === slot.vehicle);
 
     if (isSameSlot) {
       if (triggerToast) {
@@ -97,7 +100,9 @@ export default function RescheduleSlotModal({
       const preview = await api.previewRescheduleSlot(group.id);
       setPenaltyPreview(preview);
     } catch {
-      setPenaltyPreview({ penalty: 0, willIncurPenalty: false, hoursLeft: 99 });
+      setPenaltyPreview(null);
+      if (triggerToast) triggerToast('Could not verify the cancellation penalty. Please try again.', 'error');
+      return;
     }
     setShowConfirm(true);
   };
@@ -113,7 +118,8 @@ export default function RescheduleSlotModal({
         targetDate: selectedDate,
         targetTime: targetSlot.time,
         targetVehicle: targetSlot.vehicle,
-        targetPickupPoint: group.pickupPoint
+        targetPickupPoint: group.pickupPoint,
+        targetDirection: group.direction
       });
 
       if (triggerToast) {
@@ -143,7 +149,7 @@ export default function RescheduleSlotModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+    <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1} className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
       <div className="relative w-full max-w-4xl bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh] transition-colors">
         
         {/* Modal Header */}

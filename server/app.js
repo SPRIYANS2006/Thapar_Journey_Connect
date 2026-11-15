@@ -11,6 +11,7 @@ import communitiesRouter from './routes/communities.js';
 import communityGroupsRouter from './routes/communityGroups.js';
 import slotsRouter from './routes/slots.js';
 import travelGroupsRouter from './routes/travelGroups.js';
+import safetyRouter from './routes/safety.js';
 import { errorHandler, notFoundHandler } from './middleware/errors.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -52,7 +53,6 @@ export function createApp() {
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
       if (allowedOrigins.includes(origin)) return callback(null, true);
-      if (origin.endsWith('.onrender.com')) return callback(null, true);
       if (process.env.NODE_ENV !== 'production') return callback(null, true);
       return callback(null, false);
     },
@@ -72,6 +72,7 @@ export function createApp() {
   app.use('/api/community-groups', communityGroupsRouter);
   app.use('/api/slots', slotsRouter);
   app.use('/api/travel-groups', travelGroupsRouter);
+  app.use('/api/safety', safetyRouter);
 
   // 6. 404 Handler for undefined /api routes
   app.use('/api', notFoundHandler);

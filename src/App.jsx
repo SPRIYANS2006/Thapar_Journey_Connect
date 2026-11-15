@@ -21,7 +21,7 @@ import { useCommunities } from './hooks/useCommunities';
 import { getSocket } from './services/api';
 
 function AppContent() {
-  const { user, token, loading, logout, updateProfile, refreshUser } = useAuth();
+  const { user, token, logout, updateProfile, refreshUser } = useAuth();
   const {
     groups,
     activeGroup,
@@ -43,7 +43,7 @@ function AppContent() {
     createPost: handleAddCommunityPost,
     toggleLike: handleLikePost,
     addComment: handleAddComment,
-    fetchPosts
+    openBoard
   } = useCommunities();
 
   const [activePage, setActivePage] = useState('dashboard');
@@ -73,6 +73,9 @@ function AppContent() {
   // Chat Modal State
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatGroupId, setChatGroupId] = useState(null);
+  const boardId = activePage === 'city-hub' && activeCommunityHub?.id === user?.joinedCommunity
+    ? activeCommunityHub?.id : null;
+  useEffect(() => { openBoard(boardId); }, [boardId, openBoard]);
 
   // Real-time WebSockets synchronization
   useEffect(() => {
@@ -324,12 +327,6 @@ function AppContent() {
     (selectedGroup && String(selectedGroup.id) === String(chatGroupId) ? selectedGroup : null) ||
     (chatGroupId ? { id: chatGroupId, destinationName: 'Ride Group', members: [] } : null);
 
-  // If not logged in, render AuthPage
-  if (loading) return <div role="status" className="min-h-screen grid place-items-center">Loading your session…</div>;
-  if (!token || !user) {
-    return <AuthPage onLoginSuccess={() => setActivePage('dashboard')} />;
-  }
-
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans selection:bg-blue-500 selection:text-white transition-colors duration-200">
       {/* Top Navbar Header */}
@@ -342,7 +339,13 @@ function AppContent() {
           setActivePage(page);
         }}
         user={user}
-        onLogout={logout}
+        onLogout={async () => {
+          try {
+            await logout();
+          } catch (error) {
+            triggerToast({ id: 'logout-error', type: 'error', title: 'Could not sign out', message: error.message });
+          }
+        }}
       />
 
       {/* Main View Area */}
@@ -484,7 +487,6 @@ function AppContent() {
               user={user}
               onOpenCityHub={(community) => {
                 setSelectedCityHub(community);
-                fetchPosts(community.id);
                 setActivePage('city-hub');
               }}
               onCreateCommunity={createCommunity}
@@ -522,6 +524,7 @@ function AppContent() {
       {/* Modals */}
       {isChatOpen && activeChatGroupObj && (
         <GroupChatModal
+          key={chatGroupId}
           group={activeChatGroupObj}
           currentUser={user}
           onClose={() => setIsChatOpen(false)}
@@ -548,11 +551,18 @@ function AppContent() {
   );
 }
 
+function SessionView() {
+  const { user, token, loading } = useAuth();
+  if (loading) return <div role="status" className="min-h-screen grid place-items-center">Loading your session…</div>;
+  if (!token || !user) return <AuthPage />;
+  return <AppContent key={user.id} />;
+}
+
 export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <AppContent />
+        <SessionView />
       </AuthProvider>
     </ThemeProvider>
   );

@@ -35,7 +35,11 @@ export function parseCookieToken(req) {
   for (const item of cookieHeader.split(';')) {
     const [name, ...rest] = item.trim().split('=');
     if (name === 'token') {
-      return decodeURIComponent(rest.join('=')).trim();
+      try {
+        return decodeURIComponent(rest.join('=')).trim();
+      } catch {
+        return null;
+      }
     }
   }
   return null;

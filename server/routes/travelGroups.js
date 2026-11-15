@@ -341,11 +341,11 @@ router.get('/:id/messages', async (req, res, next) => {
     }
 
     const messages = await TravelGroupMessage.find({ group_id: group.id })
-      .sort({ created_at: 1 })
+      .sort({ created_at: -1, _id: -1 })
       .limit(300)
       .lean();
 
-    res.json(messages.map(serializeTravelGroupMessage));
+    res.json(messages.reverse().map(serializeTravelGroupMessage));
   } catch (err) {
     next(err);
   }

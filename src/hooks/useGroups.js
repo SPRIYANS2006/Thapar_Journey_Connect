@@ -111,7 +111,7 @@ export function useGroups() {
     return (
       groups.find(
         (g) =>
-          (g.status === 'Open' || g.status === 'Confirmed' || g.status === 'Active') &&
+          (g.status === 'Open' || g.status === 'Full' || g.status === 'Confirmed' || g.status === 'Active') &&
           (g.members || []).some(
             (m) =>
               (m.userId && m.userId === user.id) ||

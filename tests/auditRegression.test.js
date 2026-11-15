@@ -6,7 +6,7 @@ import { MongoMemoryReplSet } from 'mongodb-memory-server';
 process.env.NODE_ENV = 'test';
 process.env.SESSION_SECRET = 'audit-regression-session-secret-32-characters';
 const { createApp } = await import('../server/app.js');
-const { User, Group, CityRide, Destination, Counter, TravelGroup, Community } = await import('../server/models/index.js');
+const { User, Group, CityRide, Destination, Counter, TravelGroup, TravelGroupMessage, Community } = await import('../server/models/index.js');
 const { generateSessionToken } = await import('../server/middleware/auth.js');
 const { setSocketIO } = await import('../server/services/notifications.js');
 const { validateTravelDateTime } = await import('../server/utils/time.js');
@@ -33,6 +33,26 @@ describe('Audit regressions', () => {
   async function travel(type = 'Train', overrides = {}) {
     return TravelGroup.create({ id: `tg_${type}`, type, title: `${type} to Delhi`, community_id: 'del', community_name: 'Delhi', creator_id: 'host', creator_name: 'Host', date, departure_time: '13:00', boarding_point: 'Patiala', destination: 'Delhi', train_number: type === 'Train' ? '12006 Shatabdi' : '', bus_operator: type === 'Bus' ? 'PRTC' : '', members: [{ user_id: 'host', name: 'Host', role: 'Admin' }], ...overrides });
   }
+  it('replaying logout with a revoked token preserves a later session', async () => {
+    assert.equal((await post('/api/auth/logout', {})).status, 200);
+    const current = generateSessionToken(await User.findOne({ id: user.id }));
+    assert.equal((await post('/api/auth/logout', {})).status, 200);
+    const me = await request(app).get('/api/auth/me').set('Authorization', 'Bearer ' + current);
+    assert.equal(me.status, 200);
+  });
+  it('a malformed cookie gets an authentication error', async () => {
+    const me = await request(app).get('/api/auth/me').set('Cookie', 'token=%ZZ');
+    assert.equal(me.status, 401);
+  });
+  it('travel chat returns the newest 300 messages in reading order', async () => {
+    const group = await travel('Bus', { members: [{ user_id: user.id, name: user.name }] });
+    await TravelGroupMessage.insertMany(Array.from({ length: 301 }, (_, i) => ({
+      group_id: group.id, sender_id: user.id, sender_name: user.name, text: String(i), created_at: new Date(1000 * i)
+    })));
+    const response = await request(app).get('/api/travel-groups/' + group.id + '/messages').set('Authorization', 'Bearer ' + token);
+    assert.equal(response.status, 200);
+    assert.deepEqual(response.body.map(message => message.text), Array.from({ length: 300 }, (_, i) => String(i + 1)));
+  });
   it('concurrent joins to different slots leave exactly one active membership', async () => {
     const results = await Promise.all([post('/api/slots/join', slot('12:00')), post('/api/slots/join', slot('13:00'))]);
     assert.deepEqual(results.map(r => r.status).sort(), [201, 409]);
@@ -44,6 +64,9 @@ describe('Audit regressions', () => {
     }
     assert.equal(await Group.countDocuments(), 0);
     assert.equal(validateTravelDateTime(date, 'nope').valid, false);
+    const day = offset => new Date(Date.now() + offset * 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+    assert.equal(validateTravelDateTime(day(30), '23:59').valid, true);
+    assert.equal(validateTravelDateTime(day(31), '00:00').valid, false);
   });
   it('outward and return at the same time are not reported as already joined', async () => {
     assert.equal((await post('/api/slots/join', slot('12:00'))).status, 201);

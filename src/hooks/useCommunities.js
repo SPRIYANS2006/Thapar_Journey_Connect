@@ -1,11 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../context/useAuth';
 
 export function useCommunities() {
   const { user, refreshUser } = useAuth();
   const [communities, setCommunities] = useState([]);
-  const [activeCommunityId, setActiveCommunityId] = useState(null);
+  const selectedBoard = useRef(null);
+  const latestRequest = useRef(0);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -25,6 +26,8 @@ export function useCommunities() {
   }, []);
 
   const fetchPosts = useCallback(async (communityId) => {
+    if (communityId !== selectedBoard.current) return [];
+    const request = ++latestRequest.current;
     if (!communityId) {
       setPosts([]);
       return [];
@@ -32,10 +35,10 @@ export function useCommunities() {
     try {
       const p = await api.getCommunityPosts(communityId);
       const safe = Array.isArray(p) ? p : [];
-      setPosts(safe);
+      if (request === latestRequest.current) setPosts(safe);
       return safe;
     } catch {
-      setPosts([]);
+      if (request === latestRequest.current) setPosts([]);
       return [];
     }
   }, []);
@@ -47,9 +50,6 @@ export function useCommunities() {
         if (!active) return;
         const safe = Array.isArray(list) ? list : [];
         setCommunities(safe);
-        if (safe.length > 0) {
-          setActiveCommunityId((prev) => prev || user?.joinedCommunity || safe[0].id);
-        }
       })
       .catch((err) => {
         if (!active) return;
@@ -64,46 +64,26 @@ export function useCommunities() {
     };
   }, [user]);
 
-  useEffect(() => {
-    let active = true;
-    if (activeCommunityId) {
-      api.getCommunityPosts(activeCommunityId)
-        .then((p) => {
-          if (!active) return;
-          setPosts(Array.isArray(p) ? p : []);
-        })
-        .catch(() => {
-          if (!active) return;
-          setPosts([]);
-        });
-    }
-
-    return () => {
-      active = false;
-    };
-  }, [activeCommunityId]);
-
-  const activeCommunity =
-    communities.find((c) => c.id === activeCommunityId) || communities[0] || null;
+  const openBoard = useCallback((communityId) => {
+    selectedBoard.current = communityId;
+    return fetchPosts(communityId);
+  }, [fetchPosts]);
 
   const createCommunity = async (commData) => {
     const res = await api.createCommunity(commData);
     await fetchCommunities();
-    if (res?.community?.id) {
-      setActiveCommunityId(res.community.id);
-    }
     return res;
   };
 
   const joinCommunity = async (communityId) => {
     const res = await api.joinCommunity(communityId);
-    await Promise.all([fetchCommunities(), refreshUser(), fetchPosts(communityId)]);
+    await Promise.all([fetchCommunities(), refreshUser()]);
     return res;
   };
 
   const leaveCommunity = async (communityId) => {
     const res = await api.leaveCommunity(communityId);
-    await Promise.all([fetchCommunities(), refreshUser(), fetchPosts(communityId)]);
+    await Promise.all([fetchCommunities(), refreshUser()]);
     return res;
   };
 
@@ -127,7 +107,7 @@ export function useCommunities() {
 
   const addComment = async (postId, text, communityId) => {
     const res = await api.addComment(postId, text);
-    const targetCommId = communityId || activeCommunityId;
+    const targetCommId = communityId || selectedBoard.current;
     if (targetCommId) {
       await fetchPosts(targetCommId);
     } else if (res?.comment) {
@@ -148,14 +128,11 @@ export function useCommunities() {
 
   return {
     communities,
-    activeCommunity,
-    activeCommunityId,
-    setActiveCommunityId,
+    openBoard,
     posts,
     loading,
     error,
     fetchCommunities,
-    fetchPosts,
     createCommunity,
     joinCommunity,
     leaveCommunity,

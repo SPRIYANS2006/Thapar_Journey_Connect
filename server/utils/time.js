@@ -111,7 +111,7 @@ export function getHoursUntilDeparture(dateStr, timeStr) {
   return diffMs / (1000 * 60 * 60);
 }
 
-// Validate date is not past and within 15-day window
+// Validate travel against the campus calendar in IST.
 export function validateTravelDateTime(dateStr, timeStr) {
   const normalized = normalizeDateStr(dateStr);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized) ||
@@ -127,8 +127,9 @@ export function validateTravelDateTime(dateStr, timeStr) {
     return { valid: false, error: 'Departure time cannot be in the past.' };
   }
 
-  // Maximum 15 days in future (15 * 24 = 360 hours)
-  if (hoursLeft > 31 * 24) {
+  const lastDate = new Date(Date.now() + 30 * 86400000)
+    .toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  if (normalized > lastDate) {
     return { valid: false, error: 'Departure date must be within the next 30 days.' };
   }
 

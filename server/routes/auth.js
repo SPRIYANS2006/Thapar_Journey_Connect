@@ -275,25 +275,25 @@ router.put('/profile', requireAuth, async (req, res, next) => {
 
 // 6. Logout - Clear HttpOnly Session Cookie and invalidate token version
 router.post('/logout', async (req, res) => {
-  clearSessionCookie(res);
-  try {
-    const authHeader = req.headers.authorization;
-    let token = null;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      token = authHeader.split(' ')[1]?.trim();
-    } else {
-      token = parseCookieToken(req);
+  const token = req.headers.authorization?.startsWith('Bearer ')
+    ? req.headers.authorization.slice(7).trim()
+    : parseCookieToken(req);
+  let decoded;
+  if (token) {
+    try {
+      decoded = jwt.verify(token, JWT_SECRET);
+    } catch {
+      // Expired or invalid tokens have no session to revoke.
     }
-    if (token) {
-      const decoded = jwt.verify(token, JWT_SECRET);
-      if (decoded?.userId) {
-        await User.updateOne({ id: decoded.userId }, { $inc: { token_version: 1 } });
-        disconnectUserSessions(decoded.userId);
-      }
-    }
-  } catch {
-    // Ignore verification errors during logout
   }
+  if (decoded?.userId && Number.isInteger(decoded.tokenVersion)) {
+    const result = await User.updateOne(
+      { id: decoded.userId, token_version: decoded.tokenVersion },
+      { $inc: { token_version: 1 } }
+    );
+    if (result.modifiedCount) disconnectUserSessions(decoded.userId);
+  }
+  clearSessionCookie(res);
   res.json({ success: true, message: 'Logged out successfully.' });
 });
 

@@ -95,7 +95,7 @@ export default function TravelGroupChatModal({
     try {
       const res = await api.sendTravelGroupMessage(group.id, textToSend);
       if (res?.message) {
-        setInputText(current => current === textToSend ? '' : current);
+        setInputText(current => current === inputText ? '' : current);
         setMessages((prev) => {
           if (prev.some((m) => m.id === res.message.id)) return prev;
           return [...prev, res.message];

@@ -21,83 +21,51 @@ export default function GroupChatModal({ group, currentUser, onClose, onSendMess
   const dialogRef = useModalFocus(true, onClose);
   const [messages, setMessages] = useState(group?.chatMessages || []);
   const [inputText, setInputText] = useState('');
+  const [historyError, setHistoryError] = useState('');
+  const [revision, setRevision] = useState(0);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // 1. Initial messages fetch
   useEffect(() => {
-    let active = true;
     if (!group?.id) return;
-
-    api.getMessages(group.id)
-      .then((msgs) => {
-        if (active && Array.isArray(msgs)) {
-          setMessages(msgs);
-        }
-      })
-      .catch((err) => {
-        console.warn('Failed to load messages:', err.message);
+    let active = true;
+    const socket = getSocket();
+    const groupId = String(group.id);
+    const mergeMessages = (incoming) => {
+      if (!active) return;
+      setMessages(previous => {
+        const byId = new Map(previous.map(message => [message.id, message]));
+        for (const message of incoming) byId.set(message.id, message);
+        return [...byId.values()].sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
       });
-
+    };
+    const joinRoom = () => {
+      if (socket?.connected) socket.emit('join_group', groupId);
+      api.getMessages(groupId).then(history => {
+        if (active) setHistoryError('');
+        mergeMessages(history);
+      }).catch(error => {
+        if (active) setHistoryError(error.message);
+      });
+    };
+    const receive = data => {
+      if (String(data?.groupId) !== groupId) return;
+      if (data.message) mergeMessages([data.message]);
+      else if (Array.isArray(data.messages)) mergeMessages(data.messages);
+    };
+    socket?.on('connect', joinRoom);
+    socket?.on('new_message', receive);
+    joinRoom();
     return () => {
       active = false;
+      if (socket?.connected) socket.emit('leave_group', groupId);
+      socket?.off('connect', joinRoom);
+      socket?.off('new_message', receive);
     };
-  }, [group?.id]);
-
-  // 2. Real-time Socket.io Room & Live Message Sync
-  useEffect(() => {
-    if (!group?.id) return;
-    const socket = getSocket();
-    if (!socket) return;
-
-    const sGroupId = String(group.id);
-
-    const joinRoom = () => {
-      socket.emit('join_group', sGroupId);
-    };
-
-    if (socket.connected) {
-      joinRoom();
-    }
-    socket.on('connect', joinRoom);
-
-    const handleNewMessage = (data) => {
-      if (!data) return;
-      if (String(data.groupId) === sGroupId) {
-        if (data.message) {
-          setMessages((prev) => {
-            const exists = prev.some(
-              (m) =>
-                (m.id && m.id === data.message.id) ||
-                (m._tempId && m.text === data.message.text && (m.senderId === data.message.senderId || m.sender_id === data.message.sender_id))
-            );
-            if (exists) {
-              return prev.map((m) =>
-                m.id === data.message.id ||
-                (m._tempId && m.text === data.message.text && (m.senderId === data.message.senderId || m.sender_id === data.message.sender_id))
-                  ? data.message
-                  : m
-              );
-            }
-            return [...prev, data.message];
-          });
-        } else if (Array.isArray(data.messages)) {
-          setMessages(data.messages);
-        }
-      }
-    };
-
-    socket.on('new_message', handleNewMessage);
-
-    return () => {
-      socket.emit('leave_group', sGroupId);
-      socket.off('connect', joinRoom);
-      socket.off('new_message', handleNewMessage);
-    };
-  }, [group?.id]);
+  }, [group?.id, revision]);
 
   useEffect(() => {
     scrollToBottom();
@@ -112,6 +80,7 @@ export default function GroupChatModal({ group, currentUser, onClose, onSendMess
     const optimisticMsg = {
       id: tempId,
       _tempId: tempId,
+      createdAt: new Date().toISOString(),
       groupId: group.id,
       senderId: currentUser?.id,
       senderName: currentUser?.name || 'You',
@@ -135,13 +104,12 @@ export default function GroupChatModal({ group, currentUser, onClose, onSendMess
 
       const confirmedMsg = res?.message || res;
       if (confirmedMsg && (confirmedMsg.id || confirmedMsg._id)) {
-        setMessages((prev) =>
-          prev.map((m) =>
-            m._tempId === tempId
-              ? { ...confirmedMsg, _tempId: undefined }
-              : m
-          )
-        );
+        setMessages(previous => {
+          if (previous.some(message => message.id === confirmedMsg.id)) {
+            return previous.filter(message => message._tempId !== tempId);
+          }
+          return previous.map(message => message._tempId === tempId ? confirmedMsg : message);
+        });
       }
     } catch (err) {
       console.warn('Send message error:', err.message);
@@ -213,7 +181,8 @@ export default function GroupChatModal({ group, currentUser, onClose, onSendMess
 
         {/* Chat Messages Body */}
         <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-4 bg-slate-50/60 dark:bg-slate-950/60">
-          {messages.length === 0 ? (
+          {historyError && <p role="alert">Could not load chat history. <button onClick={() => setRevision(value => value + 1)}>Retry</button></p>}
+          {messages.length === 0 && !historyError ? (
             <div className="h-full flex flex-col items-center justify-center text-center p-8 text-slate-400 space-y-2">
               <div className="w-12 h-12 rounded-xl bg-slate-200/60 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 text-xl">
                 💬

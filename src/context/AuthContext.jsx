@@ -9,8 +9,10 @@ export function AuthProvider({ children }) {
   const [error, setError] = useState(null);
 
   const refreshUser = useCallback(async () => {
+    const previousToken = getToken();
     try {
       const res = await api.getMe();
+      if (getToken() !== previousToken) return null;
       if (res && res.user) {
         setToken(res.token);
         setTokenState(res.token);
@@ -20,7 +22,7 @@ export function AuthProvider({ children }) {
       }
       return null;
     } catch (err) {
-      if (err.status === 401) {
+      if (err.status === 401 && getToken() === previousToken) {
         clearToken();
         setTokenState(null);
         setUser(null);
@@ -72,7 +74,6 @@ export function AuthProvider({ children }) {
   }, []);
 
   const loginWithGoogle = async (credential) => {
-    setLoading(true);
     setError(null);
     try {
       const res = await api.googleLogin(credential);
@@ -86,13 +87,10 @@ export function AuthProvider({ children }) {
     } catch (err) {
       setError(err.message);
       throw err;
-    } finally {
-      setLoading(false);
     }
   };
 
   const loginWithPassword = async (email, password) => {
-    setLoading(true);
     setError(null);
     try {
       const res = await api.login(email, password);
@@ -106,16 +104,14 @@ export function AuthProvider({ children }) {
     } catch (err) {
       setError(err.message);
       throw err;
-    } finally {
-      setLoading(false);
     }
   };
 
   const logout = async () => {
     try {
       await api.logout();
-    } catch {
-      // ignore
+    } catch (error) {
+      if (error.status !== 401) throw error;
     }
     clearToken();
     setTokenState(null);

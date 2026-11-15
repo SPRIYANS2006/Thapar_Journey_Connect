@@ -5,7 +5,13 @@ const API_BASE = '/api';
 let sessionToken = null;
 // Migrate away from persistent browser-readable tokens. Reloads restore the
 // session through the server's HttpOnly cookie instead.
-if (typeof window !== 'undefined') localStorage.removeItem('tiet_token');
+if (typeof window !== 'undefined') {
+  try {
+    localStorage.removeItem('tiet_token');
+  } catch {
+    // Storage can be disabled in private browsing.
+  }
+}
 
 let socketInstance = null;
 const unauthorizedListeners = new Set();
@@ -74,7 +80,7 @@ async function request(endpoint, options = {}) {
     headers
   });
 
-  if (res.status === 401) {
+  if (res.status === 401 && token === getToken()) {
     clearToken();
     notifyUnauthorized();
   }

@@ -36,6 +36,7 @@ export function isDbConnected() {
 
 export async function seedDefaultData() {
   try {
+    await User.updateMany({ reliability: 5, trips_completed: 0 }, { $set: { reliability: 4.5 } });
     // 1. Destinations (Official TIET transit hubs) - Idempotent upsert via bulkWrite
     const destinations = [
       {
@@ -185,7 +186,7 @@ export async function seedDefaultData() {
       },
       {
         id: 'jpr',
-        name: 'Jaipur & Rajasthan',
+        name: 'Jaipur',
         state: 'Rajasthan',
         icon: '🏰',
         distance_from_thapar: '470 km',
@@ -196,7 +197,7 @@ export async function seedDefaultData() {
     ];
 
     await Community.bulkWrite(
-      communities.map((c) => ({
+      communities.filter(c => !/^jalandh/i.test(c.name)).map((c) => ({
         updateOne: {
           filter: { id: c.id },
           update: {

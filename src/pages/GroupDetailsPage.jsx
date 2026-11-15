@@ -494,7 +494,7 @@ export default function GroupDetailsPage({
                     <div className="flex items-center gap-2">
                       <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500 shrink-0" />
                       <span>
-                        Reliability: <strong className="text-slate-800 dark:text-slate-200 font-semibold">{typeof member.reliability === 'number' ? member.reliability.toFixed(1) : '5.0'} / 5.0</strong>
+                        Reliability: <strong className="text-slate-800 dark:text-slate-200 font-semibold">{typeof member.reliability === 'number' ? member.reliability.toFixed(1) : '4.5'} / 5.0</strong>
                       </span>
                     </div>
 

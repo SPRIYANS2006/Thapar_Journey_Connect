@@ -645,7 +645,7 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
       .post('/api/communities')
       .set('Authorization', `Bearer ${studentToken}`)
       .send({
-        name: 'Shimla (Hill Station)',
+        name: 'Shimla',
         state: 'Himachal Pradesh',
         icon: '🏔️',
         distanceFromThapar: '180 km',
@@ -653,14 +653,14 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
       });
 
     assert.equal(resCreate.status, 201);
-    assert.equal(resCreate.body.community.name, 'Shimla (Hill Station)');
+    assert.equal(resCreate.body.community.name, 'Shimla');
 
     // Attempting to create duplicate with identical special characters correctly detected
     const resDuplicate = await request(app)
       .post('/api/communities')
       .set('Authorization', `Bearer ${studentToken}`)
       .send({
-        name: 'Shimla (Hill Station)',
+        name: 'Shimla',
         state: 'Himachal Pradesh'
       });
 

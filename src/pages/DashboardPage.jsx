@@ -173,6 +173,13 @@ export default function DashboardPage({
     fetchSlots(selectedDestId, selectedDate, selectedVehicle, direction);
   };
 
+  const handleQuickDestinationSelect = (id) => {
+    setSelectedDestId(id);
+    setHasSearched(true);
+    setIsDestDropdownOpen(false);
+    fetchSlots(id, selectedDate, selectedVehicle);
+  };
+
   // Join Slot Handler (Atomic Join or Lazy Creation)
   const handleJoinSlot = async (slot) => {
     setJoiningSlotKey(slot.slotKey);
@@ -420,7 +427,6 @@ export default function DashboardPage({
               >
                 <option value="Shared Cab" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Cab</option>
                 <option value="Shared Auto" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Auto</option>
-                <option value="Either" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Either</option>
               </select>
             </div>
 
@@ -462,7 +468,7 @@ export default function DashboardPage({
                 }`}
               >
                 <span>{d.icon}</span>
-                <span>{d.name.split(' ')[0]}</span>
+                <span>{d.name}</span>
               </button>
             ))}
           </div>

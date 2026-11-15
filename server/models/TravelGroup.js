@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { memberProfiles } from '../services/memberProfiles.js';
 import crypto from 'node:crypto';
 
 const travelGroupMemberSchema = new mongoose.Schema(
@@ -7,6 +8,7 @@ const travelGroupMemberSchema = new mongoose.Schema(
     user_id: { type: String, required: true },
     name: { type: String, required: true, trim: true },
     avatar: { type: String, default: 'ST' },
+    reliability: { type: Number, default: 4.5 },
     hostel: { type: String, default: '' },
     phone: { type: String, default: '' },
     role: { type: String, default: 'Member', enum: ['Admin', 'Member'] },
@@ -72,6 +74,8 @@ const travelGroupMessageSchema = new mongoose.Schema({
 });
 
 travelGroupMessageSchema.index({ group_id: 1, created_at: 1 });
+
+memberProfiles(travelGroupSchema);
 
 export const TravelGroup =
   mongoose.models.TravelGroup || mongoose.model('TravelGroup', travelGroupSchema);

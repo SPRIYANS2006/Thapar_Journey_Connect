@@ -1,3 +1,4 @@
+import { completionUpdate } from './memberProfiles.js';
 import { evictUserFromRoom } from './notifications.js';
 import crypto from 'node:crypto';
 import { runCommittedTransaction } from './transactions.js';
@@ -321,11 +322,11 @@ export async function completeGroup(adminUser, groupId) {
   if (memberUserIds.length > 0) {
     await User.updateMany(
       { id: { $in: memberUserIds } },
-      { $inc: { trips_completed: 1 }, $set: { active_group_id: null } }
+      completionUpdate, { updatePipeline: true }
     );
 
   }
 
   notifyGroupMembersUpdated(updatedGroup);
-  return updatedGroup;
+  return Group.findOne({ id: updatedGroup.id });
 }

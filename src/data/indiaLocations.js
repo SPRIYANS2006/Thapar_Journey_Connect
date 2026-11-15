@@ -8,7 +8,6 @@ export const INDIA_LOCATIONS = [
     isPopular: true,
     cities: [
       { name: 'Patiala', distance: 5, transport: 'Local Auto / Campus E-Rickshaw', icon: '🏫' },
-      { name: 'Jalandhar', distance: 145, transport: 'GT Road Cabs, Intercity Trains', icon: '🏛️' },
       { name: 'Ludhiana', distance: 95, transport: 'Direct Cabs, Passenger Trains', icon: '🏭' },
       { name: 'Amritsar', distance: 225, transport: 'Express Trains (Shan-e-Punjab), Highway Cabs', icon: '🛕' },
       { name: 'Bathinda', distance: 155, transport: 'PRTC Buses, Local Trains', icon: '⚡' },

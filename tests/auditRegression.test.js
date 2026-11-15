@@ -21,7 +21,7 @@ describe('Audit regressions', () => {
     for (const collection of Object.values(mongoose.connection.collections)) await collection.deleteMany({});
     await Counter.create({ id: 'group_id', seq: 0 });
     await Destination.create({ id: 'railway', name: 'Station', icon: '🚆', description: 'Station', distance: '8 km', popular_time: 'Evening', avg_cab_fare: '₹200 total' });
-    user = await User.create({ id: 'rider', name: 'Rider', email: 'rider@thapar.edu' });
+    user = await User.create({ id: 'rider', name: 'Rider', email: 'rider@thapar.edu', reliability: 5 });
     token = generateSessionToken(user);
   });
   const post = (path, body) => request(app).post(path).set('Authorization', `Bearer ${token}`).send(body);
@@ -158,6 +158,24 @@ describe('Audit regressions', () => {
     assert.equal(response.status, 200);
     assert.equal(response.body.group.adminFare, 700);
     assert.equal(response.body.group.pickupPoint, 'Main Gate (Near Executive Mess)');
+  });
+  it('new accounts start at 4.5 and successful completion adds 0.1 once', async () => {
+    const student = await User.create({id: 'new-rider', name: 'New Rider', email: 'new@thapar.edu', hostel: 'Hostel J'});
+    assert.equal(student.reliability, 4.5);
+    await group({status: 'Confirmed', date: '2020-01-01', members: [{user_id: user.id, name: user.name}, {user_id: student.id, name: student.name, hostel: 'stale'}]});
+    const response = await post('/api/groups/original/complete', {});
+    assert.equal(response.status, 200, JSON.stringify(response.body));
+    assert.equal((await User.findOne({id: student.id})).reliability, 4.6);
+    const member = response.body.group.members.find(member => member.userId === student.id);
+    assert.equal(member.reliability, 4.6);
+    assert.equal(member.hostel, 'Hostel J');
+    await post('/api/groups/original/complete', {});
+    assert.equal((await User.findOne({id: student.id})).reliability, 4.6);
+  });
+  it('community creation accepts only cities within the selected preset state', async () => {
+    assert.equal((await post('/api/communities', {name: 'Random City', state: 'Punjab'})).status, 400);
+    assert.equal((await post('/api/communities', {name: 'Shimla', state: 'Punjab'})).status, 400);
+    assert.equal((await post('/api/communities', {name: 'Shimla', state: 'Himachal Pradesh'})).status, 201);
   });
   it('profile settings survive a new session fetch', async () => {
     const saved = await request(app).put('/api/auth/profile').set('Authorization', `Bearer ${token}`).send({ rollNumber: '1234', preferredTransport: 'Auto', timeWindow: 'Every 30 Minutes', frequentRoutes: ['Delhi'], rideNotifications: false });

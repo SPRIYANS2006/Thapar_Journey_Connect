@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { memberProfiles } from '../services/memberProfiles.js';
 import crypto from 'node:crypto';
 
 const memberSchema = new mongoose.Schema({
@@ -11,6 +12,7 @@ const memberSchema = new mongoose.Schema({
   },
   name: { type: String, required: true },
   avatar: { type: String, default: 'ST' },
+  reliability: { type: Number, default: 4.5 },
   hostel: { type: String, default: '' },
   departure_time: { type: String, default: '12:00' },
   role: { type: String, default: 'Member' },
@@ -66,5 +68,7 @@ const groupSchema = new mongoose.Schema({
 groupSchema.index({ destination_id: 1, date: 1, status: 1 });
 groupSchema.index({ 'members.user_id': 1, status: 1 });
 groupSchema.index({ slot_key: 1 }, { unique: true, sparse: true });
+
+memberProfiles(groupSchema);
 
 export const Group = mongoose.models.Group || mongoose.model('Group', groupSchema);

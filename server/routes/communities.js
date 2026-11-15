@@ -1,3 +1,5 @@
+import { completionUpdate } from '../services/memberProfiles.js';
+import { INDIA_LOCATIONS } from '../../src/data/indiaLocations.js';
 import { mutationLimit } from '../middleware/abuseLimit.js';
 import { transactionalRouter } from '../services/transactions.js';
 import { evictUserFromRoom } from '../services/notifications.js';
@@ -26,7 +28,7 @@ router.use(requireAuth, mutationLimit);
 // 1. List all communities
 router.get('/', async (req, res, next) => {
   try {
-    const list = await Community.find()
+    const list = await Community.find({ name: { $not: /^jalandh/i } })
       .sort({ members_count: -1, name: 1 })
       .lean();
     res.json(list.map(serializeCommunity));
@@ -56,7 +58,9 @@ router.post('/', async (req, res, next) => {
       throw new HttpError(400, 'State / Province is required.');
     }
 
-    const cleanName = name.trim().slice(0, 100);
+    const preset = INDIA_LOCATIONS.find(location => location.state === state)?.cities.find(city => city.name === name);
+    if (!preset) throw new HttpError(400, 'Choose a city from the selected state.');
+    const cleanName = preset.name;
     const cleanState = state.trim().slice(0, 100);
     const idSlug = cleanName
       .toLowerCase()
@@ -686,14 +690,14 @@ router.post('/:id/rides/:rideId/complete', async (req, res, next) => {
     if (memberUserIds.length > 0) {
       await User.updateMany(
         { id: { $in: memberUserIds } },
-        { $inc: { trips_completed: 1 }, $set: { active_group_id: null } }
+        completionUpdate, { updatePipeline: true }
       );
     }
 
     res.json({
       success: true,
       message: `Completed ${ride.mode} ride to ${ride.destination}!`,
-      ride: serializeCityRide(ride, req.user.id)
+      ride: serializeCityRide(await CityRide.findOne({id: ride.id}), req.user.id)
     });
   } catch (err) {
     next(err);

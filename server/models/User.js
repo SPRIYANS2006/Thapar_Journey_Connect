@@ -19,7 +19,7 @@ const userSchema = new mongoose.Schema({
   disabled: { type: Boolean, default: false },
   muted_users: { type: [String], default: [] },
   token_version: { type: Number, default: 1 },
-  reliability: { type: Number, default: 5.0 },
+  reliability: { type: Number, default: 4.5 },
   trips_completed: { type: Number, default: 0 },
   role: { type: String, enum: ['student', 'admin'], default: 'student' },
   active_group_id: { type: String, default: null },

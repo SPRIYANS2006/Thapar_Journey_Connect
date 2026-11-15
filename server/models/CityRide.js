@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { memberProfiles } from '../services/memberProfiles.js';
 import crypto from 'node:crypto';
 
 const cityRideMemberSchema = new mongoose.Schema(
@@ -7,6 +8,7 @@ const cityRideMemberSchema = new mongoose.Schema(
     user_id: { type: String, required: true },
     name: { type: String, required: true, trim: true },
     avatar: { type: String, default: 'ST' },
+    reliability: { type: Number, default: 4.5 },
     hostel: { type: String, default: '' },
     phone: { type: String, default: '' },
     role: { type: String, default: 'Member' },
@@ -68,6 +70,8 @@ const cityRideSchema = new mongoose.Schema({
 cityRideSchema.index({ community_id: 1, mode: 1, date: 1, status: 1 });
 cityRideSchema.index({ 'members.user_id': 1 });
 cityRideSchema.index({ slot_key: 1 }, { unique: true, sparse: true });
+
+memberProfiles(cityRideSchema);
 
 export const CityRide =
   mongoose.models.CityRide || mongoose.model('CityRide', cityRideSchema);

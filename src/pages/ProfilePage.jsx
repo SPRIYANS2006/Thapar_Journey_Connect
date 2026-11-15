@@ -206,6 +206,7 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
                   {displayName}
                 </h2>
               </div>
+              <p className="text-sm font-semibold">Reliability rating {Number(user.reliability ?? 4.5).toFixed(1)} / 5 · {user.tripsCompleted || 0} completed journeys</p>
               <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium">
                 TIET Student • Thapar Institute of Engineering & Technology
               </p>

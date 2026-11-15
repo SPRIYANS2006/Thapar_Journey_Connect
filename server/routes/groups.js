@@ -68,6 +68,7 @@ function serializeCityRideAsGroup(ride, viewingUserId) {
       name: m.name,
       avatar: m.avatar || 'ST',
       hostel: m.hostel || '',
+      reliability: m.reliability ?? 4.5,
       phone: canSeePhone ? (m.phone || '') : '',
       role: m.role === 'Admin' ? 'Group Admin' : (m.role || 'Member'),
       isCompanion: Boolean(m.is_companion),

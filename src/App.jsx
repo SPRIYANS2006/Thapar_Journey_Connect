@@ -197,6 +197,10 @@ function AppContent() {
     }
   }, [activePage, fetchGroups]);
 
+  useEffect(() => {
+    if (activePage === 'profile') refreshUser();
+  }, [activePage, refreshUser]);
+
   // Group Handlers
   const handleJoinGroup = async (groupId) => {
     // 1. If already a member of this group, navigate directly

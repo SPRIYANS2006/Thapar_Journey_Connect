@@ -5,10 +5,8 @@ import { fileURLToPath } from 'node:url';
 
 import metaRouter from './routes/meta.js';
 import authRouter from './routes/auth.js';
-import journeysRouter from './routes/journeys.js';
 import groupsRouter from './routes/groups.js';
 import communitiesRouter from './routes/communities.js';
-import communityGroupsRouter from './routes/communityGroups.js';
 import slotsRouter from './routes/slots.js';
 import travelGroupsRouter from './routes/travelGroups.js';
 import safetyRouter from './routes/safety.js';
@@ -66,10 +64,8 @@ export function createApp() {
   // 5. API Routes
   app.use('/api', metaRouter);
   app.use('/api/auth', authRouter);
-  app.use('/api/journeys', journeysRouter);
   app.use('/api/groups', groupsRouter);
   app.use('/api/communities', communitiesRouter);
-  app.use('/api/community-groups', communityGroupsRouter);
   app.use('/api/slots', slotsRouter);
   app.use('/api/travel-groups', travelGroupsRouter);
   app.use('/api/safety', safetyRouter);

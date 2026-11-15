@@ -165,7 +165,7 @@ router.get('/', optionalAuth, async (req, res, next) => {
 });
 
 // 2. POST /api/slots/join: Atomic join or lazy group creation with strict capacity & single-ride enforcement
-router.post('/join', requireAuth, async (req, res, next) => {
+export async function joinSlot(req, res, next) {
   try {
     const { destinationId, date, time, vehicle, pickupPoint, direction } = req.body;
     if (!destinationId || !time) {
@@ -215,6 +215,7 @@ router.post('/join', requireAuth, async (req, res, next) => {
 
     if (activeGroup) {
       const isAlreadyInThisSlot =
+        activeGroup.id === req.targetGroup?.id ||
         activeGroup.slot_key === slotKey ||
         (activeGroup.destination_id === destinationId &&
           activeGroup.date === travelDate &&
@@ -265,7 +266,7 @@ router.post('/join', requireAuth, async (req, res, next) => {
     };
 
     // Check if group already exists for this slot
-    let group = await Group.findOne({
+    let group = req.targetGroup || await Group.findOne({
       $or: [
         { slot_key: slotKey },
         {
@@ -409,7 +410,9 @@ router.post('/join', requireAuth, async (req, res, next) => {
   } catch (err) {
     next(err);
   }
-});
+}
+
+router.post('/join', requireAuth, joinSlot);
 
 // 3. POST /api/slots/reschedule/preview: Check if moving will incur a reliability penalty
 router.post('/reschedule/preview', requireAuth, async (req, res, next) => {

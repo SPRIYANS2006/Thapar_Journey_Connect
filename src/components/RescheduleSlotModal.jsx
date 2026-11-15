@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Calendar, AlertTriangle, Clock, MapPin, CheckCircle2 } from 'lucide-react';
 import SlotPicker from './SlotPicker';
 import { api } from '../services/api';
-import { formatTime24to12 } from '../utils/matchingEngine';
+import { formatTime24to12 } from '../utils/timeSlots';
 
 const VEHICLES = ['Shared Cab', 'Shared Auto', 'Either'];
 

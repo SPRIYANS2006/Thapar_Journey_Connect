@@ -222,8 +222,8 @@ export default function AuthPage({ onLoginSuccess }) {
                 <Sparkles className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="font-bold text-slate-900 dark:text-white text-xs">Save up to</h4>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">75%</p>
+                <h4 className="font-bold text-slate-900 dark:text-white text-xs">Shared fares</h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">Split with co-riders</p>
               </div>
             </div>
           </div>

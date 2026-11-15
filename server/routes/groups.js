@@ -7,8 +7,6 @@ import { Group, Message, User, CityRide } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { HttpError } from '../middleware/errors.js';
 import {
-  createGroupFromJourney,
-  joinGroupWithJourney,
   leaveGroup,
   completeGroup,
   cleanupExpiredGroups,
@@ -23,7 +21,7 @@ import {
   ALLOWED_PICKUP_POINTS
 } from '../middleware/validate.js';
 import { notifyGroup, notifyUser, notifyGroupMembersUpdated } from '../services/notifications.js';
-import { rescheduleGroupSlot } from './slots.js';
+import { joinSlot, rescheduleGroupSlot } from './slots.js';
 
 function serializeCityRideAsGroup(ride, viewingUserId) {
   const membersCount = ride.current_members_count || (ride.members ? ride.members.length : 1);
@@ -208,25 +206,7 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
-// 3. Create Group from caller's matching Journey: accepts { journeyId, pickupPoint } ONLY
-router.post('/', async (req, res, next) => {
-  try {
-    const { journeyId, pickupPoint } = req.body;
-    if (!journeyId) {
-      throw new HttpError(400, 'A valid journeyId is required to create a group.');
-    }
-
-    const group = await createGroupFromJourney(req.user, journeyId, pickupPoint);
-    res.status(201).json({
-      success: true,
-      group: serializeGroup(group, req.user.id)
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// 4. Join Group: caller must provide their matching journeyId (or joins community ride directly)
+// Join an existing group through the same slot booking rules.
 router.post('/:id/join', async (req, res, next) => {
   try {
     const { group, cityRide } = await findGroupOrCityRide(req.params.id);
@@ -328,16 +308,9 @@ router.post('/:id/join', async (req, res, next) => {
       });
     }
 
-    const { journeyId } = req.body;
-    if (!journeyId) {
-      throw new HttpError(400, 'A valid journeyId is required to join a travel group.');
-    }
-
-    const updated = await joinGroupWithJourney(req.user, group.id, journeyId);
-    res.json({
-      success: true,
-      group: serializeGroup(updated, req.user.id)
-    });
+    req.targetGroup = group;
+    req.body = { destinationId: group.destination_id, date: group.date, time: group.departure_time, vehicle: group.transport, direction: group.direction, pickupPoint: group.pickup_point };
+    return joinSlot(req, res, next);
   } catch (err) {
     next(err);
   }
@@ -719,41 +692,6 @@ router.post('/:id/messages', validateChatMessage, async (req, res, next) => {
     res.status(201).json({
       success: true,
       message: serialized
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// 12. Fare Split Calculator: Members only
-router.post('/:id/fare-split', async (req, res, next) => {
-  try {
-    const group = await Group.findOne({ id: req.params.id }).lean();
-    if (!group) throw new HttpError(404, 'Group not found.');
-
-    const isMember = (group.members || []).some((m) => m.user_id === req.user.id);
-    if (!isMember) {
-      throw new HttpError(403, 'Forbidden: Fare split is restricted to group members.');
-    }
-
-    const totalAmount = Number(req.body.totalAmount);
-    const tip = Number(req.body.tip) || 0;
-    if (!Number.isFinite(totalAmount) || totalAmount <= 0 || !Number.isFinite(tip) || tip < 0) {
-      throw new HttpError(400, 'Please enter a valid total fare amount.');
-    }
-
-    const memberCount = Math.max(1, (group.members || []).length);
-    const total = totalAmount + tip;
-    const perRider = Math.ceil(total / memberCount);
-
-    res.json({
-      success: true,
-      totalAmount,
-      tip,
-      totalWithTip: total,
-      memberCount,
-      splitPerPerson: perRider,
-      summary: `Total ₹${total} split equally among ${memberCount} riders = ₹${perRider} each.`
     });
   } catch (err) {
     next(err);

@@ -8,7 +8,7 @@ import { connectDB } from './config/db.js';
 import { setSocketIO } from './services/notifications.js';
 import { cleanupExpiredGroups } from './services/groups.js';
 import { JWT_SECRET } from './middleware/auth.js';
-import { User, Group, CityRide, CommunityGroup, TravelGroup } from './models/index.js';
+import { User, Group, CityRide, TravelGroup } from './models/index.js';
 
 const PORT = process.env.PORT || 5000;
 
@@ -152,39 +152,6 @@ async function bootstrap() {
     socket.on('leave_group', (groupId) => {
       if (groupId) {
         socket.leave(`group_${String(groupId)}`);
-      }
-    });
-
-    // Community Group discussion rooms: verified members only
-    socket.on('join_community_group', async (groupId) => {
-      try {
-        if (!groupId || !socket.user?.id) return;
-        const sGroupId = String(groupId).trim();
-        const cg = await CommunityGroup.findOne({
-          id: sGroupId,
-          $or: [
-            { creator_id: socket.user.id },
-            { 'members.user_id': socket.user.id },
-            { 'members.userId': socket.user.id },
-            { 'members.id': socket.user.id }
-          ]
-        }).lean();
-
-        if (cg) {
-          socket.join(`cg_${sGroupId}`);
-        } else {
-          socket.emit('error', {
-            message: 'Access denied: You are not a member of this community group.'
-          });
-        }
-      } catch (e) {
-        console.warn('Socket join_community_group error:', e.message);
-      }
-    });
-
-    socket.on('leave_community_group', (groupId) => {
-      if (groupId) {
-        socket.leave(`cg_${groupId}`);
       }
     });
 

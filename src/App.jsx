@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Users, Compass } from 'lucide-react';
 import Navbar from './components/Navbar';
 import AuthPage from './pages/AuthPage';
 import DashboardPage from './pages/DashboardPage';
-import MatchingResultsPage from './pages/MatchingResultsPage';
 import GroupDetailsPage from './pages/GroupDetailsPage';
 import MyJourneysPage from './pages/MyJourneysPage';
 import ProfilePage from './pages/ProfilePage';
@@ -12,7 +10,6 @@ import CommunitiesPage from './pages/CommunitiesPage';
 import CityCommunityHubPage from './pages/CityCommunityHubPage';
 import ErrorBoundary from './components/ErrorBoundary';
 
-import JourneyFormModal from './components/JourneyFormModal';
 import GroupChatModal from './components/GroupChatModal';
 import NotificationToast from './components/NotificationToast';
 
@@ -21,7 +18,6 @@ import { ThemeProvider } from './context/ThemeContext';
 import { useAuth } from './context/useAuth';
 import { useGroups } from './hooks/useGroups';
 import { useCommunities } from './hooks/useCommunities';
-import { useJourneys } from './hooks/useJourneys';
 import { getSocket } from './services/api';
 
 function AppContent() {
@@ -32,7 +28,6 @@ function AppContent() {
     selectedGroup,
     setSelectedGroupId,
     fetchGroups,
-    createGroup,
     joinGroup,
     leaveGroup,
     confirmGroup,
@@ -50,13 +45,6 @@ function AppContent() {
     addComment: handleAddComment,
     fetchPosts
   } = useCommunities();
-
-  const {
-    activeJourney,
-    matchedStudents,
-    matchingGroups,
-    submitJourney
-  } = useJourneys();
 
   const [activePage, setActivePage] = useState('dashboard');
   const [selectedCityHub, setSelectedCityHub] = useState(null);
@@ -81,10 +69,6 @@ function AppContent() {
   const dismissToast = useCallback((id) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
   }, []);
-
-  // Journey & Matching Modal State
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [selectedDestination, setSelectedDestination] = useState(null);
 
   // Chat Modal State
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -204,54 +188,6 @@ function AppContent() {
     };
   }, [token, user, isChatOpen, chatGroupId, triggerToast, setSelectedGroupId, fetchGroups]);
 
-  // Destination Selection & Journey Creation
-  const handleOpenJourneyForm = (destObj) => {
-    setSelectedDestination(destObj);
-    setIsFormOpen(true);
-  };
-
-  const handleSubmitJourney = async (journeyData) => {
-    try {
-      const res = await submitJourney(journeyData);
-      setIsFormOpen(false);
-
-      if (res.matchingGroups && res.matchingGroups.length > 0) {
-        const topMatch = res.matchingGroups[0];
-        triggerToast({
-          id: `match_${Date.now()}`,
-          type: 'match',
-          title: 'Matching groups found',
-          message: `Active Group #${topMatch.group.id} for ${topMatch.group.destinationName} has open seats.`,
-          actionLabel: `View Group #${topMatch.group.id}`,
-          onAction: () => {
-            setSelectedGroupId(topMatch.group.id);
-            setActivePage('group-details');
-          }
-        });
-      } else if (res.matchedStudents && res.matchedStudents.length > 0) {
-        triggerToast({
-          id: `students_${Date.now()}`,
-          type: 'success',
-          title: 'Matching co-riders found',
-          message: `Found ${res.matchedStudents.length} co-passengers departing around ${journeyData.departureTime}. Form a new group!`,
-          actionLabel: 'View Matches',
-          onAction: () => {
-            setActivePage('matching');
-          }
-        });
-      }
-
-      setActivePage('matching');
-    } catch (err) {
-      triggerToast({
-        id: `err_${Date.now()}`,
-        type: 'error',
-        title: 'Request failed',
-        message: err.message || 'Could not record journey'
-      });
-    }
-  };
-
   useEffect(() => {
     if (activePage === 'my-journeys') {
       fetchGroups().catch(() => {});
@@ -291,7 +227,7 @@ function AppContent() {
     }
 
     try {
-      await joinGroup(groupId, { journeyId: activeJourney?.id });
+      await joinGroup(groupId);
       triggerToast({
         id: `joined_${Date.now()}`,
         type: 'success',
@@ -306,84 +242,6 @@ function AppContent() {
         type: 'error',
         title: 'Could not join group',
         message: err.message || 'Unable to join group'
-      });
-    }
-  };
-
-  const handleCreateGroupWithStudent = async (candidateStudent) => {
-    // Single-Ride Policy
-    if (activeGroup) {
-      triggerToast({
-        id: `single_ride_create_${Date.now()}`,
-        type: 'warning',
-        title: 'Single-Ride Policy Active',
-        message: `You are already a member of active Group #${activeGroup.id}. Leave that group first before forming a new one.`
-      });
-      setSelectedGroupId(activeGroup.id);
-      setActivePage('group-details');
-      return;
-    }
-
-    try {
-      const journeyIdToUse = candidateStudent.journeyId || activeJourney?.id;
-      const res = await createGroup({
-        journeyId: journeyIdToUse,
-        pickupPoint: 'Main Gate (Near Executive Mess)'
-      });
-
-      triggerToast({
-        id: `created_${Date.now()}`,
-        type: 'success',
-        title: 'New Ride Group Created!',
-        message: `Group #${res.group.id} formed for ${res.group.destinationName}.`
-      });
-
-      setSelectedGroupId(res.group.id);
-      setActivePage('group-details');
-    } catch (err) {
-      triggerToast({
-        id: `create_err_${Date.now()}`,
-        type: 'error',
-        title: 'Group Creation Failed',
-        message: err.message || 'Could not form group'
-      });
-    }
-  };
-
-  const handleCreateGroupForJourney = async () => {
-    if (activeGroup) {
-      triggerToast({
-        id: `single_ride_open_${Date.now()}`,
-        type: 'warning',
-        title: 'Single-Ride Policy Active',
-        message: `You already have active Group #${activeGroup.id}. Leave that group before forming another.`
-      });
-      setSelectedGroupId(activeGroup.id);
-      setActivePage('group-details');
-      return;
-    }
-
-    try {
-      const res = await createGroup({
-        journeyId: activeJourney?.id,
-        pickupPoint: 'Main Gate (Near Executive Mess)'
-      });
-
-      triggerToast({
-        id: `created_${Date.now()}`,
-        type: 'success',
-        title: 'Open Group Formed!',
-        message: `Group #${res.group.id} is now open for students to join.`
-      });
-
-      setSelectedGroupId(res.group.id);
-      setActivePage('group-details');
-    } catch (err) {
-      triggerToast({
-        id: `create_err_${Date.now()}`,
-        type: 'error',
-        title: 'Could Not Create Group',
-        message: err.message || 'Error creating group'
       });
     }
   };
@@ -481,18 +339,10 @@ function AppContent() {
           if (page !== 'communities') {
             setSelectedCityHub(null);
           }
-          if (page === 'my-groups') {
-            if (activeGroup) {
-              setSelectedGroupId(activeGroup.id);
-              setActivePage('group-details');
-              return;
-            }
-          }
           setActivePage(page);
         }}
         user={user}
         onLogout={logout}
-        myGroupsCount={groups.length}
       />
 
       {/* Main View Area */}
@@ -504,9 +354,7 @@ function AppContent() {
               user={user}
               communities={communities}
               onNavigateToCommunities={() => setActivePage('communities')}
-              onSelectDestination={handleOpenJourneyForm}
               activeGroups={groups}
-              onJoinGroup={handleJoinGroup}
               triggerToast={triggerToast}
               onRefreshGroups={fetchGroups}
               onViewGroupDetails={(gId) => {
@@ -516,28 +364,11 @@ function AppContent() {
             />
           )}
 
-          {activePage === 'matching' && (
-            <MatchingResultsPage
-              journeyReq={activeJourney}
-              matchedStudents={matchedStudents}
-              matchingGroups={matchingGroups}
-              currentUser={user}
-              onBack={() => setActivePage('dashboard')}
-              onJoinGroup={handleJoinGroup}
-              onViewGroupDetails={(gId) => {
-                setSelectedGroupId(gId);
-                setActivePage('group-details');
-              }}
-              onCreateGroupWithStudent={handleCreateGroupWithStudent}
-              onCreateGroupForJourney={handleCreateGroupForJourney}
-            />
-          )}
-
           {activePage === 'group-details' && (
             <GroupDetailsPage
               group={selectedGroup}
               currentUser={user}
-              onBack={() => setActivePage('dashboard')}
+              onBack={() => setActivePage('my-journeys')}
               onOpenChat={handleOpenChatModal}
               onConfirmJourney={handleConfirmJourney}
               onLeaveGroup={handleLeaveGroup}
@@ -558,29 +389,6 @@ function AppContent() {
                 })
               }
             />
-          )}
-
-          {activePage === 'my-groups' && (
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center space-y-6 animate-in fade-in duration-300">
-              <div className="w-20 h-20 bg-blue-50 text-blue-600 rounded-3xl mx-auto flex items-center justify-center border border-blue-200/60 shadow-sm">
-                <Users className="w-10 h-10" />
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-2xl font-black text-slate-900">
-                  No Active Travel Groups
-                </h2>
-                <p className="text-sm text-slate-500 max-w-md mx-auto">
-                  You are not currently enrolled in any open ride groups. Pick your transit destination on the dashboard to match with fellow Thapar students!
-                </p>
-              </div>
-              <button
-                onClick={() => setActivePage('dashboard')}
-                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl shadow-md transition-all inline-flex items-center gap-2 cursor-pointer"
-              >
-                <Compass className="w-4 h-4" />
-                <span>Explore Destinations</span>
-              </button>
-            </div>
           )}
 
           {activePage === 'my-journeys' && (
@@ -807,15 +615,6 @@ function AppContent() {
       </main>
 
       {/* Modals */}
-      {isFormOpen && (
-        <JourneyFormModal
-          destination={selectedDestination}
-          user={user}
-          onClose={() => setIsFormOpen(false)}
-          onSubmitJourney={handleSubmitJourney}
-        />
-      )}
-
       {isChatOpen && activeChatGroupObj && (
         <GroupChatModal
           group={activeChatGroupObj}

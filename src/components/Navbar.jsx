@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../context/useTheme';
 
-export default function Navbar({ activePage, setActivePage, user, onLogout, _myGroupsCount = 1 }) {
+export default function Navbar({ activePage, setActivePage, user, onLogout }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { isDark, toggleTheme } = useTheme();
 

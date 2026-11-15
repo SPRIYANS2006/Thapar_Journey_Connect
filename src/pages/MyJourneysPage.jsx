@@ -8,7 +8,7 @@ import {
   Home,
   X
 } from 'lucide-react';
-import { formatTime24to12 } from '../utils/matchingEngine';
+import { formatTime24to12 } from '../utils/timeSlots';
 import { api } from '../services/api';
 import RescheduleSlotModal from '../components/RescheduleSlotModal';
 
@@ -19,7 +19,7 @@ export default function MyJourneysPage({
   onOpenChat,
   onRefresh,
   triggerToast: _triggerToast,
-  onFindRide: _onFindRide
+  onFindRide
 }) {
   const [fetchedJourneys, setFetchedJourneys] = useState(null);
   const [completedJourneys, setCompletedJourneys] = useState([]);
@@ -92,6 +92,7 @@ export default function MyJourneysPage({
               <p className="text-xs text-slate-400 max-w-sm mx-auto">
                 You do not have any upcoming shared rides right now. Find available 15-minute slots on the dashboard to plan your trip!
               </p>
+              {onFindRide && <button type="button" onClick={onFindRide} className="text-sm text-blue-600 dark:text-blue-400 font-semibold underline">Find a ride</button>}
             </div>
           ) : (
             upcomingJourneys.map((group) => {

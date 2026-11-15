@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
-import { Destination, Hostel, Community, Counter, CommunityGroup, CityRide, User } from '../models/index.js';
+import { Destination, Hostel, Community, Counter, CityRide, User } from '../models/index.js';
 
 
 export async function connectDB(customUri) {
@@ -226,20 +226,13 @@ export async function seedDefaultData() {
       { upsert: true }
     );
 
-    // 5. Purge any prefilled/sample community groups and city rides from the database
+    // 5. Purge prefilled/sample city rides from the database
     await CityRide.deleteMany({
       $or: [
         { id: { $in: ['cr_del_cab_1', 'cr_del_train_1', 'cr_chd_cab_1', 'cr_jpr_train_1', 'cr_asr_cab_1'] } },
         { creator_id: { $in: ['sample_student_1', 'sample_student_2', 'sample_student_3', 'sample_student_4', 'sample_student_5', 'sample_student_6', 'sample_student_7', 'sample_student_8', 'thapar_official'] } }
       ]
     });
-    await CommunityGroup.deleteMany({
-      $or: [
-        { id: { $in: ['cg_delhi_volvo', 'cg_chd_daily', 'cg_jpr_fest', 'cg_jal_gt_road'] } },
-        { creator_id: 'thapar_official' }
-      ]
-    });
-
     if (process.env.NODE_ENV === 'production') {
       const demoIds = ['student_aarav', 'student_diya', 'student_aarav_alias', 'student_diya_alias', 'admin_thapar'];
       await User.updateMany({ id: { $in: demoIds } }, { $set: { disabled: true, password_hash: null }, $inc: { token_version: 1 } });

@@ -5,7 +5,7 @@
 [![Express Version](https://img.shields.io/badge/Express-5.x-000000?logo=express)](https://expressjs.com)
 [![MongoDB](https://img.shields.io/badge/MongoDB-Atlas_Cloud-47A248?logo=mongodb)](https://www.mongodb.com)
 [![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-v4-06B6D4?logo=tailwindcss)](https://tailwindcss.com)
-[![Acceptance Tests](https://img.shields.io/badge/Tests-64%2F64_Passing-success)](#-automated-testing--quality)
+[![Acceptance Tests](https://img.shields.io/badge/Tests-79%2F79_Passing-success)](#-automated-testing--quality)
 [![License](https://img.shields.io/badge/License-Campus_Proprietary-red)](#-license)
 
 > **Campus-Exclusive Transit & Travel Cohort Network**  
@@ -21,7 +21,7 @@ At Thapar Institute, thousands of students travel between the Patiala campus, ra
 **Thapar Journey Connect** replaces unorganized social media posts with an intelligent, secure transit operating system:
 
 1. **15-Minute Slot-Based Departures (Two-Way Travel)**: Instant join and discovery across 96 slots/day for both **Departing** (Campus ➔ Station/City) and **Returning** (Station/City ➔ Campus) journeys.
-2. **Transparent Fair Fare Splitting**: Automatic real-time fare calculation split 1, 2, 3, or 4 ways with companion reservation support.
+2. **Inline Fare Estimates**: Estimated group total and per-person share shown directly on ride details.
 3. **Train & Bus Travel Cohorts**: Dedicated student travel groups for intercity rail (Shatabdi, Vande Bharat, Intercity) and bus (PRTC, Volvo, Zingbus) lines with cross-community discovery.
 4. **Hometown Community Hubs**: City-specific student communities (Delhi NCR, Chandigarh, Jalandhar, Ludhiana, etc.) with localized notice boards, rides, and peer coordination.
 5. **Institutional Security & Contact Privacy**: Restricted strictly to verified `@thapar.edu` accounts with automated single-ride protection, phone number masking for outsiders, and real-time Socket.IO chat.
@@ -56,15 +56,10 @@ At Thapar Institute, thousands of students travel between the Patiala campus, ra
 - **Single-Community Hometown Policy**: Students enroll in one native hometown community at a time to prevent spam and preserve high signal-to-noise discussion.
 - **Notice Board & Discussions**: Verified hometown members can publish ride requests, travel queries, and coordinate shared travel. Non-members are restricted with HTTP 403.
 
-### ⚡ 4. Intelligent Deterministic Matching Engine
-- **Compatibility Scoring**: Matches students traveling to identical destinations based on vehicle preference, flexibility, and hostel quad location.
-- **Same-Day Linear Departure Calculation**: Evaluates the actual same-day minute difference between requested departures ($|a - b|$), ensuring early morning departures (e.g. `00:05`) are accurately separated from late-night departures (e.g. `23:55`) on the same travel date.
-- **Campus Proximity Resolution**: Incorporates all 18 official TIET hostel halls (Hostel A through Q, PG Residences, and Day Scholar sectors) for optimal pickup clustering.
-
 ### 💬 5. Real-Time Chat & Safe Travel Operations
-- **Authenticated Socket.IO Rooms**: Encrypted live updates for cab ride rooms (`group_<id>`), travel cohort rooms (`tg_<id>`), and personal notifications (`user_<id>`).
+- **Authenticated Socket.IO Rooms**: Membership-protected live updates for cab ride rooms (`group_<id>`), travel cohort rooms (`tg_<id>`), and personal notifications (`user_<id>`).
 - **Contact Privacy Shield**: Mobile numbers are never exposed in search results or open slots; co-rider phone numbers are unlocked exclusively after journey confirmation or cohort membership.
-- **Emergency SOS Dispatch**: One-click modal providing instant access to TIET Campus Security (`+91 175 239 3000`), Thapar Health Center Ambulance, and Patiala Police Control.
+- **Safety information**: Clear travel guidance and access to the safety/privacy reporting page; no emergency dispatch or monitoring is provided.
 
 ---
 
@@ -102,7 +97,7 @@ flowchart TD
 Thapar_Journey_Connect/
 ├── .github/
 │   └── workflows/
-│       └── ci.yml             # GitHub Actions CI (Lint, Build, 64 Tests)
+│       └── ci.yml             # GitHub Actions CI (Lint, Build, 79 Tests)
 ├── public/
 │   ├── favicon.svg            # Platform favicon
 │   ├── thapar-banner.png      # High-res campus banner
@@ -120,26 +115,21 @@ Thapar_Journey_Connect/
 │   ├── models/
 │   │   ├── CityRide.js        # City community cab departures
 │   │   ├── Community.js       # Hometown communities
-│   │   ├── CommunityGroup.js  # Discussion notice boards
 │   │   ├── Counter.js         # Atomic sequential ID generator
 │   │   ├── Destination.js     # Campus & destination points
 │   │   ├── Group.js           # Shared cab ride groups
 │   │   ├── Hostel.js          # 18 TIET residential halls
-│   │   ├── Journey.js         # Student travel requests
 │   │   ├── Message.js         # Cab ride group chat messages
 │   │   ├── TravelGroup.js     # Train & Bus travel groups & messages
 │   │   └── User.js            # Student profile & credentials
 │   ├── routes/
 │   │   ├── auth.js            # Google SSO & campus credentials
 │   │   ├── communities.js     # Hometown hubs & community slots
-│   │   ├── communityGroups.js # Notice boards & posts
 │   │   ├── groups.js          # Active ride groups & actions
-│   │   ├── journeys.js        # Ride matching queries
 │   │   ├── slots.js           # 15-minute slot engine (Two-Way)
 │   │   └── travelGroups.js    # Train & Bus group operations & chat
 │   ├── services/
 │   │   ├── groups.js          # Group state lifecycle & completion
-│   │   ├── matching.js        # Matching algorithm
 │   │   ├── notifications.js   # Socket.IO emitter helpers
 │   │   └── serializers.js     # Privacy masking & serializers
 │   └── utils/
@@ -158,13 +148,12 @@ Thapar_Journey_Connect/
 │   │   ├── CommunitiesPage.jsx# Directory & hometown hub
 │   │   ├── DashboardPage.jsx  # Main slot browser & ride booking
 │   │   ├── GroupDetailsPage.jsx # Confirmed ride details & actions
-│   │   ├── MatchingResultsPage.jsx # Ride compatibility matches
 │   │   ├── MyJourneysPage.jsx # Active & past ride history
 │   │   └── ProfilePage.jsx    # Student profile & settings
 │   ├── services/
 │   │   └── api.js             # Client API service & Socket.IO client
 │   └── utils/
-│       └── matchingEngine.js  # Client-side 15-min slot utilities
+│       └── timeSlots.js  # Client-side 15-min slot utilities
 ├── tests/
 │   ├── acceptance.test.js     # 55 Core Acceptance Tests
 │   └── travelGroups.test.js   # 9 Train & Bus Acceptance Tests
@@ -200,10 +189,10 @@ Thapar_Journey_Connect/
 
 ## 🧪 Automated Testing & Quality
 
-The platform includes **64 comprehensive acceptance tests** executed natively via Node.js (`node:test`) and an in-memory MongoDB server:
+The platform includes **79 automated tests** executed natively via Node.js (`node:test`) and an in-memory MongoDB server:
 
 ```bash
-# Run all 64 automated acceptance tests
+# Run the automated tests
 npm test
 
 # Run Oxlint linter (0 errors, 0 warnings)
@@ -213,14 +202,7 @@ npm run lint
 npm run build
 ```
 
-```
-✔ Thapar Journey Connect - Acceptance Tests (55 tests)
-✔ Train Groups & Bus Groups - Feature Acceptance Tests (9 tests)
-ℹ tests 64
-ℹ suites 2
-ℹ pass 64
-ℹ fail 0
-```
+The suite covers slot booking, capacity and concurrency, privacy, account sessions, hometown boards, train/bus groups, retired endpoint protection, and fare estimates.
 
 ### Key Acceptance Scenarios Enforced:
 1. **Google Domain Isolation**: Rejects personal `@gmail.com` accounts and unverified email payloads (HTTP 400).

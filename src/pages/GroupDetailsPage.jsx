@@ -11,17 +11,16 @@ import {
   Phone, 
   Home, 
   Star,
-  Calculator,
   ShieldAlert,
   LogOut,
   UserPlus
 } from 'lucide-react';
-import FareSplitModal from '../components/FareSplitModal';
-import EmergencySOSModal from '../components/EmergencySOSModal';
+import SafetyInformationModal from '../components/SafetyInformationModal';
+import FareEstimate from '../components/FareEstimate';
 import ConfirmDialog from '../components/ConfirmDialog';
 import RescheduleSlotModal from '../components/RescheduleSlotModal';
 import AddFriendModal from '../components/AddFriendModal';
-import { formatTime24to12 } from '../utils/matchingEngine';
+import { formatTime24to12 } from '../utils/timeSlots';
 import { api } from '../services/api';
 
 const PICKUP_POINTS = [
@@ -46,13 +45,12 @@ export default function GroupDetailsPage({
   onRescheduleSuccess,
   triggerToast
 }) {
-  const [showFareSplit, setShowFareSplit] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
   useEffect(() => {
     const timer = setInterval(() => setNowMs(Date.now()), 15000);
     return () => clearInterval(timer);
   }, []);
-  const [showSOS, setShowSOS] = useState(false);
+  const [showSafety, setShowSafety] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [isUpdatingPickup, setIsUpdatingPickup] = useState(false);
@@ -203,27 +201,21 @@ export default function GroupDetailsPage({
           className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3.5 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shadow-xs cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Back to Groups / Dashboard</span>
+          <span>Back to My Journeys</span>
         </button>
 
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setShowFareSplit(true)}
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-700 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-200 bg-blue-50 dark:bg-blue-950/70 border border-blue-200 dark:border-blue-800 px-3.5 py-2 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-colors shadow-xs cursor-pointer"
-          >
-            <Calculator className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-            <span>Cab Fare Splitter</span>
-          </button>
-
-          <button
-            onClick={() => setShowSOS(true)}
+            onClick={() => setShowSafety(true)}
             className="inline-flex items-center gap-1.5 text-xs font-bold text-red-700 dark:text-red-300 hover:text-red-800 dark:hover:text-red-200 bg-red-50 dark:bg-red-950/70 border border-red-200 dark:border-red-800 px-3.5 py-2 rounded-xl hover:bg-red-100 dark:hover:bg-red-900/60 transition-colors shadow-xs cursor-pointer"
           >
             <ShieldAlert className="w-4 h-4 text-red-600 dark:text-red-400" />
-            <span>Campus SOS</span>
+            <span>Safety information</span>
           </button>
         </div>
       </div>
+
+      <FareEstimate group={group} />
 
       {/* Group Header Card */}
       <div className="bg-[#10264E] dark:bg-[#0c1e3d] text-white rounded-2xl p-6 sm:p-8 shadow-xs relative overflow-hidden border border-slate-800/20 dark:border-slate-800 transition-colors">
@@ -603,17 +595,10 @@ export default function GroupDetailsPage({
       </div>
 
       {/* Modals */}
-      {showFareSplit && (
-        <FareSplitModal
-          group={group}
-          onClose={() => setShowFareSplit(false)}
-        />
-      )}
-
-      {showSOS && (
-        <EmergencySOSModal
+      {showSafety && (
+        <SafetyInformationModal
           user={currentUser}
-          onClose={() => setShowSOS(false)}
+          onClose={() => setShowSafety(false)}
         />
       )}
 

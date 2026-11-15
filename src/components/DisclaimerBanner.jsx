@@ -16,10 +16,10 @@ export default function DisclaimerBanner() {
               </span>
             </div>
             <h3 className="font-bold text-sm sm:text-base text-white mt-0.5">
-              Share a cab, save up to 75%
+              Coordinate your shared ride
             </h3>
             <p className="text-slate-300 text-xs mt-0.5 font-normal">
-              Verified Thapar students only. We don't run or book cabs. You coordinate directly.
+              Choose a slot and coordinate with co-riders. You arrange the vehicle directly.
             </p>
           </div>
         </div>

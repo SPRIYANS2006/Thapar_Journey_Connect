@@ -140,15 +140,6 @@ export const api = {
       body: JSON.stringify(profileData)
     }),
 
-  // Journeys & Matching
-  createJourney: (journeyData) =>
-    request('/journeys', {
-      method: 'POST',
-      body: JSON.stringify(journeyData)
-    }),
-
-  getMyJourneys: () => request('/journeys/mine'),
-
   // Groups
   getMyGroups: () => request('/groups/mine'),
 
@@ -156,16 +147,9 @@ export const api = {
 
   getGroupById: (id) => request(`/groups/${id}`),
 
-  createGroup: ({ journeyId, pickupPoint }) =>
-    request('/groups', {
-      method: 'POST',
-      body: JSON.stringify({ journeyId, pickupPoint })
-    }),
-
-  joinGroup: (id, { journeyId } = {}) =>
+  joinGroup: (id) =>
     request(`/groups/${id}/join`, {
       method: 'POST',
-      body: JSON.stringify({ journeyId })
     }),
 
   leaveGroup: (id) =>
@@ -193,21 +177,6 @@ export const api = {
     request(`/groups/${id}/rate`, {
       method: 'POST',
       body: JSON.stringify({ targetUserId, rating })
-    }),
-
-  calculateFareSplit: (id, totalAmount, tip = 0) =>
-    request(`/groups/${id}/fare-split`, {
-      method: 'POST',
-      body: JSON.stringify({ totalAmount, tip })
-    }),
-
-  // Chat
-  getMessages: (groupId) => request(`/groups/${groupId}/messages`),
-
-  sendMessage: (groupId, text) =>
-    request(`/groups/${groupId}/messages`, {
-      method: 'POST',
-      body: JSON.stringify({ text })
     }),
 
   // Communities
@@ -245,42 +214,6 @@ export const api = {
 
   addComment: (postId, text) =>
     request(`/communities/posts/${postId}/comments`, {
-      method: 'POST',
-      body: JSON.stringify({ text })
-    }),
-
-  // Community Groups (Hometown cohorts, discussions & chats)
-  getCommunityGroups: (params = {}) => {
-    const query = new URLSearchParams();
-    if (params.communityId && params.communityId !== 'All') query.append('communityId', params.communityId);
-    if (params.category && params.category !== 'All') query.append('category', params.category);
-    if (params.search) query.append('search', params.search);
-    const qs = query.toString();
-    return request(`/community-groups${qs ? `?${qs}` : ''}`);
-  },
-
-  getCommunityGroupById: (id) => request(`/community-groups/${id}`),
-
-  createCommunityGroup: (data) =>
-    request('/community-groups', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    }),
-
-  joinCommunityGroup: (id) =>
-    request(`/community-groups/${id}/join`, {
-      method: 'POST'
-    }),
-
-  leaveCommunityGroup: (id) =>
-    request(`/community-groups/${id}/leave`, {
-      method: 'POST'
-    }),
-
-  getCommunityGroupMessages: (id) => request(`/community-groups/${id}/messages`),
-
-  sendCommunityGroupMessage: (id, text) =>
-    request(`/community-groups/${id}/messages`, {
       method: 'POST',
       body: JSON.stringify({ text })
     }),

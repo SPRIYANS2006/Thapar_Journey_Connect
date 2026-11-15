@@ -14,7 +14,7 @@ process.env.APP_ORIGIN = 'http://localhost:5173';
 const { createApp } = await import('../server/app.js');
 const { seedDefaultData } = await import('../server/config/db.js');
 const { googleClient } = await import('../server/routes/auth.js');
-const { User, Group, Journey, Counter, getNextGroupId, Message, RateLimit, RideRecord, CommunityGroup, CommunityGroupMessage, CityRide } = await import('../server/models/index.js');
+const { User, Group, Counter, getNextGroupId, Message, RateLimit, RideRecord, CityRide } = await import('../server/models/index.js');
 const { generateSessionToken } = await import('../server/middleware/auth.js');
 const { getNowIST } = await import('../server/utils/time.js');
 
@@ -43,13 +43,10 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     // Clean collections between tests
     await User.deleteMany({});
     await Group.deleteMany({});
-    await Journey.deleteMany({});
     await Message.deleteMany({});
     await Counter.deleteMany({});
     await RateLimit.deleteMany({});
     await RideRecord.deleteMany({});
-    await CommunityGroup.deleteMany({});
-    await CommunityGroupMessage.deleteMany({});
     await CityRide.deleteMany({});
     await Counter.create({ id: 'group_id', seq: 0 });
   });
@@ -139,63 +136,12 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
   });
 
   // 5. Student attempts to join a second Open/Confirmed group -> HTTP 409 / Single-Ride Policy error
-  it('5. Student attempts to join a second Open/Confirmed group -> HTTP 409 / Single-Ride Policy error', async () => {
-    const { user: student1, token: token1 } = await createTestStudent({ name: 'Student One' });
-    const { user: student2 } = await createTestStudent({ name: 'Student Two' });
-
-    const tomorrow = 'Tomorrow';
-
-    // Student 1 has a journey and creates Group 1
-    const journey1 = await Journey.create({
-      id: 'j1',
-      user_id: student1.id,
-      destination_id: 'railway',
-      destination_name: 'Patiala Railway Station',
-      hostel: student1.hostel,
-      date: tomorrow,
-      departure_time: '18:00',
-      transport: 'Shared Cab',
-      status: 'Searching'
-    });
-
-    const createRes = await request(app)
-      .post('/api/groups')
-      .set('Authorization', `Bearer ${token1}`)
-      .send({ journeyId: journey1.id, pickupPoint: 'Main Gate (Near Executive Mess)' });
-    assert.equal(createRes.status, 201);
-
-    // Student 2 creates Group 2
-    const group2 = await Group.create({
-      id: 2,
-      destination_id: 'railway',
-      destination_name: 'Patiala Railway Station',
-      departure_time: '18:15',
-      date: 'Tomorrow',
-      status: 'Open',
-      transport: 'Shared Cab',
-      max_members: 4,
-      pickup_point: 'Hostel-J Gate',
-      admin_id: student2.id,
-      members: [
-        {
-          id: 'm2',
-          user_id: student2.id,
-          name: student2.name,
-          role: 'Group Admin',
-          departure_time: '18:15'
-        }
-      ]
-    });
-
-    // Student 1 (already in Group 1) tries to join Group 2
-    const joinRes = await request(app)
-      .post(`/api/groups/${group2.id}/join`)
-      .set('Authorization', `Bearer ${token1}`)
-      .send({ journeyId: journey1.id });
-
-    // Should return 409 Conflict with Single-Ride Policy error
-    assert.equal(joinRes.status, 409);
-    assert.match(joinRes.body.error, /Single-Ride Policy/i);
+  it('5. Slot booking rejects a second active ride', async () => {
+    const { token } = await createTestStudent();
+    const book = time => request(app).post('/api/slots/join').set('Authorization', `Bearer ${token}`).send({ destinationId: 'railway', date: 'Tomorrow', time, vehicle: 'Shared Cab' });
+    assert.equal((await book('12:00')).status, 201);
+    const second = await book('13:00');
+    assert.equal(second.status, 409); assert.match(second.body.error, /Single-Ride Policy/i);
   });
 
   // 6. Leaving a group within 4 hours decreases reliability by 0.3; within 30 minutes decreases by 0.8; floor is 1.0
@@ -291,7 +237,7 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
 
   // 7. Attempting to add a 5th member to a Shared Cab group fails (capacity enforced)
   it('7. Attempting to add a 5th member to a Shared Cab group fails (capacity enforced)', async () => {
-    const { user: student5, token: token5 } = await createTestStudent({ name: 'Student Five' });
+    const { token: token5 } = await createTestStudent({ name: 'Student Five' });
 
     // Shared Cab already has 4 members
     const fullGroup = await Group.create({
@@ -313,22 +259,10 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
       ]
     });
 
-    const journey5 = await Journey.create({
-      id: 'j5',
-      user_id: student5.id,
-      destination_id: 'railway',
-      destination_name: 'Patiala Railway Station',
-      hostel: student5.hostel,
-      date: 'Tomorrow',
-      departure_time: '19:00',
-      transport: 'Shared Cab',
-      status: 'Searching'
-    });
-
     const res = await request(app)
       .post(`/api/groups/${fullGroup.id}/join`)
       .set('Authorization', `Bearer ${token5}`)
-      .send({ journeyId: journey5.id });
+      .send({});
 
     assert.equal(res.status, 409);
     assert.match(res.body.error, /capacity|full/i);
@@ -359,49 +293,10 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     assert.match(res.body.error, /Forbidden/i);
   });
 
-  // 9. Match query with Shared Cab never returns a candidate who specified Shared Auto
-  it('9. Match query with Shared Cab never returns a candidate who specified Shared Auto', async () => {
-    const { token: cabToken } = await createTestStudent({
-      name: 'Cab Rider',
-      hostel: 'Agira Hall (Previously known as Hostel-A)'
-    });
-    const { user: autoRider } = await createTestStudent({
-      name: 'Auto Rider',
-      hostel: 'Agira Hall (Previously known as Hostel-A)'
-    });
-
-    // Auto rider is already searching for Railway at 17:00
-    await Journey.create({
-      id: 'j_auto',
-      user_id: autoRider.id,
-      destination_id: 'railway',
-      destination_name: 'Patiala Railway Station',
-      hostel: autoRider.hostel,
-      departure_time: '17:00',
-      date: 'Tomorrow',
-      flexibility: 15,
-      transport: 'Shared Auto',
-      status: 'Searching'
-    });
-
-    // Cab rider searches for Railway at 17:00 with Shared Cab
-    const matchRes = await request(app)
-      .post('/api/journeys')
-      .set('Authorization', `Bearer ${cabToken}`)
-      .send({
-        destinationId: 'railway',
-        date: 'Tomorrow',
-        departureTime: '17:00',
-        flexibility: 15,
-        transport: 'Shared Cab'
-      });
-
-    assert.equal(matchRes.status, 201);
-    const matched = matchRes.body.matchedStudents || [];
-
-    // Auto rider must NOT be included in matched results
-    const foundAuto = matched.some((m) => m.student.id === autoRider.id);
-    assert.equal(foundAuto, false);
+  it('9. Retired journey matching endpoints return 404', async () => {
+    const { token } = await createTestStudent();
+    assert.equal((await request(app).post('/api/journeys').set('Authorization', `Bearer ${token}`).send({})).status, 404);
+    assert.equal((await request(app).get('/api/journeys/mine').set('Authorization', `Bearer ${token}`)).status, 404);
   });
 
   // 10. Community post creation by a non-member of that community -> HTTP 403
@@ -427,33 +322,10 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
   });
 
   // 11. Group creation with a past departure time today (IST) -> HTTP 400
-  it('11. Group creation with a past departure time today (IST) -> HTTP 400', async () => {
-    const { user: student, token } = await createTestStudent({ name: 'Past Time Student' });
-
-    // Create a journey with departure time set to 00:01 today (which is already past in IST during the day)
-    const { dateStr } = getNowIST();
-    const pastJourney = await Journey.create({
-      id: 'j_past',
-      user_id: student.id,
-      destination_id: 'railway',
-      destination_name: 'Patiala Railway Station',
-      hostel: student.hostel,
-      departure_time: '00:01',
-      date: dateStr,
-      transport: 'Shared Cab',
-      status: 'Searching'
-    });
-
-    const res = await request(app)
-      .post('/api/groups')
-      .set('Authorization', `Bearer ${token}`)
-      .send({
-        journeyId: pastJourney.id,
-        pickupPoint: 'Main Gate (Near Executive Mess)'
-      });
-
-    assert.equal(res.status, 400);
-    assert.match(res.body.error, /past/i);
+  it('11. Slot booking rejects past departures', async () => {
+    const { token } = await createTestStudent();
+    const res = await request(app).post('/api/slots/join').set('Authorization', `Bearer ${token}`).send({ destinationId: 'railway', date: new Date(Date.now() - 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }), time: '12:00', vehicle: 'Shared Cab' });
+    assert.equal(res.status, 400); assert.match(res.body.error, /past/i);
   });
 
   // 12. Community post like is a unique toggle per user and cannot be spammed
@@ -741,79 +613,12 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
   });
 
   // 19. Single-ride policy race condition: concurrent joins for two different groups allow only one to succeed
-  it('19. Single-ride policy race condition: concurrent join requests enforce single-ride rule atomically', async () => {
-    const { user: rider, token: riderToken } = await createTestStudent({ name: 'Concurrent Rider' });
-    const { user: host1 } = await createTestStudent({ name: 'Host 1' });
-    const { user: host2 } = await createTestStudent({ name: 'Host 2' });
-
-    const futureDate = '2026-11-10';
-
-    // Create 2 open groups
-    const group1 = await Group.create({
-      id: 704,
-      destination_id: 'railway',
-      destination_name: 'Patiala Railway Station',
-      departure_time: '14:00',
-      date: futureDate,
-      status: 'Open',
-      admin_id: host1.id,
-      members: [{ id: 'm1', user_id: host1.id, name: host1.name, role: 'Group Admin' }]
-    });
-
-    const group2 = await Group.create({
-      id: 705,
-      destination_id: 'railway',
-      destination_name: 'Patiala Railway Station',
-      departure_time: '14:00',
-      date: futureDate,
-      status: 'Open',
-      admin_id: host2.id,
-      members: [{ id: 'm2', user_id: host2.id, name: host2.name, role: 'Group Admin' }]
-    });
-
-    // Create 2 matching journeys for rider
-    const journey1 = await Journey.create({
-      id: 'j_concurrent_1',
-      user_id: rider.id,
-      destination_id: 'railway',
-      destination_name: 'Patiala Railway Station',
-      departure_time: '14:00',
-      date: futureDate,
-      status: 'Searching',
-      hostel: 'Amritam Hall (Previously known as Hostel-B)'
-    });
-
-    const journey2 = await Journey.create({
-      id: 'j_concurrent_2',
-      user_id: rider.id,
-      destination_id: 'railway',
-      destination_name: 'Patiala Railway Station',
-      departure_time: '14:00',
-      date: futureDate,
-      status: 'Searching',
-      hostel: 'Amritam Hall (Previously known as Hostel-B)'
-    });
-
-    // Execute two simultaneous join requests concurrently
-    const [joinRes1, joinRes2] = await Promise.all([
-      request(app)
-        .post(`/api/groups/${group1.id}/join`)
-        .set('Authorization', `Bearer ${riderToken}`)
-        .send({ journeyId: journey1.id }),
-      request(app)
-        .post(`/api/groups/${group2.id}/join`)
-        .set('Authorization', `Bearer ${riderToken}`)
-        .send({ journeyId: journey2.id })
-    ]);
-
-    const statuses = [joinRes1.status, joinRes2.status].sort();
-    // Exactly one should succeed (200), and the other must be rejected by Single-Ride Policy (409)
-    assert.deepEqual(statuses, [200, 409]);
-
-    // Verify rider is member in exactly one group in the database
-    const g1Check = await Group.findOne({ id: group1.id, 'members.user_id': rider.id });
-    const g2Check = await Group.findOne({ id: group2.id, 'members.user_id': rider.id });
-    assert.equal(Boolean(g1Check) !== Boolean(g2Check), true);
+  it('19. Concurrent slot joins preserve one active ride', async () => {
+    const { user, token } = await createTestStudent();
+    const book = time => request(app).post('/api/slots/join').set('Authorization', `Bearer ${token}`).send({ destinationId: 'railway', date: 'Tomorrow', time, vehicle: 'Shared Cab' });
+    const results = await Promise.all([book('12:00'), book('13:00')]);
+    assert.deepEqual(results.map(result => result.status).sort(), [201, 409]);
+    assert.equal(await Group.countDocuments({ 'members.user_id': user.id }), 1);
   });
 
   // 20. Production boot guard: SESSION_SECRET is guaranteed >= 32 characters in all environments
@@ -823,67 +628,14 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     assert.ok(JWT_SECRET.length >= 32);
   });
 
-  // 21. Journey matching: Server validates vehicle compatibility and time flexibility on join
-  it('21. Journey matching: Server rejects group join on vehicle mismatch or time flexibility exceeded', async () => {
-    const { user: rider, token: riderToken } = await createTestStudent({ name: 'Validation Rider' });
-    const { user: host } = await createTestStudent({ name: 'Host Rider' });
-
-    // Group is Shared Cab departing at 10:00
-    const group = await Group.create({
-      id: 801,
-      destination_id: 'railway',
-      destination_name: 'Patiala Railway Station',
-      departure_time: '10:00',
-      date: '2026-11-12',
-      status: 'Open',
-      transport: 'Shared Cab',
-      admin_id: host.id,
-      members: [{ id: 'm1', user_id: host.id, name: host.name, role: 'Group Admin' }]
-    });
-
-    // Case A: Vehicle mismatch (journey requires Shared Auto)
-    const autoJourney = await Journey.create({
-      id: 'j_auto_mismatch',
-      user_id: rider.id,
-      destination_id: 'railway',
-      destination_name: 'Patiala Railway Station',
-      departure_time: '10:00',
-      date: '2026-11-12',
-      transport: 'Shared Auto',
-      flexibility: 15,
-      status: 'Searching',
-      hostel: 'Agira Hall (Previously known as Hostel-A)'
-    });
-
-    const resVehicle = await request(app)
-      .post(`/api/groups/${group.id}/join`)
-      .set('Authorization', `Bearer ${riderToken}`)
-      .send({ journeyId: autoJourney.id });
-
-    assert.equal(resVehicle.status, 400);
-    assert.match(resVehicle.body.error, /Vehicle mismatch/i);
-
-    // Case B: Time flexibility exceeded (journey departs at 14:00 with flex 15, group departs at 10:00)
-    const timeJourney = await Journey.create({
-      id: 'j_time_mismatch',
-      user_id: rider.id,
-      destination_id: 'railway',
-      destination_name: 'Patiala Railway Station',
-      departure_time: '14:00',
-      date: '2026-11-12',
-      transport: 'Shared Cab',
-      flexibility: 15,
-      status: 'Searching',
-      hostel: 'Agira Hall (Previously known as Hostel-A)'
-    });
-
-    const resTime = await request(app)
-      .post(`/api/groups/${group.id}/join`)
-      .set('Authorization', `Bearer ${riderToken}`)
-      .send({ journeyId: timeJourney.id });
-
-    assert.equal(resTime.status, 400);
-    assert.match(resTime.body.error, /Time mismatch/i);
+  it('21. Direct legacy group creation is retired; joining an existing group needs no journey request', async () => {
+    const { token } = await createTestStudent();
+    const { token: otherToken } = await createTestStudent();
+    assert.equal((await request(app).post('/api/groups').set('Authorization', `Bearer ${token}`).send({})).status, 404);
+    const created = await request(app).post('/api/slots/join').set('Authorization', `Bearer ${token}`).send({ destinationId: 'railway', date: 'Tomorrow', time: '12:00', vehicle: 'Shared Auto' });
+    assert.equal(created.status, 201);
+    const joined = await request(app).post(`/api/groups/${created.body.group.id}/join`).set('Authorization', `Bearer ${otherToken}`).send({});
+    assert.equal(joined.status, 200); assert.equal(joined.body.group.maxMembers, 3); assert.equal(joined.body.group.members.length, 2);
   });
 
   // 22. Community creation escapes regex metacharacters safely
@@ -979,214 +731,19 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     assert.equal(res.headers['access-control-allow-origin'], 'https://thapar-journey-connect.onrender.com');
   });
 
-  // 26. Community Groups: Creation with validation, Admin assignment, duplicate rejection
-  it('26. Community Groups: Create group with validation, creator is Admin, reject duplicate names', async () => {
-    const { user: student, token } = await createTestStudent({ name: 'Gurpreet Singh' });
-
-    // 1. Missing name -> HTTP 400
-    const resBad = await request(app)
-      .post('/api/community-groups')
-      .set('Authorization', `Bearer ${token}`)
-      .send({
-        name: '  ',
-        description: 'Valid description for student cohort',
-        communityId: 'del',
-        category: 'Commute Cohort'
-      });
-    assert.equal(resBad.status, 400);
-
-    // 2. Successful creation
-    const resCreate = await request(app)
-      .post('/api/community-groups')
-      .set('Authorization', `Bearer ${token}`)
-      .send({
-        name: 'South Delhi Weekend Carpool',
-        description: 'Coordinating shared cabs and Volvo buses to South Extension & Lajpat Nagar',
-        communityId: 'del',
-        category: 'Weekend Trips'
-      });
-    assert.equal(resCreate.status, 201);
-    assert.equal(resCreate.body.success, true);
-    assert.equal(resCreate.body.group.name, 'South Delhi Weekend Carpool');
-    assert.equal(resCreate.body.group.communityName, 'Delhi NCR');
-    assert.equal(resCreate.body.group.category, 'Weekend Trips');
-    assert.equal(resCreate.body.group.membersCount, 1);
-    assert.equal(resCreate.body.group.isMember, true);
-    assert.equal(resCreate.body.group.members[0].userId, student.id);
-    assert.equal(resCreate.body.group.members[0].role, 'Admin');
-
-    // 3. Duplicate group name in same community -> HTTP 400
-    const resDup = await request(app)
-      .post('/api/community-groups')
-      .set('Authorization', `Bearer ${token}`)
-      .send({
-        name: 'south delhi weekend carpool', // case-insensitive duplicate
-        description: 'Another group with the identical name',
-        communityId: 'del',
-        category: 'Commute Cohort'
-      });
-    assert.equal(resDup.status, 400);
-    assert.match(resDup.body.error, /already exists/i);
+  it('26. Deferred general community group endpoints are unavailable', async () => {
+    const { token } = await createTestStudent();
+    for (const path of ['/api/community-groups', '/api/community-groups/old/messages']) {
+      assert.equal((await request(app).get(path).set('Authorization', `Bearer ${token}`)).status, 404);
+      assert.equal((await request(app).post(path).set('Authorization', `Bearer ${token}`).send({})).status, 404);
+    }
   });
 
-  // 27. Community Groups: Filter by communityId, category, and keyword search
-  it('27. Community Groups: Filter by communityId, category, and keyword search', async () => {
-    const { token } = await createTestStudent({ name: 'Filter Tester' });
 
-    await CommunityGroup.create([
-      {
-        id: 'cg_delhi_study',
-        name: 'Delhi NCR Tech Study Group',
-        description: 'Preparing for interviews and hackathons together',
-        community_id: 'del',
-        community_name: 'Delhi NCR',
-        category: 'Study & Projects',
-        creator_id: 'user_1',
-        creator_name: 'Aman',
-        members_count: 1,
-        members: [{ user_id: 'user_1', name: 'Aman', role: 'Admin' }]
-      },
-      {
-        id: 'cg_chd_transit',
-        name: 'Chandigarh Daily Commuters',
-        description: 'Daily carpool between Patiala and Mohali Phase 7',
-        community_id: 'chd',
-        community_name: 'Chandigarh & Tri-City',
-        category: 'Commute Cohort',
-        creator_id: 'user_2',
-        creator_name: 'Preet',
-        members_count: 1,
-        members: [{ user_id: 'user_2', name: 'Preet', role: 'Admin' }]
-      }
-    ]);
 
-    // Filter by community
-    const resComm = await request(app)
-      .get('/api/community-groups?communityId=chd')
-      .set('Authorization', `Bearer ${token}`);
-    assert.equal(resComm.status, 200);
-    assert.equal(resComm.body.length, 1);
-    assert.equal(resComm.body[0].id, 'cg_chd_transit');
 
-    // Filter by category
-    const resCat = await request(app)
-      .get('/api/community-groups?category=Study%20%26%20Projects')
-      .set('Authorization', `Bearer ${token}`);
-    assert.equal(resCat.status, 200);
-    assert.equal(resCat.body.length, 1);
-    assert.equal(resCat.body[0].id, 'cg_delhi_study');
 
-    // Search keyword
-    const resSearch = await request(app)
-      .get('/api/community-groups?search=hackathons')
-      .set('Authorization', `Bearer ${token}`);
-    assert.equal(resSearch.status, 200);
-    assert.equal(resSearch.body.length, 1);
-    assert.equal(resSearch.body[0].id, 'cg_delhi_study');
-  });
 
-  // 28. Community Groups: Duplicate join rejection and member departure handling
-  it('28. Community Groups: Duplicate join rejection and member departure handling', async () => {
-    const { user: creator, token: creatorToken } = await createTestStudent({ name: 'Creator Dev' });
-    const { user: joiner, token: joinerToken } = await createTestStudent({ name: 'Joining Student' });
-
-    const group = await CommunityGroup.create({
-      id: 'cg_test_join',
-      name: 'Jaipur Festival Cohort',
-      description: 'Diwali travel group to Jaipur and Ajmer',
-      community_id: 'jpr',
-      community_name: 'Jaipur & Rajasthan',
-      category: 'Festivals & Events',
-      creator_id: creator.id,
-      creator_name: creator.name,
-      members_count: 1,
-      members: [{ user_id: creator.id, name: creator.name, role: 'Admin' }]
-    });
-
-    // 1. Join group succeeds
-    const resJoin = await request(app)
-      .post(`/api/community-groups/${group.id}/join`)
-      .set('Authorization', `Bearer ${joinerToken}`);
-    assert.equal(resJoin.status, 200);
-    assert.equal(resJoin.body.success, true);
-    assert.equal(resJoin.body.group.membersCount, 2);
-
-    // 2. Duplicate join is rejected with HTTP 400
-    const resDupJoin = await request(app)
-      .post(`/api/community-groups/${group.id}/join`)
-      .set('Authorization', `Bearer ${joinerToken}`);
-    assert.equal(resDupJoin.status, 400);
-    assert.match(resDupJoin.body.error, /already a member/i);
-
-    // 3. Creator leaves -> Admin role transfers to next member
-    const resCreatorLeave = await request(app)
-      .post(`/api/community-groups/${group.id}/leave`)
-      .set('Authorization', `Bearer ${creatorToken}`);
-    assert.equal(resCreatorLeave.status, 200);
-    assert.equal(resCreatorLeave.body.group.membersCount, 1);
-    assert.equal(resCreatorLeave.body.group.members[0].userId, joiner.id);
-    assert.equal(resCreatorLeave.body.group.members[0].role, 'Admin');
-
-    // 4. Last member leaves -> Group is archived
-    const resLastLeave = await request(app)
-      .post(`/api/community-groups/${group.id}/leave`)
-      .set('Authorization', `Bearer ${joinerToken}`);
-    assert.equal(resLastLeave.status, 200);
-    assert.equal(resLastLeave.body.group, null);
-
-    const checkArchived = await CommunityGroup.findOne({ id: group.id });
-    assert.equal(checkArchived, null);
-  });
-
-  // 29. Community Groups: Discussion messaging - member can post, non-member blocked HTTP 403
-  it('29. Community Groups: Discussion messaging - member posts, non-member blocked HTTP 403', async () => {
-    const { user: member, token: memberToken } = await createTestStudent({ name: 'Group Member' });
-    const { token: nonMemberToken } = await createTestStudent({ name: 'Outsider Student' });
-
-    const group = await CommunityGroup.create({
-      id: 'cg_chat_test',
-      name: 'Amritsar GT Road Travellers',
-      description: 'Shared cabs from Thapar campus to Amritsar Golden Temple and city centre',
-      community_id: 'asr',
-      community_name: 'Amritsar Hub',
-      category: 'Commute Cohort',
-      creator_id: member.id,
-      creator_name: member.name,
-      members_count: 1,
-      members: [{ user_id: member.id, name: member.name, role: 'Admin' }]
-    });
-
-    // 1. Non-member viewing messages -> HTTP 403 Forbidden
-    const resGetForbidden = await request(app)
-      .get(`/api/community-groups/${group.id}/messages`)
-      .set('Authorization', `Bearer ${nonMemberToken}`);
-    assert.equal(resGetForbidden.status, 403);
-
-    // 2. Non-member posting message -> HTTP 403 Forbidden
-    const resPostForbidden = await request(app)
-      .post(`/api/community-groups/${group.id}/messages`)
-      .set('Authorization', `Bearer ${nonMemberToken}`)
-      .send({ text: 'Hello can I join your cab?' });
-    assert.equal(resPostForbidden.status, 403);
-
-    // 3. Member posting message -> HTTP 201 Created
-    const resPost = await request(app)
-      .post(`/api/community-groups/${group.id}/messages`)
-      .set('Authorization', `Bearer ${memberToken}`)
-      .send({ text: 'Cab leaving gate 2 at 5 PM sharp on Friday!' });
-    assert.equal(resPost.status, 201);
-    assert.equal(resPost.body.success, true);
-    assert.equal(resPost.body.message.text, 'Cab leaving gate 2 at 5 PM sharp on Friday!');
-    assert.equal(resPost.body.message.senderName, member.name);
-
-    // 4. Member reading messages -> HTTP 200 with message list
-    const resGet = await request(app)
-      .get(`/api/community-groups/${group.id}/messages`)
-      .set('Authorization', `Bearer ${memberToken}`);
-    assert.equal(resGet.status, 200);
-    assert.equal(resGet.body.length, 1);
-    assert.equal(resGet.body[0].text, 'Cab leaving gate 2 at 5 PM sharp on Friday!');
-  });
 
   // 30. City Community Rides: List & filter rides (Cab, Train) with strict hometown access control
   it('30. City Community Rides: List & filter rides (Cab, Train) with strict hometown access control', async () => {
@@ -1625,26 +1182,8 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     const { token: token1 } = await createTestStudent({ name: 'Group Number Rider 1', joined_community: 'del' });
     const { token: token2 } = await createTestStudent({ name: 'Group Number Rider 2', joined_community: 'del' });
 
-    // 1. Create a regular travel journey and form regular Group #1
-    const resJourney = await request(app)
-      .post('/api/journeys')
-      .set('Authorization', `Bearer ${token1}`)
-      .send({
-        destinationId: 'dest_chandigarh_airport',
-        destinationName: 'Chandigarh Airport (IXC)',
-        date: 'Tomorrow',
-        departureTime: '15:00',
-        transport: 'Shared Cab',
-        flexibility: 15,
-        pickupPoint: 'Main Gate'
-      });
-    assert.equal(resJourney.status, 201);
-    const regularJourneyId = resJourney.body.journey.id;
-
-    const resGroup1 = await request(app)
-      .post('/api/groups')
-      .set('Authorization', `Bearer ${token1}`)
-      .send({ journeyId: regularJourneyId, pickupPoint: 'Main Gate' });
+    // Create regular Group #1 directly through a departure slot.
+    const resGroup1 = await request(app).post('/api/slots/join').set('Authorization', `Bearer ${token1}`).send({ destinationId: 'railway', date: 'Tomorrow', time: '15:00', vehicle: 'Shared Cab', pickupPoint: 'Main Gate' });
     assert.equal(resGroup1.status, 201);
     const group1Id = resGroup1.body.group.id;
     assert.equal(group1Id, '1');

@@ -10,7 +10,7 @@ import {
   ChevronRight,
   Filter
 } from 'lucide-react';
-import { formatTime24to12, TIME_SLOT_OPTIONS_15MIN } from '../utils/matchingEngine';
+import { formatTime24to12, TIME_SLOT_OPTIONS_15MIN } from '../utils/timeSlots';
 
 const TIME_FILTERS = [
   { id: 'all', label: 'All Slots' },

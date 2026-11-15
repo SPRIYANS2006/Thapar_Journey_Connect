@@ -4,7 +4,7 @@ import SlotPicker from '../components/SlotPicker';
 import AddFriendModal from '../components/AddFriendModal';
 import HeroBanner from '../components/HeroBanner';
 import { DESTINATIONS, HOSTELS } from '../data/mockData';
-import { TIME_SLOT_OPTIONS_15MIN } from '../utils/matchingEngine';
+import { TIME_SLOT_OPTIONS_15MIN } from '../utils/timeSlots';
 import { 
   ArrowRight, 
   ArrowLeft,
@@ -24,7 +24,6 @@ import {
   Zap,
   Users,
   Compass,
-  CheckCircle2
 } from 'lucide-react';
 import { api } from '../services/api';
 
@@ -48,10 +47,8 @@ function getCurrentSlotTime() {
 
 export default function DashboardPage({ 
   user, 
-  onSelectDestination: _onSelectDestination, 
   activeGroups = [], 
   onViewGroupDetails, 
-  onJoinGroup: _onJoinGroup,
   communities: _communities = [], 
   onNavigateToCommunities, 
   triggerToast,
@@ -343,7 +340,7 @@ export default function DashboardPage({
             </span>
             <span className="inline-flex items-center gap-1.5 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold px-3 py-1.5 rounded-full border border-slate-200/80 dark:border-slate-700 shadow-2xs">
               <Users className="w-3.5 h-3.5 text-blue-600" />
-              <span>Save up to 75%</span>
+              <span>Shared fares</span>
             </span>
           </>
         }
@@ -1026,47 +1023,6 @@ export default function DashboardPage({
       {!hasSearched ? (
         <div className="space-y-10 animate-in fade-in duration-300">
           
-          {/* Hero Welcome Showcase */}
-          <div className="relative rounded-2xl bg-[#10264E] dark:bg-[#0c1e3d] text-white p-6 sm:p-10 border border-blue-900/40 shadow-xs space-y-6 transition-colors">
-            <div className="relative z-10 max-w-3xl space-y-3">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-xs border border-white/15 text-xs font-semibold text-blue-200">
-                <Sparkles className="w-3.5 h-3.5 text-blue-300" />
-                <span>Verified Thapar Transit Network</span>
-              </div>
-
-              <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white leading-tight">
-                Share a cab from campus.<br />
-                <span className="text-blue-300">
-                  Save up to 75% on every trip.
-                </span>
-              </h1>
-
-              <p className="text-slate-200 text-sm sm:text-base leading-relaxed max-w-2xl font-normal">
-                Match with students departing from your hostel quad. Book 15-minute departure slots to Chandigarh Airport, Delhi, Patiala stations, or join your hometown city community.
-              </p>
-
-              {/* Stat Highlights */}
-              <div className="pt-2 grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="bg-white/10 backdrop-blur-xs border border-white/15 rounded-xl p-3 text-center">
-                  <div className="text-xl sm:text-2xl font-bold text-white">96</div>
-                  <div className="text-[11px] text-blue-200 font-medium">Slots daily (every 15m)</div>
-                </div>
-                <div className="bg-white/10 backdrop-blur-xs border border-white/15 rounded-xl p-3 text-center">
-                  <div className="text-xl sm:text-2xl font-bold text-white">4 max</div>
-                  <div className="text-[11px] text-blue-200 font-medium">Riders per cab</div>
-                </div>
-                <div className="bg-white/10 backdrop-blur-xs border border-white/15 rounded-xl p-3 text-center">
-                  <div className="text-xl sm:text-2xl font-bold text-white">75%</div>
-                  <div className="text-[11px] text-blue-200 font-medium">Fare savings</div>
-                </div>
-                <div className="bg-white/10 backdrop-blur-xs border border-white/15 rounded-xl p-3 text-center">
-                  <div className="text-xl sm:text-2xl font-bold text-white">100%</div>
-                  <div className="text-[11px] text-blue-200 font-medium">@thapar.edu verified</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* SECTION 1: POPULAR CAMPUS DESTINATIONS (Clickable Cards) */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -1083,13 +1039,9 @@ export default function DashboardPage({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {DESTINATIONS.map((dest) => {
-                const approxSplit = dest.id === 'chd_airport' 
-                  ? '₹300 - ₹375'
-                  : dest.id === 'del_airport'
-                  ? '₹1,125 - ₹1,375'
-                  : dest.id === 'railway'
-                  ? '₹40 - ₹50'
-                  : '₹30 - ₹40';
+                const amount = String(dest.avgCabFare || '').match(/\d[\d,]*/);
+                const baseFare = amount ? Number(amount[0].replaceAll(',', '')) : null;
+                const approxSplit = baseFare ? `From ₹${Math.ceil(baseFare / 4)}` : 'Unavailable';
 
                 return (
                   <div
@@ -1103,7 +1055,7 @@ export default function DashboardPage({
                           {dest.icon}
                         </span>
                         <span className="text-[10px] font-semibold bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 px-2.5 py-1 rounded-full border border-blue-200 dark:border-blue-800">
-                          Save 75%
+                          Cab estimate
                         </span>
                       </div>
 
@@ -1123,7 +1075,7 @@ export default function DashboardPage({
 
                     <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
                       <div>
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500 block font-semibold">Your split</span>
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 block font-semibold">With 4 riders (estimate)</span>
                         <span className="text-sm font-bold text-blue-600 dark:text-blue-400">{approxSplit} <span className="text-[10px] font-normal text-slate-400">/ rider</span></span>
                       </div>
                       <span className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 group-hover:bg-blue-600 group-hover:text-white flex items-center justify-center transition-colors">
@@ -1136,127 +1088,7 @@ export default function DashboardPage({
             </div>
           </div>
 
-          {/* SECTION 2: EXPLORE THE FULL PLATFORM */}
-          <div className="space-y-4">
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              <span>Explore Thapar Journey Network</span>
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              
-              {/* Feature 1: Hometown City Communities */}
-              <div 
-                onClick={() => onNavigateToCommunities && onNavigateToCommunities()}
-                className="group bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs hover:border-blue-400 dark:hover:border-blue-600 transition-all cursor-pointer flex flex-col justify-between"
-              >
-                <div className="space-y-3">
-                  <div className="w-11 h-11 rounded-xl bg-blue-50 dark:bg-blue-950/70 border border-blue-200/60 dark:border-blue-900/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                    <Users className="w-5 h-5" />
-                  </div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                    Hometown City Hubs
-                  </h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-normal">
-                    Heading home to Delhi, Ludhiana, Jaipur, Gurgaon, or Chandigarh for the break? Connect with students from your hometown to coordinate direct cabs and train cohorts.
-                  </p>
-                </div>
-                <div className="pt-4 flex items-center text-xs font-semibold text-blue-600 dark:text-blue-400 gap-1.5 group-hover:gap-2.5 transition-all">
-                  <span>Explore City Hubs</span>
-                  <ArrowRight className="w-4 h-4" />
-                </div>
-              </div>
-
-              {/* Feature 2: Hostel Quad Pickups */}
-              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs flex flex-col justify-between">
-                <div className="space-y-3">
-                  <div className="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-200/60 dark:border-emerald-900/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                    <Home className="w-5 h-5" />
-                  </div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                    Hostel Quad Pickups
-                  </h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-normal">
-                    Never drag heavy luggage across campus to the Main Gate. Select your hostel (Hostels A–M, PG, and girls' quads) so your co-passengers meet right at your quad gate.
-                  </p>
-                </div>
-                <div className="pt-4 flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Selectable in search above</span>
-                </div>
-              </div>
-
-              {/* Feature 3: Verified & Safe Rides */}
-              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs flex flex-col justify-between">
-                <div className="space-y-3">
-                  <div className="w-11 h-11 rounded-xl bg-blue-50 dark:bg-blue-950/70 border border-blue-200/60 dark:border-blue-900/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                    <ShieldCheck className="w-5 h-5" />
-                  </div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                    Verified Students Only
-                  </h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-normal">
-                    All accounts require official @thapar.edu authentication. View co-rider reliability ratings, trip history, and coordinate via secure group chats.
-                  </p>
-                </div>
-                <div className="pt-4 flex items-center gap-1.5 text-xs font-semibold text-blue-700 dark:text-blue-400">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Private in-app chat included</span>
-                </div>
-              </div>
-
-            </div>
-          </div>
-
-          {/* SECTION 3: HOW IT WORKS IN 3 SIMPLE STEPS */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8 shadow-xs space-y-6 transition-colors">
-            <div className="text-center max-w-xl mx-auto space-y-1">
-              <h3 className="text-xl font-black text-slate-900 dark:text-white">
-                How Thapar Journey Connect works
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-                Simple, safe, and built specifically for TIET students.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="flex gap-4 items-start">
-                <div className="w-9 h-9 rounded-2xl bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 font-black text-sm flex items-center justify-center shrink-0">
-                  1
-                </div>
-                <div className="space-y-1">
-                  <h4 className="font-bold text-sm text-slate-900 dark:text-white">Search your slot</h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Pick a destination, date, and preferred time window. Slots depart every 15 minutes.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-4 items-start">
-                <div className="w-9 h-9 rounded-2xl bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 font-black text-sm flex items-center justify-center shrink-0">
-                  2
-                </div>
-                <div className="space-y-1">
-                  <h4 className="font-bold text-sm text-slate-900 dark:text-white">Join or start a group</h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Join an open group with existing co-riders, or start an empty slot with 1 tap. Up to 4 per cab.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-4 items-start">
-                <div className="w-9 h-9 rounded-2xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 font-black text-sm flex items-center justify-center shrink-0">
-                  3
-                </div>
-                <div className="space-y-1">
-                  <h4 className="font-bold text-sm text-slate-900 dark:text-white">Coordinate & save 75%</h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Chat in private ride rooms, confirm meeting at your hostel, and split cab fares equally.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+          <button type="button" onClick={onNavigateToCommunities} className="text-sm font-semibold text-blue-600 dark:text-blue-400 underline">Travelling home? Open City Communities</button>
 
         </div>
       ) : (

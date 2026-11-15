@@ -129,19 +129,8 @@ export function useGroups() {
     return groups.find((g) => String(g.id) === String(selectedGroupId)) || null;
   }, [selectedGroupDetails, selectedGroupId, groups]);
 
-  const createGroup = async ({ journeyId, pickupPoint }) => {
-    const res = await api.createGroup({ journeyId, pickupPoint });
-    if (res?.group) {
-      setGroups((prev) => [res.group, ...prev.filter((g) => g.id !== res.group.id)]);
-      setSelectedGroupId(res.group.id);
-      setSelectedGroupDetails(res.group);
-    }
-    await fetchGroups().catch(() => {});
-    return res;
-  };
-
-  const joinGroup = async (groupId, { journeyId } = {}) => {
-    const res = await api.joinGroup(groupId, { journeyId });
+  const joinGroup = async (groupId) => {
+    const res = await api.joinGroup(groupId);
     if (res?.group) {
       setGroups((prev) => [res.group, ...prev.filter((g) => g.id !== groupId)]);
       setSelectedGroupId(groupId);
@@ -214,7 +203,6 @@ export function useGroups() {
     error,
     fetchGroups,
     fetchGroupById,
-    createGroup,
     joinGroup,
     leaveGroup,
     confirmGroup,

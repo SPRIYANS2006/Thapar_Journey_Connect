@@ -30,7 +30,7 @@ import CreateTravelGroupModal from '../components/CreateTravelGroupModal';
 import TravelGroupChatModal from '../components/TravelGroupChatModal';
 import { getPresetDestinationsForCommunity } from '../data/cityDestinations';
 import { HOSTELS } from '../data/mockData';
-import { TIME_SLOT_OPTIONS_15MIN } from '../utils/matchingEngine';
+import { TIME_SLOT_OPTIONS_15MIN } from '../utils/timeSlots';
 import { api } from '../services/api';
 
 let cityToastSeq = 0;

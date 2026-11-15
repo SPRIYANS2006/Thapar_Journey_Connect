@@ -33,7 +33,7 @@ const groupSchema = new mongoose.Schema({
   transport: { type: String, default: 'Shared Cab', enum: ['Shared Cab', 'Shared Auto', 'Either'] },
   max_members: { type: Number, default: 4 },
   admin_fare: { type: Number, default: null },
-  pickup_point: { type: String, default: 'Main Gate (Near Executive Mess)' },
+  pickup_point: { type: String, default: 'Main Gate' },
   origin: { type: String, default: 'Thapar Institute' },
   direction: { type: String, enum: ['departing', 'returning'], default: 'departing' },
   match_score: { type: Number, default: 95 },

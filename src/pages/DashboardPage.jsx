@@ -74,7 +74,7 @@ export default function DashboardPage({
   const [selectedDate, setSelectedDate] = useState(dateOptions[0].value);
   const [selectedTime, setSelectedTime] = useState(() => getCurrentSlotTime());
   const [selectedVehicle, setSelectedVehicle] = useState('Shared Cab');
-  const selectedHostel = 'Main Gate (Near Executive Mess)';
+  const selectedHostel = 'Main Gate';
   const direction = 'departing';
 
   // Slots State

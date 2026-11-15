@@ -426,7 +426,7 @@ router.post('/:id/rides', async (req, res, next) => {
       date: date.trim(),
       time: time.trim(),
       mode: selectedMode,
-      pickup_point: mode === 'Cab' ? 'Main Gate (Near Executive Mess)' : (pickupPoint && pickupPoint.trim()) || 'Main Gate (Near Executive Mess)',
+      pickup_point: mode === 'Cab' ? 'Main Gate' : (pickupPoint && pickupPoint.trim()) || 'Main Gate',
       total_fare: fareNum,
       max_capacity: capacityNum,
       current_members_count: 1,
@@ -866,7 +866,7 @@ router.post('/:id/slots/join', async (req, res, next) => {
     const cityLandmark = (destination && destination.trim()) || `${community.name} (City Center)`;
     const resolvedOrigin = isReturn ? cityLandmark : 'Thapar Campus (Main Gate)';
     const resolvedDest = isReturn ? 'Thapar Campus (Main Gate)' : cityLandmark;
-    const resolvedPickup = 'Main Gate (Near Executive Mess)';
+    const resolvedPickup = 'Main Gate';
 
 
     const slotKey = isReturn

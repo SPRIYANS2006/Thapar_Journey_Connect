@@ -28,6 +28,7 @@ function AppContent() {
     selectedGroup,
     setSelectedGroupId,
     fetchGroups,
+    fetchGroupById,
     joinGroup,
     leaveGroup,
     confirmGroup,
@@ -381,6 +382,7 @@ function AppContent() {
                 await fetchGroups();
                 if (updatedGroup?.id) {
                   setSelectedGroupId(updatedGroup.id);
+                  await fetchGroupById(updatedGroup.id);
                 }
               }}
               triggerToast={(msg, type) =>

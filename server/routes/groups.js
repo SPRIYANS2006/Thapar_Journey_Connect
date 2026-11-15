@@ -17,8 +17,7 @@ import {
   serializeMessage
 } from '../services/serializers.js';
 import {
-  validateChatMessage,
-  ALLOWED_PICKUP_POINTS
+  validateChatMessage
 } from '../middleware/validate.js';
 import { notifyGroup, notifyUser, notifyGroupMembersUpdated } from '../services/notifications.js';
 import { joinSlot, rescheduleGroupSlot } from './slots.js';
@@ -50,7 +49,7 @@ function serializeCityRideAsGroup(ride, viewingUserId) {
     origin: ride.origin || 'Thapar Campus (Main Gate)',
     direction: ride.direction || 'departing',
     maxMembers: ride.max_capacity || 4,
-    pickupPoint: ride.mode === 'Cab' ? 'Main Gate (Near Executive Mess)' : ride.pickup_point,
+    pickupPoint: 'Main Gate',
     adminFare: ride.mode === 'Cab' ? ride.admin_fare ?? null : null,
     adminId: ride.creator_id,
     creatorId: ride.creator_id,
@@ -465,13 +464,7 @@ router.post('/:id/confirm', async (req, res, next) => {
 const handlePickupPointUpdate = async (req, res, next) => {
   try {
     const { pickupPoint } = req.body;
-    if (pickupPoint !== 'Main Gate (Near Executive Mess)') throw new HttpError(400, 'Pickup is Main Gate only.');
-    if (!pickupPoint || !ALLOWED_PICKUP_POINTS.includes(pickupPoint.trim())) {
-      throw new HttpError(
-        400,
-        `Invalid pickup point. Allowed points: ${ALLOWED_PICKUP_POINTS.join(', ')}`
-      );
-    }
+    if (pickupPoint !== 'Main Gate') throw new HttpError(400, 'Pickup is Main Gate only.');
 
     const group = await Group.findOne({ id: req.params.id });
     if (!group) throw new HttpError(404, 'Group not found.');
@@ -498,6 +491,24 @@ const handlePickupPointUpdate = async (req, res, next) => {
     next(err);
   }
 };
+
+router.post('/:id/capacity', async (req, res, next) => {
+  try {
+    const group = await Group.findOne({id: req.params.id});
+    if (!group) throw new HttpError(404, 'Group not found.');
+    if (group.transport !== 'Shared Auto') throw new HttpError(400, 'Only auto groups have adjustable capacity.');
+    if (group.admin_id !== req.user.id) throw new HttpError(403, 'Only the group admin can set capacity.');
+    if (!['Open', 'Confirmed', 'Full'].includes(group.status)) throw new HttpError(409, 'This ride is closed.');
+    const capacity = req.body.maxMembers;
+    if (![4, 6].includes(capacity)) throw new HttpError(400, 'Choose 4 or 6 members.');
+    if (group.members.length > capacity) throw new HttpError(409, 'Capacity cannot be less than the current member count.');
+    group.max_members = capacity;
+    if (group.status === 'Full' && group.members.length < capacity) group.status = 'Open';
+    await group.save();
+    notifyGroupMembersUpdated(group);
+    res.json({success: true, group: serializeGroup(group, req.user.id)});
+  } catch (error) { next(error); }
+});
 
 router.post('/:id/fare', async (req, res, next) => {
   try {

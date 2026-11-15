@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
-import { Destination, Hostel, Community, Counter, CityRide, User } from '../models/index.js';
+import { Destination, Hostel, Community, Counter, CityRide, Group, User } from '../models/index.js';
 
 
 export async function connectDB(customUri) {
@@ -37,6 +37,9 @@ export function isDbConnected() {
 export async function seedDefaultData() {
   try {
     await User.updateMany({ reliability: 5, trips_completed: 0 }, { $set: { reliability: 4.5 } });
+    await Group.updateMany({ transport: 'Shared Auto', max_members: 3 }, { $set: { max_members: 4 } });
+    await Group.updateMany({ pickup_point: { $ne: 'Main Gate' } }, { $set: { pickup_point: 'Main Gate' } });
+    await CityRide.updateMany({ pickup_point: { $ne: 'Main Gate' } }, { $set: { pickup_point: 'Main Gate' } });
     // 1. Destinations (Official TIET transit hubs) - Idempotent upsert via bulkWrite
     const destinations = [
       {

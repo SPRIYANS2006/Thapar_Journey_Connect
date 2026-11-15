@@ -35,6 +35,8 @@ export default function GroupDetailsPage({
   onRescheduleSuccess,
   triggerToast
 }) {
+  const [capacityBusy, setCapacityBusy] = useState(false);
+  const [capacityError, setCapacityError] = useState('');
   const [nowMs, setNowMs] = useState(() => Date.now());
   useEffect(() => {
     const timer = setInterval(() => setNowMs(Date.now()), 15000);
@@ -191,6 +193,16 @@ export default function GroupDetailsPage({
         </div>
       </div>
 
+      {group.transport === 'Shared Auto' && isAdmin && !isCompleted && <section className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-2">
+        <label className="text-sm font-semibold">Auto group capacity<select aria-label="Auto group capacity" className="ml-3 rounded border p-2 dark:bg-slate-800" value={group.maxMembers} disabled={capacityBusy} onChange={async event => {
+          setCapacityBusy(true); setCapacityError('');
+          try {
+            const response = await api.setAutoCapacity(group.id, Number(event.target.value));
+            await onRescheduleSuccess?.(response.group);
+          } catch (error) { setCapacityError(error.message); } finally { setCapacityBusy(false); }
+        }}><option value={4}>4 members</option><option value={6}>6 members</option></select></label>
+        {capacityError && <p role="alert" className="text-sm text-red-600">{capacityError}</p>}
+      </section>}
       <FareEstimate key={group.id} group={group} currentUser={currentUser} onSaved={onRescheduleSuccess} />
 
       {/* Group Header Card */}

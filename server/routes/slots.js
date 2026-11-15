@@ -21,8 +21,8 @@ export function generateTenMinuteSlots(dateStr, destObj, vehicle, existingGroups
   for (const g of existingGroups) {
     if (g.departure_time) {
       const previous = groupsByTime.get(g.departure_time);
-      const joinable = g.status === 'Open' && g.members.length < Math.min(3, g.max_members);
-      const previousJoinable = previous?.status === 'Open' && previous.members.length < Math.min(3, previous.max_members);
+      const joinable = g.status === 'Open' && g.members.length < (g.transport === 'Shared Auto' ? g.max_members : Math.min(3, g.max_members));
+      const previousJoinable = previous?.status === 'Open' && previous.members.length < (previous.transport === 'Shared Auto' ? previous.max_members : Math.min(3, previous.max_members));
       if (!previous || (joinable && !previousJoinable)) groupsByTime.set(g.departure_time, g);
     }
   }
@@ -34,7 +34,7 @@ export function generateTenMinuteSlots(dateStr, destObj, vehicle, existingGroups
       const isPast = hoursLeft < -5 / 60;
 
       const existing = groupsByTime.get(timeStr);
-      const group = existing?.status === 'Open' && existing.members.length < Math.min(3, existing.max_members)
+      const group = existing?.status === 'Open' && existing.members.length < (existing.transport === 'Shared Auto' ? existing.max_members : Math.min(3, existing.max_members))
         ? existing : null;
       const slotVehicle = group ? group.transport : (vehicle === 'Either' || !vehicle ? 'Shared Cab' : vehicle);
       const defaultSlotKey = isReturn
@@ -42,7 +42,7 @@ export function generateTenMinuteSlots(dateStr, destObj, vehicle, existingGroups
         : `${destObj.id}_${normalizedDate}_${timeStr}_${slotVehicle}`;
       const slotKey = group?.slot_key || defaultSlotKey;
 
-      const maxSeats = group?.max_members || (slotVehicle === 'Shared Auto' ? 3 : 4);
+      const maxSeats = group?.max_members || (4);
       const seatsFilled = group?.members ? group.members.length : 0;
       const isFull = Boolean(seatsFilled >= maxSeats || (group && (group.status === 'Full' || group.status === 'Completed')));
       const isJoined = Boolean(
@@ -160,7 +160,7 @@ router.get('/', optionalAuth, async (req, res, next) => {
 // 2. POST /api/slots/join: Atomic join or lazy group creation with strict capacity & single-ride enforcement
 export async function joinSlot(req, res, next) {
   try {
-    const { destinationId, date, time, vehicle, pickupPoint, direction } = req.body;
+    const { destinationId, date, time, vehicle, direction } = req.body;
     if (!destinationId || !time) {
       throw new HttpError(400, 'Destination and departure time are required.');
     }
@@ -187,14 +187,11 @@ export async function joinSlot(req, res, next) {
       };
     }
 
-    const defaultPickup = isReturn
-      ? `${destination.name} (Arrivals / Main Exit)`
-      : 'Main Gate (Near Executive Mess)';
     const slotKey = isReturn
       ? `${destinationId}_ret_${travelDate}_${time}_${selectedVehicle}`
       : `${destinationId}_${travelDate}_${time}_${selectedVehicle}`;
-    const maxCapacity = selectedVehicle === 'Shared Auto' ? 3 : 4;
-    const resolvedPickupPoint = selectedVehicle === 'Shared Cab' ? 'Main Gate (Near Executive Mess)' : pickupPoint || defaultPickup;
+    const maxCapacity = 4;
+    const resolvedPickupPoint = 'Main Gate';
 
     // Single-Ride Policy check across regular Groups & City Community Rides
     const activeGroup = await Group.findOne({
@@ -265,7 +262,7 @@ export async function joinSlot(req, res, next) {
       direction: isReturn ? 'returning' : { $in: ['departing', null] }
     }).sort({ created_at: 1 });
     let group = req.targetGroup || matchingGroups.find(candidate =>
-      candidate.status === 'Open' && candidate.members.length < Math.min(3, candidate.max_members)
+      candidate.status === 'Open' && candidate.members.length < (candidate.transport === 'Shared Auto' ? candidate.max_members : Math.min(3, candidate.max_members))
     );
     const usedKeys = new Set(matchingGroups.map(candidate => candidate.slot_key));
     let newSlotKey = slotKey;
@@ -279,7 +276,7 @@ export async function joinSlot(req, res, next) {
         {
           id: group.id,
           status: 'Open',
-          $expr: { $lt: [{ $size: '$members' }, req.targetGroup ? '$max_members' : { $min: [3, '$max_members'] }] },
+          $expr: { $lt: [{ $size: '$members' }, req.targetGroup || selectedVehicle === 'Shared Auto' ? '$max_members' : { $min: [3, '$max_members'] }] },
           'members.user_id': { $ne: req.user.id }
         },
         {
@@ -453,7 +450,7 @@ async function rescheduleGroupSlotInternal({
   targetDate,
   targetTime,
   targetVehicle,
-  targetPickupPoint,
+  targetPickupPoint: _targetPickupPoint,
   targetDirection
 }) {
   if (!oldGroupId || !targetTime) {
@@ -524,11 +521,8 @@ async function rescheduleGroupSlotInternal({
     newReliability = Math.max(1.0, +(newReliability - penalty).toFixed(1));
   }
 
-  const maxCapacity = selectedVehicle === 'Shared Auto' ? 3 : 4;
-  const defaultPickup = isTargetReturn
-    ? `${destName} (Arrivals / Main Exit)`
-    : 'Main Gate (Near Executive Mess)';
-  const resolvedPickup = oldGroup.transport === 'Shared Cab' ? 'Main Gate (Near Executive Mess)' : targetPickupPoint || oldGroup.pickup_point || defaultPickup;
+  const maxCapacity = 4;
+  const resolvedPickup = 'Main Gate';
 
   // Step 1: Join or create target slot ATOMICALLY first
   let targetGroup = await Group.findOne({

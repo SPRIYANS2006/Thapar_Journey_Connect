@@ -43,7 +43,7 @@ const cityRideSchema = new mongoose.Schema({
   },
   pickup_point: {
     type: String,
-    default: 'Main Gate (Near Executive Mess)'
+    default: 'Main Gate'
   },
   admin_fare: { type: Number, default: null },
   total_fare: { type: Number, default: 0 }, // For Cab: total cab fare to split; for Train: individual ticket fare

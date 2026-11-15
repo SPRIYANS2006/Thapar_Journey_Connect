@@ -633,7 +633,7 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     const created = await request(app).post('/api/slots/join').set('Authorization', `Bearer ${token}`).send({ destinationId: 'railway', date: 'Tomorrow', time: '12:00', vehicle: 'Shared Auto' });
     assert.equal(created.status, 201);
     const joined = await request(app).post(`/api/groups/${created.body.group.id}/join`).set('Authorization', `Bearer ${otherToken}`).send({});
-    assert.equal(joined.status, 200); assert.equal(joined.body.group.maxMembers, 3); assert.equal(joined.body.group.members.length, 2);
+    assert.equal(joined.status, 200); assert.equal(joined.body.group.maxMembers, 4); assert.equal(joined.body.group.members.length, 2);
   });
 
   // 22. Community creation escapes regex metacharacters safely

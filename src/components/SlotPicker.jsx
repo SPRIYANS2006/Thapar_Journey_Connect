@@ -327,7 +327,7 @@ export default function SlotPicker({
                           );
                         })}
                         <span className="text-xs font-bold text-slate-700 dark:text-slate-300 ml-1">
-                          {slot.seatsFilled}/4
+                          {slot.seatsFilled}/{slot.maxSeats}
                         </span>
                       </div>
                     </div>

@@ -3,7 +3,6 @@ import HeroBanner from '../components/HeroBanner';
 import { 
   User, 
   Mail, 
-  GraduationCap, 
   Building2, 
   Phone, 
   ShieldCheck, 
@@ -24,15 +23,14 @@ import {
   CreditCard, 
   Shield
 } from 'lucide-react';
-import { HOSTELS, COLLEGE_DEGREES, ACADEMIC_YEARS } from '../data/mockData';
+import { HOSTELS, ACADEMIC_YEARS } from '../data/mockData';
 import { api } from '../services/api';
 import { useAuth } from '../context/useAuth';
 
 export default function ProfilePage({ user, communities = [], onUpdateProfile }) {
   const [name, setName] = useState(user?.name || '');
-  const [degree, setDegree] = useState(user?.degree || '');
   const [year, setYear] = useState(user?.year || '');
-  const [hostel, setHostel] = useState(user?.hostel || '');
+  const [hostel, setHostel] = useState(getDisplayHostelName(user?.hostel || ''));
   const [phone, setPhone] = useState(user?.phone || '');
   const [rollNumber, setRollNumber] = useState(user?.rollNumber || '');
   const [homeCity, setHomeCity] = useState(user?.homeCity || user?.hometown || '');
@@ -70,7 +68,6 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
       await onUpdateProfile({
         ...user,
       name: name.trim() || user?.name,
-        degree: degree.trim() || user?.degree,
         year: year.trim() || user?.year,
         hostel,
         phone: phone.trim(),
@@ -91,9 +88,8 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
 
   const handleReset = () => {
     setName(user?.name || '');
-    setDegree(user?.degree || '');
     setYear(user?.year || '');
-    setHostel(user?.hostel || '');
+    setHostel(getDisplayHostelName(user?.hostel || ''));
     setPhone(user?.phone || '');
     setRollNumber(user?.rollNumber || '');
     setHomeCity(user?.homeCity || user?.hometown || '');
@@ -145,7 +141,7 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
   };
 
   // Format clean hostel name for display
-  const getDisplayHostelName = (hName) => {
+  function getDisplayHostelName(hName) {
     if (hName.includes('Agira')) return 'Agira Hostel';
     if (hName.includes('Amritam')) return 'Amritam Hostel';
     if (hName.includes('Prithvi')) return 'Prithvi Hostel';
@@ -329,30 +325,6 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
                     </div>
                   </div>
 
-                  {/* Programme */}
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                      Programme
-                    </label>
-                    <div className="relative">
-                      <GraduationCap className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                      <select
-                        value={degree}
-                        onChange={(e) => setDegree(e.target.value)}
-                        className="w-full pl-10 pr-9 py-2.5 bg-slate-50/70 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none cursor-pointer transition-colors"
-                      >
-                        <option value="B.Tech (Computer Science and Engineering)">B.Tech (Computer Science and Engineering)</option>
-                        <option value="B.Tech (Electronics and Communication)">B.Tech (Electronics and Communication)</option>
-                        <option value="B.Tech (Mechanical Engineering)">B.Tech (Mechanical Engineering)</option>
-                        <option value="B.Tech (Civil Engineering)">B.Tech (Civil Engineering)</option>
-                        {COLLEGE_DEGREES.map((d) => (
-                          <option key={d} value={d}>{d}</option>
-                        ))}
-                      </select>
-                      <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    </div>
-                  </div>
-
                   {/* Year of Study */}
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
@@ -385,15 +357,9 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
                         onChange={(e) => setHostel(e.target.value)}
                         className="w-full pl-10 pr-9 py-2.5 bg-slate-50/70 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none cursor-pointer transition-colors"
                       >
-                        <option value="Agira Hostel">Agira Hostel</option>
-                        {HOSTELS.map((h) => {
-                          const cleanName = getDisplayHostelName(h.name);
-                          return (
-                            <option key={h.id} value={cleanName}>
-                              {cleanName}
-                            </option>
-                          );
-                        })}
+                        {[...new Set(HOSTELS.map(h => getDisplayHostelName(h.name)))].map(hostelName => (
+                          <option key={hostelName} value={hostelName}>{hostelName}</option>
+                        ))}
                       </select>
                       <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>

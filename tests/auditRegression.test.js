@@ -94,7 +94,7 @@ describe('Audit regressions', () => {
     await post('/api/slots/join', { ...slot('12:00'), vehicle: 'Shared Auto' });
     const result = await request(app).get('/api/slots').query({ destinationId: 'railway', date, vehicle: 'Shared Auto' }).set('Authorization', `Bearer ${token}`);
     const selected = result.body.slots.find(s => s.time === '12:00');
-    assert.equal(selected.isJoined, true); assert.equal(selected.maxSeats, 3);
+    assert.equal(selected.isJoined, true); assert.equal(selected.maxSeats, 4);
   });
   it('reschedule rejects companions without stranding any party members', async () => {
     await group({ members: [{ user_id: user.id, name: 'Rider' }, { user_id: 'friend', name: 'Friend', is_companion: true, added_by: user.id }] });
@@ -157,7 +157,7 @@ describe('Audit regressions', () => {
     const response = await post('/api/groups/cr_fare/fare', {totalFare: 700});
     assert.equal(response.status, 200);
     assert.equal(response.body.group.adminFare, 700);
-    assert.equal(response.body.group.pickupPoint, 'Main Gate (Near Executive Mess)');
+    assert.equal(response.body.group.pickupPoint, 'Main Gate');
   });
   it('new accounts start at 4.5 and successful completion adds 0.1 once', async () => {
     const student = await User.create({id: 'new-rider', name: 'New Rider', email: 'new@thapar.edu', hostel: 'Hostel J'});
@@ -176,6 +176,18 @@ describe('Audit regressions', () => {
     assert.equal((await post('/api/communities', {name: 'Random City', state: 'Punjab'})).status, 400);
     assert.equal((await post('/api/communities', {name: 'Shimla', state: 'Punjab'})).status, 400);
     assert.equal((await post('/api/communities', {name: 'Shimla', state: 'Himachal Pradesh'})).status, 201);
+  });
+  it('auto admin chooses four or six seats, with safe capacity reductions', async () => {
+    await group({transport: 'Shared Auto', max_members: 4, pickup_point: 'Hostel J'});
+    const response = await post('/api/groups/original/capacity', {maxMembers: 6});
+    assert.equal(response.status, 200);
+    assert.equal(response.body.group.maxMembers, 6);
+    assert.equal(response.body.group.pickupPoint, 'Main Gate');
+    assert.equal((await post('/api/groups/original/capacity', {maxMembers: 5})).status, 400);
+    await Group.updateOne({id: 'original'}, {$set: {members: Array.from({length: 5}, (_, i) => ({user_id: i ? 'member-' + i : user.id, name: 'Member'}))}});
+    assert.equal((await post('/api/groups/original/capacity', {maxMembers: 4})).status, 409);
+    const other = await User.create({id:'outsider-cap', name:'Other', email:'cap@thapar.edu'});
+    assert.equal((await request(app).post('/api/groups/original/capacity').set('Authorization', 'Bearer ' + generateSessionToken(other)).send({maxMembers: 6})).status, 403);
   });
   it('profile settings survive a new session fetch', async () => {
     const saved = await request(app).put('/api/auth/profile').set('Authorization', `Bearer ${token}`).send({ rollNumber: '1234', preferredTransport: 'Auto', timeWindow: 'Every 30 Minutes', frequentRoutes: ['Delhi'], rideNotifications: false });

@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import DisclaimerBanner from '../components/DisclaimerBanner';
 import SlotPicker from '../components/SlotPicker';
 import HeroBanner from '../components/HeroBanner';
 import { DESTINATIONS, HOSTELS } from '../data/mockData';
@@ -7,7 +6,6 @@ import { TIME_SLOT_OPTIONS_15MIN } from '../utils/timeSlots';
 import { 
   ArrowRight, 
   ArrowLeft,
-  ArrowLeftRight,
   Clock, 
   MapPin, 
   Car, 
@@ -19,7 +17,6 @@ import {
   ShieldCheck,
   Zap,
   Users,
-  Compass,
 } from 'lucide-react';
 import { api } from '../services/api';
 
@@ -78,7 +75,7 @@ export default function DashboardPage({
   const [selectedTime, setSelectedTime] = useState(() => getCurrentSlotTime());
   const [selectedVehicle, setSelectedVehicle] = useState('Shared Cab');
   const [selectedHostel, setSelectedHostel] = useState(user?.hostel || HOSTELS[0].name);
-  const [direction, setDirection] = useState('departing'); // 'departing' (Going / Thapar -> Dest) or 'returning' (Coming back / Dest -> Thapar)
+  const direction = 'departing';
 
   // Slots State
   const [hasSearched, setHasSearched] = useState(false);
@@ -176,21 +173,6 @@ export default function DashboardPage({
     fetchSlots(selectedDestId, selectedDate, selectedVehicle, direction);
   };
 
-  const handleQuickDestinationSelect = (destId) => {
-    setSelectedDestId(destId);
-    setIsDestDropdownOpen(false);
-    setHasSearched(true);
-    fetchSlots(destId, selectedDate, selectedVehicle, direction);
-  };
-
-  const handleToggleDirection = () => {
-    const nextDir = direction === 'departing' ? 'returning' : 'departing';
-    setDirection(nextDir);
-    if (hasSearched) {
-      fetchSlots(selectedDestId, selectedDate, selectedVehicle, nextDir);
-    }
-  };
-
   // Join Slot Handler (Atomic Join or Lazy Creation)
   const handleJoinSlot = async (slot) => {
     setJoiningSlotKey(slot.slotKey);
@@ -264,7 +246,7 @@ export default function DashboardPage({
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
         {/* Disclaimer Banner */}
-        <DisclaimerBanner />
+
 
         {/* PART 1: STICKY SEARCH CARD */}
         <div className="sticky top-20 z-30 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm p-4 sm:p-6 transition-colors">
@@ -279,61 +261,13 @@ export default function DashboardPage({
               </span>
             </div>
 
-            {/* Direction Switcher & Swap Button */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="inline-flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200/80 dark:border-slate-700 text-xs">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (direction !== 'departing') {
-                      setDirection('departing');
-                      fetchSlots(selectedDestId, selectedDate, selectedVehicle, 'departing');
-                    }
-                  }}
-                  className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
-                    direction === 'departing'
-                      ? 'bg-blue-600 text-white shadow-xs'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                  }`}
-                >
-                  <span>Depart campus</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (direction !== 'returning') {
-                      setDirection('returning');
-                      fetchSlots(selectedDestId, selectedDate, selectedVehicle, 'returning');
-                    }
-                  }}
-                  className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
-                    direction === 'returning'
-                      ? 'bg-blue-600 text-white shadow-xs'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                  }`}
-                >
-                  <span>Return to campus</span>
-                </button>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleToggleDirection}
-                className="p-1.5 px-3 bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl border border-slate-200 dark:border-slate-700 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-semibold shadow-2xs"
-                title="Switch trip direction"
-                aria-label="Switch trip direction between departing and returning"
-              >
-                <ArrowLeftRight className="w-3.5 h-3.5" />
-                <span>Switch</span>
-              </button>
-            </div>
           </div>
 
         <form onSubmit={handleSearchSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             
             {/* 1 & 2. Dynamic From / To with Switch Support */}
-            {direction === 'departing' ? (
+
               <>
                 {/* 1. FROM: Thapar Campus */}
                 <div className="bg-slate-50/90 dark:bg-slate-800/60 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-700/80 flex flex-col justify-between">
@@ -342,15 +276,6 @@ export default function DashboardPage({
                       <MapPin className="w-3 h-3 text-blue-600 dark:text-blue-400" />
                       <span>From</span>
                     </span>
-                    <button
-                      type="button"
-                      onClick={handleToggleDirection}
-                      className="text-[10px] text-slate-400 hover:text-blue-600 dark:text-slate-500 dark:hover:text-blue-400 p-0.5 cursor-pointer"
-                      title="Switch direction"
-                      aria-label="Switch direction"
-                    >
-                      <ArrowLeftRight className="w-3 h-3" />
-                    </button>
                   </div>
                   <div className="font-extrabold text-slate-800 dark:text-slate-100 text-sm mt-1">
                     Thapar Institute
@@ -364,15 +289,6 @@ export default function DashboardPage({
                       <MapPin className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
                       <span>To</span>
                     </span>
-                    <button
-                      type="button"
-                      onClick={handleToggleDirection}
-                      className="text-[10px] text-slate-400 hover:text-blue-600 dark:text-slate-500 dark:hover:text-blue-400 p-0.5 cursor-pointer"
-                      title="Switch direction"
-                      aria-label="Switch direction"
-                    >
-                      <ArrowLeftRight className="w-3 h-3" />
-                    </button>
                   </div>
                   <button
                     type="button"
@@ -427,101 +343,6 @@ export default function DashboardPage({
                   )}
                 </div>
               </>
-            ) : (
-              <>
-                {/* 1. FROM: Returning Pickup Destination */}
-                <div className="relative bg-slate-50/90 dark:bg-slate-800/60 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-700/80 flex flex-col justify-between">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 flex items-center gap-1">
-                      <MapPin className="w-3 h-3 text-amber-600 dark:text-amber-400" />
-                      <span>From (Pickup)</span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={handleToggleDirection}
-                      className="text-[10px] text-slate-400 hover:text-blue-600 dark:text-slate-500 dark:hover:text-blue-400 p-0.5 cursor-pointer"
-                      title="Switch direction"
-                      aria-label="Switch direction"
-                    >
-                      <ArrowLeftRight className="w-3 h-3" />
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsDestDropdownOpen((prev) => !prev)}
-                    className="w-full text-left font-extrabold text-slate-900 dark:text-slate-100 text-sm mt-1 flex items-center justify-between gap-1 cursor-pointer truncate"
-                  >
-                    <span className="truncate">{currentDestination.name}</span>
-                    <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0" />
-                  </button>
-
-                  {/* Dropdown Menu */}
-                  {isDestDropdownOpen && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl z-50 p-2 space-y-1.5 max-h-72 overflow-y-auto animate-in fade-in duration-150">
-                      <div className="relative px-1 pt-1 pb-2">
-                        <Search className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 absolute left-3 top-3.5" />
-                        <input
-                          type="text"
-                          placeholder="Type pickup point..."
-                          value={destSearchQuery}
-                          onChange={(e) => setDestSearchQuery(e.target.value)}
-                          className="w-full pl-7 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          autoFocus
-                        />
-                      </div>
-
-                      {filteredDestinations.map((dest) => (
-                        <button
-                          key={dest.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedDestId(dest.id);
-                            setIsDestDropdownOpen(false);
-                            setDestSearchQuery('');
-                          }}
-                          className={`w-full text-left p-2.5 rounded-xl text-xs transition-colors flex items-center justify-between cursor-pointer ${
-                            selectedDestId === dest.id
-                              ? 'bg-blue-50 dark:bg-blue-950/70 text-blue-900 dark:text-blue-200 font-bold border border-blue-200 dark:border-blue-800'
-                              : 'hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-300'
-                          }`}
-                        >
-                          <div>
-                            <div className="font-bold flex items-center gap-1.5">
-                              <span>{dest.icon}</span>
-                              <span>{dest.name}</span>
-                            </div>
-                            <div className="text-[10px] text-slate-400 dark:text-slate-500">{dest.distance}</div>
-                          </div>
-                          <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{dest.avgCabFare}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* 2. TO: Thapar Campus */}
-                <div className="bg-slate-50/90 dark:bg-slate-800/60 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-700/80 flex flex-col justify-between">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 flex items-center gap-1">
-                      <MapPin className="w-3 h-3 text-blue-600 dark:text-blue-400" />
-                      <span>To (Campus)</span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={handleToggleDirection}
-                      className="text-[10px] text-slate-400 hover:text-blue-600 dark:text-slate-500 dark:hover:text-blue-400 p-0.5 cursor-pointer"
-                      title="Switch direction"
-                      aria-label="Switch direction"
-                    >
-                      <ArrowLeftRight className="w-3 h-3" />
-                    </button>
-                  </div>
-                  <div className="font-extrabold text-slate-800 dark:text-slate-100 text-sm mt-1">
-                    Thapar Institute
-                  </div>
-                </div>
-              </>
-            )}
 
             {/* 3. DATE: Picker (Today to +30 Days) */}
             <div className="bg-slate-50/90 dark:bg-slate-800/60 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-700/80 flex flex-col justify-between">
@@ -772,71 +593,6 @@ export default function DashboardPage({
       {!hasSearched ? (
         <div className="space-y-10 animate-in fade-in duration-300">
           
-          {/* SECTION 1: POPULAR CAMPUS DESTINATIONS (Clickable Cards) */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-                  <Compass className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                  <span>Popular campus destinations</span>
-                </h2>
-                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-                  Tap any route to view live 15-minute departures and join fellow Thapar students.
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {DESTINATIONS.map((dest) => {
-                const amount = String(dest.avgCabFare || '').match(/\d[\d,]*/);
-                const baseFare = amount ? Number(amount[0].replaceAll(',', '')) : null;
-                const approxSplit = baseFare ? `From ₹${Math.ceil(baseFare / 4)}` : 'Unavailable';
-
-                return (
-                  <div
-                    key={dest.id}
-                    onClick={() => handleQuickDestinationSelect(dest.id)}
-                    className="group bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-2xs hover:border-blue-400 dark:hover:border-blue-500 transition-all cursor-pointer flex flex-col justify-between"
-                  >
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-3xl p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700/80 group-hover:scale-105 transition-transform">
-                          {dest.icon}
-                        </span>
-                        <span className="text-[10px] font-semibold bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 px-2.5 py-1 rounded-full border border-blue-200 dark:border-blue-800">
-                          Cab estimate
-                        </span>
-                      </div>
-
-                      <div>
-                        <h3 className="font-bold text-slate-900 dark:text-white text-base group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                          {dest.name}
-                        </h3>
-                        <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-                          {dest.distance}
-                        </p>
-                      </div>
-
-                      <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2">
-                        {dest.description}
-                      </p>
-                    </div>
-
-                    <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                      <div>
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500 block font-semibold">With 4 riders (estimate)</span>
-                        <span className="text-sm font-bold text-blue-600 dark:text-blue-400">{approxSplit} <span className="text-[10px] font-normal text-slate-400">/ rider</span></span>
-                      </div>
-                      <span className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 group-hover:bg-blue-600 group-hover:text-white flex items-center justify-center transition-colors">
-                        <ArrowRight className="w-4 h-4" />
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
           <button type="button" onClick={onNavigateToCommunities} className="text-sm font-semibold text-blue-600 dark:text-blue-400 underline">Travelling home? Open City Communities</button>
 
         </div>

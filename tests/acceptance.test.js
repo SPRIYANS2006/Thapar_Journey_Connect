@@ -1363,14 +1363,14 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     assert.equal(slotAfter.groupId, '1');
   });
 
-  // 40. Slot-Based Travel: Strict capacity enforcement (reject 5th member) & Single-Ride Policy
+  // 40. Slot-Based Travel: Additional groups after three members & Single-Ride Policy
   it('40. Slot-Based Travel: Strict capacity enforcement (reject 5th member) & Single-Ride Policy', async () => {
     const students = [];
     for (let i = 1; i <= 5; i++) {
       students.push(await createTestStudent({ name: `Rider ${i}` }));
     }
 
-    // First 4 riders join the 12:00 slot for tomorrow
+    // Fourth rider starts the next group at the same time.
     for (let i = 0; i < 4; i++) {
       const res = await request(app)
         .post('/api/slots/join')
@@ -1384,7 +1384,7 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
       assert.ok([200, 201].includes(res.status));
     }
 
-    // 5th rider attempts to join full slot -> HTTP 409
+    // Fifth rider joins the second group.
     const res5th = await request(app)
       .post('/api/slots/join')
       .set('Authorization', `Bearer ${students[4].token}`)
@@ -1394,8 +1394,8 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
         time: '12:00',
         vehicle: 'Shared Cab'
       });
-    assert.equal(res5th.status, 409);
-    assert.match(res5th.body.error, /full/i);
+    assert.equal(res5th.status, 200);
+    assert.equal(res5th.body.group.members.length, 2);
 
     // Rider 1 (already enrolled in Group #1) attempts to join another slot at 14:00 -> Single-Ride Policy error 409
     const resDouble = await request(app)

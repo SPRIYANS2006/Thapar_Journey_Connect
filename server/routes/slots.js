@@ -20,7 +20,10 @@ export function generateTenMinuteSlots(dateStr, destObj, vehicle, existingGroups
 
   for (const g of existingGroups) {
     if (g.departure_time) {
-      groupsByTime.set(g.departure_time, g);
+      const previous = groupsByTime.get(g.departure_time);
+      const joinable = g.status === 'Open' && g.members.length < Math.min(3, g.max_members);
+      const previousJoinable = previous?.status === 'Open' && previous.members.length < Math.min(3, previous.max_members);
+      if (!previous || (joinable && !previousJoinable)) groupsByTime.set(g.departure_time, g);
     }
   }
 
@@ -39,7 +42,9 @@ export function generateTenMinuteSlots(dateStr, destObj, vehicle, existingGroups
       const hoursLeft = getHoursUntilDeparture(normalizedDate, timeStr);
       const isPast = hoursLeft < -5 / 60;
 
-      const group = groupsByTime.get(timeStr);
+      const existing = groupsByTime.get(timeStr);
+      const group = existing?.status === 'Open' && existing.members.length < Math.min(3, existing.max_members)
+        ? existing : null;
       const slotVehicle = group ? group.transport : (vehicle === 'Either' || !vehicle ? 'Shared Cab' : vehicle);
       const defaultSlotKey = isReturn
         ? `${destObj.id}_ret_${normalizedDate}_${timeStr}_${slotVehicle}`
@@ -266,18 +271,19 @@ export async function joinSlot(req, res, next) {
     };
 
     // Check if group already exists for this slot
-    let group = req.targetGroup || await Group.findOne({
-      $or: [
-        { slot_key: slotKey },
-        {
-          destination_id: destinationId,
-          date: travelDate,
-          departure_time: time,
-          transport: selectedVehicle,
-          direction: isReturn ? 'returning' : { $in: ['departing', null] }
-        }
-      ]
-    });
+    const matchingGroups = await Group.find({
+      destination_id: destinationId, date: travelDate, departure_time: time,
+      transport: selectedVehicle,
+      direction: isReturn ? 'returning' : { $in: ['departing', null] }
+    }).sort({ created_at: 1 });
+    let group = req.targetGroup || matchingGroups.find(candidate =>
+      candidate.status === 'Open' && candidate.members.length < Math.min(3, candidate.max_members)
+    );
+    const usedKeys = new Set(matchingGroups.map(candidate => candidate.slot_key));
+    let newSlotKey = slotKey;
+    let sequence = 1;
+    while (usedKeys.has(newSlotKey)) newSlotKey = slotKey + '_group_' + sequence++;
+
 
     if (group) {
       // Existing group -> Atomic join with capacity guard
@@ -285,7 +291,7 @@ export async function joinSlot(req, res, next) {
         {
           id: group.id,
           status: 'Open',
-          $expr: { $lt: [{ $size: '$members' }, '$max_members'] },
+          $expr: { $lt: [{ $size: '$members' }, req.targetGroup ? '$max_members' : { $min: [3, '$max_members'] }] },
           'members.user_id': { $ne: req.user.id }
         },
         {
@@ -340,7 +346,7 @@ export async function joinSlot(req, res, next) {
     try {
       createdGroup = await Group.create({
         id: groupId,
-        slot_key: slotKey,
+        slot_key: newSlotKey,
         destination_id: destinationId,
         destination_name: isReturn ? 'Thapar Institute' : (destination.name || destinationId),
         origin: isReturn ? (destination.name || destinationId) : 'Thapar Institute',

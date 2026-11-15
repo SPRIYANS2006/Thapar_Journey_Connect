@@ -53,6 +53,23 @@ describe('Audit regressions', () => {
     assert.equal(response.status, 200);
     assert.deepEqual(response.body.map(message => message.text), Array.from({ length: 300 }, (_, i) => String(i + 1)));
   });
+  it('opens another group at the same departure after three members join', async () => {
+    const first = await post('/api/slots/join', slot('12:00'));
+    const users = await User.create(Array.from({length: 4}, (_, i) => ({
+      id: 'overflow-' + i, name: 'Overflow ' + i, email: 'overflow' + i + '@thapar.edu'
+    })));
+    const join = student => request(app).post('/api/slots/join')
+      .set('Authorization', 'Bearer ' + generateSessionToken(student)).send(slot('12:00'));
+    for (const student of users.slice(0, 2)) assert.equal((await join(student)).status, 200);
+    const listed = await request(app).get('/api/slots').query({destinationId: 'railway', date, vehicle: 'Shared Cab'});
+    assert.equal(listed.body.slots.find(s => s.time === '12:00').seatsFilled, 0);
+    const results = await Promise.all(users.slice(2).map(join));
+    for (const result of results) assert.ok([200, 201].includes(result.status), JSON.stringify(result.body));
+    const groups = await Group.find({ departure_time: '12:00' });
+    assert.equal(groups.length, 2);
+    assert.deepEqual(groups.map(g => g.members.length).sort(), [2, 3]);
+    assert.equal((await Group.findOne({ id: first.body.group.id })).members.length, 3);
+  });
   it('concurrent joins to different slots leave exactly one active membership', async () => {
     const results = await Promise.all([post('/api/slots/join', slot('12:00')), post('/api/slots/join', slot('13:00'))]);
     assert.deepEqual(results.map(r => r.status).sort(), [201, 409]);

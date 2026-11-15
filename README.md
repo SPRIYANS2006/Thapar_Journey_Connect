@@ -5,7 +5,7 @@
 [![Express Version](https://img.shields.io/badge/Express-5.x-000000?logo=express)](https://expressjs.com)
 [![MongoDB](https://img.shields.io/badge/MongoDB-Atlas_Cloud-47A248?logo=mongodb)](https://www.mongodb.com)
 [![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-v4-06B6D4?logo=tailwindcss)](https://tailwindcss.com)
-[![Acceptance Tests](https://img.shields.io/badge/Tests-79%2F79_Passing-success)](#-automated-testing--quality)
+[![Acceptance Tests](https://img.shields.io/badge/Tests-85%2F85_Passing-success)](#-automated-testing--quality)
 [![License](https://img.shields.io/badge/License-Campus_Proprietary-red)](#-license)
 
 > **Campus-Exclusive Transit & Travel Cohort Network**  
@@ -97,7 +97,7 @@ flowchart TD
 Thapar_Journey_Connect/
 ├── .github/
 │   └── workflows/
-│       └── ci.yml             # GitHub Actions CI (Lint, Build, 79 Tests)
+│       └── ci.yml             # GitHub Actions CI (Lint, Build, 85 Tests)
 ├── public/
 │   ├── favicon.svg            # Platform favicon
 │   ├── thapar-banner.png      # High-res campus banner
@@ -189,7 +189,7 @@ Thapar_Journey_Connect/
 
 ## 🧪 Automated Testing & Quality
 
-The platform includes **79 automated tests** executed natively via Node.js (`node:test`) and an in-memory MongoDB server:
+The platform includes **85 automated tests** executed natively via Node.js (`node:test`) and an in-memory MongoDB server:
 
 ```bash
 # Run the automated tests

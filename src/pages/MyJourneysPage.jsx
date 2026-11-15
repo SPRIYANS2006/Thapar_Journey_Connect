@@ -1,334 +1,89 @@
-import React, { useState, useEffect } from 'react';
-import HeroBanner from '../components/HeroBanner';
-import { 
-  Calendar, 
-  Clock, 
-  Users, 
-  Car,
-  Home,
-  X
-} from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Car, Train, Bus, ArrowRight, MapPin, Clock, Users, MessageSquare } from 'lucide-react';
+import { api, getSocket } from '../services/api';
+import { useAuth } from '../context/useAuth';
 import { formatTime24to12 } from '../utils/timeSlots';
-import { api } from '../services/api';
-import RescheduleSlotModal from '../components/RescheduleSlotModal';
+import { tripDate, tripButton } from '../utils/tripUi';
+import ConfirmDialog from '../components/ConfirmDialog';
+import TravelGroupChatModal from '../components/TravelGroupChatModal';
 
-export default function MyJourneysPage({
-  activeGroups,
-  currentUser: _currentUser,
-  onViewGroupDetails,
-  onOpenChat,
-  onRefresh,
-  triggerToast: _triggerToast,
-  onFindRide
-}) {
-  const [fetchedJourneys, setFetchedJourneys] = useState(null);
-  const [completedJourneys, setCompletedJourneys] = useState([]);
-  const [rescheduleGroup, setRescheduleGroup] = useState(null);
+const modes = ['All', 'Cab', 'Train', 'Bus'];
+const icons = { Cab: Car, Auto: Car, Train, Bus };
 
+export default function MyJourneysPage({ currentUser, onViewGroupDetails, onOpenChat, onRefresh, triggerToast, onFindRide }) {
+  const { refreshUser } = useAuth();
+  const [feed, setFeed] = useState({ upcoming: [], past: [] });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [mode, setMode] = useState('All');
+  const [section, setSection] = useState('upcoming');
+  const [leaving, setLeaving] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [travelChat, setTravelChat] = useState(null);
+  const sequence = useRef(0);
+
+  const load = useCallback(async () => {
+    const request = ++sequence.current;
+    try {
+      const data = await api.getMyJourneyFeed();
+      if (request === sequence.current) {
+        setFeed(data); setError('');
+        setTravelChat(current => current && [...data.upcoming, ...data.past].some(trip => trip.kind === 'travel' && trip.id === current.id) ? current : null);
+      }
+    } catch (failure) { if (request === sequence.current) setError(failure.message || 'Could not load your journeys.'); }
+    finally { if (request === sequence.current) setLoading(false); }
+  }, []);
+
+  const invalidate = useCallback(() => { sequence.current++; }, []);
   useEffect(() => {
-    let active = true;
-    api.getMyGroups()
-      .then((data) => {
-        if (active) {
-          setFetchedJourneys(Array.isArray(data) ? data : []);
-        }
-      })
-      .catch((err) => {
-        console.warn('Failed to load active journeys:', err);
-      });
+    const initial = setTimeout(load, 0);
+    const socket = getSocket();
+    let debounce;
+    const refresh = () => { clearTimeout(debounce); debounce = setTimeout(load, 150); };
+    socket?.on('group_updated', refresh);
+    socket?.on('journeys_updated', refresh);
+    socket?.on('connect', refresh);
+    window.addEventListener('focus', refresh);
+    const timer = setInterval(refresh, 60000);
+    return () => { invalidate(); clearTimeout(initial); clearTimeout(debounce); clearInterval(timer); socket?.off('group_updated', refresh); socket?.off('journeys_updated', refresh); socket?.off('connect', refresh); window.removeEventListener('focus', refresh); };
+  }, [load, invalidate]);
 
-    api.getGroupHistory()
-      .then((history) => {
-        if (active) {
-          setCompletedJourneys(Array.isArray(history) ? history : []);
-        }
-      })
-      .catch((err) => {
-        console.warn('Failed to load completed journeys:', err);
-      });
+  const matchesMode = trip => mode === 'All' || trip.mode === mode || (mode === 'Cab' && trip.mode === 'Auto');
+  const list = feed[section].filter(matchesMode);
 
-    if (onRefresh) {
-      onRefresh().catch(() => {});
-    }
+  async function leave() {
+    if (!leaving || busy) return; setBusy(true);
+    try {
+      const result = leaving.kind === 'travel' ? await api.leaveTravelGroup(leaving.id) : await api.leaveGroup(leaving.id);
+      triggerToast?.(result.penaltyApplied ? `Left the ride. Reliability deduction: ${result.penaltyAmount}. You can request a review under Safety & privacy.` : 'You left the group.', result.penaltyApplied ? 'warning' : 'info');
+      if (result.penaltyApplied) await refreshUser();
+      setLeaving(null); await load(); Promise.resolve(onRefresh?.()).catch(() => {});
+    } catch (failure) { setError(failure.message || 'Could not leave this group.'); setLeaving(null); }
+    finally { setBusy(false); }
+  }
 
-    return () => {
-      active = false;
-    };
-  }, [onRefresh]);
-
-  const upcomingJourneys = fetchedJourneys !== null
-    ? fetchedJourneys
-    : (Array.isArray(activeGroups) ? activeGroups : []);
-
-  return (
-    <div className="animate-in fade-in duration-300">
-      {/* Top Hero Banner */}
-      <HeroBanner
-        tag="YOUR JOURNEYS"
-        title="My Journeys"
-        subtitle="Manage your upcoming and past rides. View details, coordinate with your group, or make changes."
-      />
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
-
-      {/* SECTION 1: ACTIVE JOURNEYS */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200/90 dark:border-slate-800 p-6 transition-colors">
-        <div className="flex items-center gap-2 mb-1">
-          <Calendar className="w-5 h-5 text-blue-600" />
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Active Journeys</h2>
-          <span className="text-xs font-bold bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full border border-blue-200/60 dark:border-blue-800">
-            {upcomingJourneys.length}
-          </span>
-        </div>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mb-5">
-          Your upcoming and ongoing trips.
-        </p>
-
-        <div className="space-y-3.5">
-          {upcomingJourneys.length === 0 ? (
-            <div className="py-12 text-center bg-slate-50/50 dark:bg-slate-800/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 space-y-2">
-              <Car className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto" />
-              <h3 className="font-bold text-sm text-slate-700 dark:text-slate-300">No active journeys</h3>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                You do not have any upcoming shared rides right now. Find available 15-minute slots on the dashboard to plan your trip!
-              </p>
-              {onFindRide && <button type="button" onClick={onFindRide} className="text-sm text-blue-600 dark:text-blue-400 font-semibold underline">Find a ride</button>}
-            </div>
-          ) : (
-            upcomingJourneys.map((group) => {
-            const isConfirmed = group.status === 'Confirmed';
-            const isGrouped = group.status === 'Grouped' || group.status === 'Open';
-            return (
-              <div
-                key={group.id}
-                className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-5 shadow-2xs hover:border-blue-300 dark:hover:border-blue-700 transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-4"
-              >
-                {/* Left: Icon & Route Info */}
-                <div className="flex items-center gap-3.5 min-w-[260px]">
-                  <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${
-                    isConfirmed 
-                      ? 'bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600' 
-                      : 'bg-blue-50 dark:bg-blue-950/70 text-blue-600'
-                  }`}>
-                    {isConfirmed ? <Car className="w-5 h-5" /> : <Users className="w-5 h-5" />}
-                  </div>
-
-                  <div className="space-y-1">
-                    <h3 className="font-bold text-slate-900 dark:text-white text-base">
-                      {group.direction === 'returning' ? `${group.origin || 'Origin'} → Thapar` : `Thapar → ${group.destinationName || 'Destination'}`}
-                    </h3>
-                    <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                        <span>{group.date || 'Today'}</span>
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5 text-slate-400" />
-                        <span>{formatTime24to12(group.departureTime)} ({group.departureTime})</span>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Middle: Pickup & Capacity */}
-                <div className="flex items-center gap-4 text-xs text-slate-600 dark:text-slate-300">
-                  <div className="flex items-center gap-1.5">
-                    <Home className="w-4 h-4 text-slate-400" />
-                    <span>Pickup: <strong className="text-slate-800 dark:text-slate-100">{group.pickupPoint || 'Campus Gate'}</strong></span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Users className="w-4 h-4 text-slate-400" />
-                    <span>{group.members?.length || 1} / {group.maxMembers || 4} seats</span>
-                  </div>
-                </div>
-
-                {/* Fare & Vehicle */}
-                <div className="text-xs text-slate-600 dark:text-slate-300">
-                  <div className="flex items-center gap-1">
-                    <Car className="w-3.5 h-3.5 text-slate-400" />
-                    <span className="font-semibold">{group.transport || 'Vehicle unavailable'}</span>
-                  </div>
-                  <div className="mt-0.5">
-                    <strong className="text-slate-900 dark:text-white font-bold text-sm">{Number.isFinite(group.farePerPerson) ? `₹${group.farePerPerson} estimated` : 'Fare unavailable'}</strong> <span className="text-[11px] text-slate-400">per rider</span>
-                  </div>
-                </div>
-
-                {/* Status Pill & Action Buttons */}
-                <div className="flex items-center gap-3 justify-end flex-wrap">
-                  <span className={`text-xs font-bold px-3 py-1 rounded-full ${
-                    isConfirmed
-                      ? 'bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800 flex items-center gap-1.5'
-                      : 'bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border border-blue-200/80 dark:border-blue-800 flex items-center gap-1.5'
-                  }`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${isConfirmed ? 'bg-emerald-500' : 'bg-blue-500'}`} />
-                    <span>{isConfirmed ? 'Confirmed' : 'Grouped'}</span>
-                  </span>
-
-                  {isGrouped && (
-                    <button
-                      type="button"
-                      onClick={() => onOpenChat ? onOpenChat(group.id) : onViewGroupDetails && onViewGroupDetails(group.id)}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
-                    >
-                      <Users className="w-3.5 h-3.5" />
-                      <span>Open Group</span>
-                    </button>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => onViewGroupDetails && onViewGroupDetails(group.id)}
-                    className="px-4 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/70 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-bold text-xs rounded-xl transition-colors cursor-pointer"
-                  >
-                    <span>View Details</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    disabled={group.isCommunityRide || !['Open', 'Confirmed'].includes(group.status)}
-                    title={group.isCommunityRide ? 'Leave this community ride and choose another slot to change your travel.' : undefined}
-                    onClick={() => setRescheduleGroup(group)}
-                    className="px-3.5 py-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs rounded-xl transition-colors cursor-pointer flex items-center gap-1.5"
-                  >
-                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Reschedule</span>
-                  </button>
-                </div>
-              </div>
-            );
-          }))}
-        </div>
-      </div>
-
-      {/* SECTION 2: RECENT JOURNEYS */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200/90 dark:border-slate-800 p-6 transition-colors">
-        <div className="flex items-center gap-2 mb-1">
-          <Clock className="w-5 h-5 text-blue-600" />
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Recent Journeys</h2>
-          <span className="text-xs font-bold bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full border border-blue-200/60 dark:border-blue-800">
-            {completedJourneys.length}
-          </span>
-        </div>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mb-5">
-          Your completed or cancelled trips.
-        </p>
-
-        <div className="space-y-3.5">
-          {completedJourneys.length === 0 ? (
-            <div className="py-12 text-center bg-slate-50/50 dark:bg-slate-800/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 space-y-2">
-              <Clock className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto" />
-              <h3 className="font-bold text-sm text-slate-700 dark:text-slate-300">No recent journeys</h3>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                Your completed and past rides will appear here once your journeys finish.
-              </p>
-            </div>
-          ) : (
-            completedJourneys.map((trip) => {
-            const isCancelled = trip.status === 'Cancelled';
-            return (
-              <div
-                key={trip.id}
-                className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-5 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-4"
-              >
-                {/* Left: Icon & Route Info */}
-                <div className="flex items-center gap-3.5 min-w-[260px]">
-                  <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${
-                    isCancelled 
-                      ? 'bg-rose-50 dark:bg-rose-950/70 text-rose-500' 
-                      : 'bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600'
-                  }`}>
-                    <Car className="w-5 h-5" />
-                  </div>
-
-                  <div className="space-y-1">
-                    <h3 className="font-bold text-slate-900 dark:text-white text-base">
-                      {trip.status === 'Completed' && !trip.completionVerified && <span className="block text-xs font-normal">Scheduled departure passed · arrival unverified</span>}
-                      {trip.direction === 'returning' ? `${trip.origin || 'Origin'} → Thapar` : `Thapar → ${trip.destinationName || 'Destination'}`}
-                    </h3>
-                    <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                        <span>{trip.date}</span>
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5 text-slate-400" />
-                        <span>{formatTime24to12(trip.departureTime)} ({trip.departureTime})</span>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Middle: Pickup & Capacity */}
-                <div className="flex items-center gap-4 text-xs text-slate-600 dark:text-slate-300">
-                  <div className="flex items-center gap-1.5">
-                    <Home className="w-4 h-4 text-slate-400" />
-                    <span>Pickup: <strong className="text-slate-800 dark:text-slate-100">{trip.pickupPoint || 'Thapar Institute'}</strong></span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Users className="w-4 h-4 text-slate-400" />
-                    <span>{trip.members?.length > 0 ? `${trip.members.length} / ${trip.maxMembers} seats` : '—'}</span>
-                  </div>
-                </div>
-
-                {/* Fare & Vehicle */}
-                <div className="text-xs text-slate-600 dark:text-slate-300">
-                  <div className="flex items-center gap-1">
-                    <Car className="w-3.5 h-3.5 text-slate-400" />
-                    <span className="font-semibold">{trip.transport || 'Vehicle unavailable'}</span>
-                  </div>
-                  <div className="mt-0.5">
-                    <strong className="text-slate-900 dark:text-white font-bold text-sm">{Number.isFinite(trip.farePerPerson) ? `₹${trip.farePerPerson} estimated` : 'Fare unavailable'}</strong> <span className="text-[11px] text-slate-400">per rider</span>
-                  </div>
-                </div>
-
-                {/* Status Pill & Action Button */}
-                <div className="flex items-center gap-3 justify-end">
-                  <span className={`text-xs font-bold px-3 py-1 rounded-full ${
-                    isCancelled
-                      ? 'bg-rose-50 dark:bg-rose-950/70 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 flex items-center gap-1'
-                      : 'bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800 flex items-center gap-1.5'
-                  }`}>
-                    {isCancelled ? <X className="w-3.5 h-3.5" /> : <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
-                    <span>{isCancelled ? 'Cancelled' : trip.completionVerified ? 'Completed by group' : 'Departure passed'}</span>
-                  </span>
-
-                  <button
-                    type="button"
-                    onClick={() => onViewGroupDetails && onViewGroupDetails(trip.id || trip.groupId)}
-                    className="px-4 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/70 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-bold text-xs rounded-xl transition-colors cursor-pointer"
-                  >
-                    <span>View Details</span>
-                  </button>
-                </div>
-              </div>
-            );
-          }))}
-        </div>
-      </div>
-
-      {/* Reschedule Slot Modal */}
-      {rescheduleGroup && (
-        <RescheduleSlotModal
-          group={rescheduleGroup}
-          isOpen={Boolean(rescheduleGroup)}
-          onClose={() => setRescheduleGroup(null)}
-          onSuccess={async () => {
-            setRescheduleGroup(null);
-            if (onRefresh) {
-              await onRefresh().catch(() => {});
-            }
-            try {
-              const fresh = await api.getMyGroups();
-              setFetchedJourneys(Array.isArray(fresh) ? fresh : []);
-            } catch {
-              // ignore
-            }
-          }}
-          triggerToast={_triggerToast}
-        />
-      )}
-
-      </div>
+  return <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+    <header className="flex flex-wrap justify-between items-start gap-4"><div><p className="text-xs font-semibold uppercase tracking-widest text-blue-600 mb-2">Your travel, together</p><h1 className="text-3xl sm:text-4xl font-bold tracking-tight">My Journeys</h1><p className="text-sm text-slate-500 mt-2">Every cab, train and bus group you join, in one place.</p></div><button className={tripButton} onClick={onFindRide}>Find a ride<ArrowRight className="w-4 h-4" /></button></header>
+    <div className="flex flex-wrap gap-4 justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-4">
+      <div className="inline-flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl" role="tablist" aria-label="Journey status">{[['upcoming', 'Upcoming'], ['past', 'Past']].map(([value, label]) => <button key={value} role="tab" aria-selected={section === value} className={`px-4 py-2 rounded-lg text-sm font-semibold ${section === value ? 'bg-white dark:bg-slate-900 shadow-sm' : 'text-slate-500'}`} onClick={() => setSection(value)}>{label} <span className="ml-1 text-xs text-slate-500">{feed[value].length}</span></button>)}</div>
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Transport filter">{modes.map(value => <button key={value} aria-pressed={mode === value} className={`px-3 py-2 rounded-full text-xs font-semibold border transition-colors ${mode === value ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:border-blue-300'}`} onClick={() => setMode(value)}>{value === 'All' ? 'All trips' : `${value === 'Cab' ? 'Cab' : value} groups`}</button>)}</div>
     </div>
-  );
+    {error && <div role="alert" className="bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 rounded-xl p-4 text-sm flex justify-between gap-3"><span>{error}</span><button className="underline" onClick={() => { setLoading(true); load(); }}>Retry</button></div>}
+    {loading ? <div role="status" className="space-y-4">{[0, 1].map(value => <div key={value} className="rounded-2xl bg-slate-100 dark:bg-slate-800 animate-pulse h-44" />)}<span className="sr-only">Loading journeys</span></div> : !error && !list.length ? <div className="text-center py-16 border border-dashed border-slate-300 dark:border-slate-700 rounded-2xl space-y-3"><Car className="w-9 h-9 mx-auto text-slate-400" /><h2 className="font-bold text-lg">{mode !== 'All' ? `No ${mode.toLowerCase()} journeys here` : section === 'upcoming' ? 'No active journeys' : 'No past journeys'}</h2><p className="text-sm text-slate-500">Joined trips appear here automatically. Your next journey starts with a group.</p><button className="text-sm font-semibold text-blue-600 underline" onClick={onFindRide}>Find a ride</button></div> : <div className="space-y-4">
+      {list.map(trip => {
+        const Icon = icons[trip.mode] || Car;
+        const isTravel = trip.kind === 'travel';
+        const count = trip.members?.length || trip.membersCount || 0;
+        return <article key={`${trip.kind}_${trip.id}`} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 sm:p-6 space-y-4">
+          <div className="flex justify-between items-start gap-3 flex-wrap"><div className="flex items-center gap-3"><div className="w-11 h-11 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center"><Icon className="w-5 h-5" /></div><div><div className="text-xs font-semibold text-blue-600 dark:text-blue-400">{trip.mode === 'Auto' ? 'Shared auto' : trip.mode === 'Cab' ? 'Shared cab' : `${trip.mode} group`}{trip.communityName ? ` · ${trip.communityName}` : ''}</div><h2 className="font-bold text-lg">{isTravel ? trip.type === 'Train' ? trip.trainNumber : trip.busOperator : `Group #${trip.id}`}</h2></div></div><span className="text-xs rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1.5 font-semibold">{section === 'past' ? trip.status === 'Cancelled' ? 'Cancelled' : trip.completionVerified ? 'Completed by group' : 'Departure passed · arrival unverified' : trip.status === 'Confirmed' ? 'Group confirmed' : 'Coordinating'}</span></div>
+          <p className="font-semibold flex flex-wrap items-center gap-2">{trip.origin || trip.boardingPoint || 'Thapar Institute'}<ArrowRight className="w-4 h-4 text-slate-400" />{trip.destinationName || trip.destination}</p>
+          <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-500"><span className="inline-flex items-center gap-2"><Clock className="w-4 h-4" />{tripDate(trip.date)} · {formatTime24to12(trip.departureTime)} IST</span><span className="inline-flex items-center gap-2"><Users className="w-4 h-4" />{count}{trip.maxMembers ? `/${trip.maxMembers}` : ''} {isTravel ? count === 1 ? 'student' : 'students' : count === 1 ? 'rider' : 'riders'}</span>{trip.pickupPoint && <span className="inline-flex items-center gap-2"><MapPin className="w-4 h-4" />{trip.pickupPoint}</span>}{trip.travelClass && <span>Class {trip.travelClass}</span>}</div>
+          {isTravel && <details className="text-sm rounded-xl bg-slate-50 dark:bg-slate-800/50 p-3"><summary className="font-semibold cursor-pointer">Trip details & co-travellers</summary><div className="mt-3 space-y-2"><p>{trip.title}</p>{trip.description && <p className="whitespace-pre-wrap break-words text-slate-500">{trip.description}</p>}<p className="text-xs text-slate-500">Book your train or bus ticket separately. Group membership is for coordination.</p>{trip.members.map(member => <p key={member.userId || member.id} className="break-words">{member.name}{member.userId === currentUser?.id ? ' (you)' : ''} · {member.phone || 'No contact shared'}</p>)}</div></details>}
+          <div className="flex flex-wrap gap-2 border-t border-slate-100 dark:border-slate-800 pt-4"><button className={tripButton} onClick={() => isTravel ? setTravelChat(trip) : onOpenChat?.(trip.id)}><MessageSquare className="w-4 h-4" />Open chat</button>{!isTravel && <button className="border border-slate-200 dark:border-slate-700 px-4 py-2.5 rounded-xl text-sm font-semibold" onClick={() => onViewGroupDetails?.(trip.id)}>View Details</button>}{section === 'upcoming' && <button disabled={busy} className="text-sm px-4 py-2.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl sm:ml-auto" onClick={() => setLeaving(trip)}>Leave group</button>}</div>
+        </article>;
+      })}
+    </div>}
+    <ConfirmDialog isOpen={!!leaving} title="Leave this group?" message={leaving?.kind === 'travel' || leaving?.isCommunityRide ? 'You will leave this travel group and lose access to its chat. Your separately booked ticket is not cancelled.' : 'Leaving within four hours of departure deducts 0.3 reliability points; within thirty minutes deducts 0.8. Emergency or disputed deductions can be reviewed under Safety & privacy.'} confirmLabel={busy ? 'Leaving…' : 'Leave group'} isDestructive onConfirm={leave} onCancel={() => { if (!busy) setLeaving(null); }} />
+    {travelChat && <TravelGroupChatModal group={travelChat} isOpen onClose={() => setTravelChat(null)} currentUser={currentUser} triggerToast={(message, type) => triggerToast?.(typeof message === 'string' ? message : message.message, type || 'info')} />}
+  </div>;
 }

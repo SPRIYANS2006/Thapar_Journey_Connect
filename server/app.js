@@ -10,6 +10,7 @@ import communitiesRouter from './routes/communities.js';
 import slotsRouter from './routes/slots.js';
 import travelGroupsRouter from './routes/travelGroups.js';
 import safetyRouter from './routes/safety.js';
+import myJourneysRouter from './routes/myJourneys.js';
 import { errorHandler, notFoundHandler } from './middleware/errors.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -69,6 +70,7 @@ export function createApp() {
   app.use('/api/slots', slotsRouter);
   app.use('/api/travel-groups', travelGroupsRouter);
   app.use('/api/safety', safetyRouter);
+  app.use('/api/my-journeys', myJourneysRouter);
 
   // 6. 404 Handler for undefined /api routes
   app.use('/api', notFoundHandler);

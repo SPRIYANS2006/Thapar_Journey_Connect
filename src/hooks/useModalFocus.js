@@ -11,6 +11,8 @@ export function useModalFocus(open, onClose) {
     const focusable = () => [...dialog.querySelectorAll('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex="0"]')].filter(element => element.getClientRects().length);
     const frame = requestAnimationFrame(() => (focusable()[0] || dialog).focus());
     function keydown(event) {
+      const dialogs = [...document.querySelectorAll('[role="dialog"]')];
+      if (dialogs.at(-1) !== dialog) return;
       if (event.key === 'Escape') { event.preventDefault(); close.current?.(); }
       if (event.key !== 'Tab') return;
       const elements = focusable();
@@ -19,8 +21,8 @@ export function useModalFocus(open, onClose) {
       if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) { event.preventDefault(); last.focus(); }
       else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) { event.preventDefault(); first.focus(); }
     }
-    dialog.addEventListener('keydown', keydown);
-    return () => { cancelAnimationFrame(frame); dialog.removeEventListener('keydown', keydown); if (previous?.isConnected) previous.focus(); };
+    document.addEventListener('keydown', keydown);
+    return () => { cancelAnimationFrame(frame); document.removeEventListener('keydown', keydown); if (previous?.isConnected) previous.focus(); };
   }, [open]);
   return ref;
 }

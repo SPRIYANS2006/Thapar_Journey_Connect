@@ -24,6 +24,8 @@ export default function TravelGroupChatModal({
   const [loading, setLoading] = useState(true);
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
+  const [chatError, setChatError] = useState('');
+  const [revision, setRevision] = useState(0);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -34,24 +36,27 @@ export default function TravelGroupChatModal({
     if (!isOpen || !group?.id) return;
     let active = true;
 
-    // Fetch initial messages
-    api.getTravelGroupMessages(group.id)
+    const loadHistory = () => api.getTravelGroupMessages(group.id)
       .then((data) => {
         if (active) {
-          setMessages(Array.isArray(data) ? data : []);
+          setMessages(previous => [...new Map([...(Array.isArray(data) ? data : []), ...previous].map(message => [message.id, message])).values()].sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt))));
+          setChatError('');
           setLoading(false);
           setTimeout(scrollToBottom, 100);
         }
       })
       .catch((err) => {
         console.warn('Failed to load travel group messages:', err);
-        if (active) setLoading(false);
+        if (active) { setLoading(false); setChatError(err.message || 'Could not load messages. Please try again.'); }
       });
 
     // Socket.IO real-time connection
     const socket = getSocket();
     if (socket) {
-      socket.emit('join_travel_group', group.id);
+      const joinRoom = () => { socket.emit('join_travel_group', group.id); loadHistory(); };
+      if (socket.connected) joinRoom();
+      else loadHistory();
+      socket.on('connect', joinRoom);
 
       const handleNewMessage = (payload) => {
         if (payload?.groupId === group.id && payload?.message) {
@@ -69,25 +74,28 @@ export default function TravelGroupChatModal({
         active = false;
         socket.emit('leave_travel_group', group.id);
         socket.off('new_travel_group_message', handleNewMessage);
+        socket.off('connect', joinRoom);
       };
     }
 
+    loadHistory();
     return () => {
       active = false;
     };
-  }, [isOpen, group?.id]);
+  }, [isOpen, group?.id, revision]);
 
   const handleSend = async (e) => {
     e.preventDefault();
     if (!inputText.trim() || sending) return;
 
     const textToSend = inputText.trim();
-    setInputText('');
+    setChatError('');
     setSending(true);
 
     try {
       const res = await api.sendTravelGroupMessage(group.id, textToSend);
       if (res?.message) {
+        setInputText(current => current === textToSend ? '' : current);
         setMessages((prev) => {
           if (prev.some((m) => m.id === res.message.id)) return prev;
           return [...prev, res.message];
@@ -95,6 +103,7 @@ export default function TravelGroupChatModal({
         setTimeout(scrollToBottom, 50);
       }
     } catch (err) {
+      setChatError(err.message || 'Message not sent. Your draft is still here.');
       if (triggerToast) {
         triggerToast({
           id: `chat_err_${Date.now()}`,
@@ -256,6 +265,7 @@ export default function TravelGroupChatModal({
         </div>
 
         {/* Input Bar */}
+        {chatError && <div role="alert" className="text-xs text-red-600 px-4 py-2 flex justify-between gap-2"><span>{chatError}</span><button className="underline" onClick={() => { setChatError(''); setLoading(true); setRevision(value => value + 1); }}>Reload messages</button></div>}
         <form onSubmit={handleSend} className="p-3 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-2">
           <input
             type="text"
@@ -267,6 +277,7 @@ export default function TravelGroupChatModal({
 
           <button
             type="submit"
+            aria-label="Send message"
             disabled={!inputText.trim() || sending}
             className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
           >

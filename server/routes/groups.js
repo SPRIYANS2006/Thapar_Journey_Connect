@@ -116,7 +116,7 @@ router.get('/', async (req, res, next) => {
         { 'members.id': req.user.id },
         { creator_id: req.user.id }
       ],
-      status: { $in: ['Open', 'Full'] }
+      status: { $in: ['Open', 'Full', 'Confirmed'] }
     })
       .sort({ created_at: -1 })
       .lean();
@@ -153,7 +153,7 @@ router.get('/mine', async (req, res, next) => {
         { 'members.id': req.user.id },
         { creator_id: req.user.id }
       ],
-      status: { $in: ['Open', 'Full'] }
+      status: { $in: ['Open', 'Full', 'Confirmed'] }
     })
       .sort({ created_at: -1 })
       .lean();

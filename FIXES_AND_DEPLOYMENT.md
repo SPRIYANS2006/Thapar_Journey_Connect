@@ -16,7 +16,7 @@ The original findings are recorded in WEBSITE_AUDIT.md; it is a historical audit
 
 ## Validation
 
-Validation completed: **79/79 automated tests passed**, lint passed, and the production build passed. Run `npm run lint`, `npm run build`, and `npm test` to repeat. The acceptance suite uses an isolated MongoMemoryReplSet and must be allowed to start a local process and connect over loopback. Sandbox EACCES errors are environmental failures.
+Validation completed: **85/85 automated tests passed**, lint passed, and the production build passed. Run `npm run lint`, `npm run build`, and `npm test` to repeat. The acceptance suite uses an isolated MongoMemoryReplSet and must be allowed to start a local process and connect over loopback. Sandbox EACCES errors are environmental failures.
 
 Browser smoke checks used a separate temporary database and headless Edge: cookie restoration after reload, empty journeys, profile save, report submission, mobile overflow and page errors. Live socket checks verify baseline delivery, loss of private messages after departure and session disconnection on logout. No production database was used.
 
@@ -38,3 +38,7 @@ No deployment or credential rotation was performed as part of these local fixes.
 ## Product simplification
 
 The older journey matching UI/API and general community discussion-group API/socket rooms have been retired. New campus rides use departure slots. Existing ride memberships, history and stored legacy records are retained; retired collections are not deleted. My Journeys is the sole ride-management page. Hometown boards and train/bus travel groups remain available. Fare details show an inline estimated group total and per-person share; the calculator modal is removed. Campus SOS is now Safety information, and repeated dashboard promotion/savings sections are removed.
+
+## Community travel and My Journeys
+
+Community discovery uses one consistent set of cab, train and bus cards with date/service filters, request feedback and guarded join actions. The city directory only opens community hubs. Joined trips are hidden from that student’s discovery screens and remain available to other eligible students. Successful joins and group creation open My Journeys, whose authenticated `/api/my-journeys` feed combines campus rides, confirmed community cabs, train groups and bus groups. Chat, leaving and trip details are managed there. Past train/bus departures remain in history and cannot be joined. The feed refreshes on membership events, reconnect and window focus.

@@ -130,8 +130,7 @@ export function useCommunities() {
     const targetCommId = communityId || activeCommunityId;
     if (targetCommId) {
       await fetchPosts(targetCommId);
-    }
-    if (res?.comment) {
+    } else if (res?.comment) {
       setPosts((prev) =>
         prev.map((p) =>
           p.id === postId

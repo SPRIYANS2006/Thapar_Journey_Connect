@@ -98,6 +98,7 @@ async function request(endpoint, options = {}) {
 }
 
 export const api = {
+  getMyJourneyFeed: options => request('/my-journeys', options),
   submitSafetyReport: data => request('/safety/reports', { method: 'POST', body: JSON.stringify(data) }),
   getSafetyReports: () => request('/safety/reports'),
   reviewSafetyReport: id => request(`/safety/reports/${id}`, { method: 'PATCH' }),
@@ -225,6 +226,7 @@ export const api = {
     if (params.communityId && params.communityId !== 'All') query.append('communityId', params.communityId);
     if (params.search) query.append('search', params.search);
     if (params.date && params.date !== 'All') query.append('date', params.date);
+    if (params.excludeJoined) query.append('excludeJoined', 'true');
     const qs = query.toString();
     return request(`/travel-groups${qs ? `?${qs}` : ''}`);
   },

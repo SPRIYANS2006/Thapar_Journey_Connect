@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import DisclaimerBanner from '../components/DisclaimerBanner';
 import SlotPicker from '../components/SlotPicker';
-import AddFriendModal from '../components/AddFriendModal';
 import HeroBanner from '../components/HeroBanner';
 import { DESTINATIONS, HOSTELS } from '../data/mockData';
 import { TIME_SLOT_OPTIONS_15MIN } from '../utils/timeSlots';
@@ -16,9 +15,6 @@ import {
   Home, 
   Calendar,
   ChevronDown,
-  ChevronRight,
-  UserPlus,
-  X,
   Sparkles,
   ShieldCheck,
   Zap,
@@ -47,8 +43,7 @@ function getCurrentSlotTime() {
 
 export default function DashboardPage({ 
   user, 
-  activeGroups = [], 
-  onViewGroupDetails, 
+  onNavigateMyJourneys,
   communities: _communities = [], 
   onNavigateToCommunities, 
   triggerToast,
@@ -119,7 +114,7 @@ export default function DashboardPage({
         direction: tripDir
       });
       if (res && res.slots) {
-        setSlots(res.slots);
+        setSlots(res.slots.filter(slot => !slot.isJoined));
       } else {
         setSlots([]);
       }
@@ -142,7 +137,7 @@ export default function DashboardPage({
       direction
     }).then((res) => {
       if (active && res && res.slots) {
-        setSlots(res.slots);
+        setSlots(res.slots.filter(slot => !slot.isJoined));
       }
     }).catch((err) => {
       console.warn('Initial slot fetch failed:', err.message);
@@ -220,19 +215,14 @@ export default function DashboardPage({
           type: 'success',
           title: res.created ? 'Group created' : 'Joined group',
           message: res.message || `Joined Group #${res.group.id} for ${slot.time}`,
-          actionLabel: `View Group #${res.group.id}`,
-          onAction: () => onViewGroupDetails && onViewGroupDetails(res.group.id)
+          actionLabel: 'My Journeys',
+          onAction: onNavigateMyJourneys
         });
       }
 
-      if (onRefreshGroups) {
-        await onRefreshGroups().catch(() => {});
-      }
-      await fetchSlots(selectedDestId, selectedDate, selectedVehicle, direction);
+      Promise.resolve(onRefreshGroups?.()).catch(() => {});
 
-      if (onViewGroupDetails && res.group?.id) {
-        onViewGroupDetails(res.group.id);
-      }
+      onNavigateMyJourneys?.();
     } catch (err) {
       if (triggerToast) {
         triggerToast({
@@ -246,80 +236,6 @@ export default function DashboardPage({
       setJoiningSlotKey(null);
     }
   };
-
-  // Friend / Companion Management
-  const [isAddFriendOpen, setIsAddFriendOpen] = useState(false);
-  const [friendActionLoading, setFriendActionLoading] = useState(false);
-
-  const handleAddFriend = async (friendData) => {
-    if (!activeUserGroup) return;
-    setFriendActionLoading(true);
-    try {
-      const res = await api.addFriendToGroup(activeUserGroup.id, friendData);
-      if (triggerToast) {
-        triggerToast({
-          id: makeToastId('friend_add'),
-          type: 'success',
-          title: 'Friend added',
-          message: res.message || `Added ${friendData.name} to Group #${activeUserGroup.id}`
-        });
-      }
-      if (onRefreshGroups) await onRefreshGroups().catch(() => {});
-      if (hasSearched) await fetchSlots(selectedDestId, selectedDate, selectedVehicle);
-    } catch (err) {
-      if (triggerToast) {
-        triggerToast({
-          id: makeToastId('friend_err'),
-          type: 'error',
-          title: 'Could not add friend',
-          message: err.message || 'Failed to add friend.'
-        });
-      }
-      throw err;
-    } finally {
-      setFriendActionLoading(false);
-    }
-  };
-
-  const handleRemoveFriend = async (friendId, friendName) => {
-    if (!activeUserGroup) return;
-    setFriendActionLoading(true);
-    try {
-      const res = await api.removeFriendFromGroup(activeUserGroup.id, friendId);
-      if (triggerToast) {
-        triggerToast({
-          id: makeToastId('friend_rm'),
-          type: 'info',
-          title: 'Friend removed',
-          message: res.message || `Removed ${friendName || 'friend'} from Group #${activeUserGroup.id}.`
-        });
-      }
-      if (onRefreshGroups) await onRefreshGroups().catch(() => {});
-      if (hasSearched) await fetchSlots(selectedDestId, selectedDate, selectedVehicle);
-    } catch (err) {
-      if (triggerToast) {
-        triggerToast({
-          id: makeToastId('friend_rm_err'),
-          type: 'error',
-          title: 'Could not remove friend',
-          message: err.message || 'Failed to remove friend.'
-        });
-      }
-    } finally {
-      setFriendActionLoading(false);
-    }
-  };
-
-  const activeUserGroup = (activeGroups || []).find((g) =>
-    g.members &&
-    g.members.some(
-      (m) =>
-        (m.id && m.id === user?.id) ||
-        (m.userId && m.userId === user?.id) ||
-        (m.user_id && m.user_id === user?.id) ||
-        (user?.name && m.name === user.name)
-    )
-  );
 
   return (
     <div className="animate-in fade-in duration-300">
@@ -751,9 +667,9 @@ export default function DashboardPage({
       </div>
 
       {/* 2-Column Section: Available Ride Slots (Left) & Active Journey (Right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="space-y-6">
         {/* Left Column (2/3 width): Available ride slots */}
-        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200/90 dark:border-slate-800 p-6 transition-colors">
+        <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200/90 dark:border-slate-800 p-6 transition-colors">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -842,182 +758,15 @@ export default function DashboardPage({
                 slots={slots}
                 loading={slotsLoading}
                 onJoinSlot={handleJoinSlot}
-                onViewGroup={onViewGroupDetails}
                 joiningSlotKey={joiningSlotKey}
                 initialJumpTime={selectedTime}
-                activeGroupId={activeUserGroup?.id}
                 direction={direction}
               />
             </div>
           )}
         </div>
 
-        {/* Right Column (1/3 width): Your active journey */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200/90 dark:border-slate-800 p-6 flex flex-col justify-between transition-colors">
-          <div>
-            <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-3">
-              <Car className="w-5 h-5 text-blue-600" />
-              <span>Your active journey</span>
-            </h3>
-
-            {activeUserGroup ? (
-              <div
-                onClick={() => onViewGroupDetails && onViewGroupDetails(activeUserGroup.id)}
-                className="bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-800/60 rounded-2xl p-4.5 cursor-pointer hover:border-emerald-400 transition-all space-y-2.5"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100/80 dark:bg-emerald-900/40 px-2.5 py-0.5 rounded-full">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span>Confirmed</span>
-                  </span>
-                  <ChevronRight className="w-4 h-4 text-emerald-600" />
-                </div>
-
-                <div>
-                  <h4 className="font-bold text-slate-900 dark:text-white text-base">
-                    Thapar → {activeUserGroup.destinationName || 'Patiala'}
-                  </h4>
-                </div>
-
-                <div className="space-y-1 text-xs text-slate-600 dark:text-slate-300">
-                  <div className="flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Today, {activeUserGroup.departureTime || '1:30 PM'}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Car className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Cab • {activeUserGroup.members?.length || 1} riders</span>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl p-6 text-center space-y-2">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/70 text-blue-600 flex items-center justify-center mx-auto">
-                  <Car className="w-5 h-5" />
-                </div>
-                <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm">
-                  No active journey
-                </h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Join a slot above to coordinate a shared cab.
-                </p>
-              </div>
-            )}
-          </div>
-
-          {activeUserGroup && (
-            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 mt-4 flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setIsAddFriendOpen(true)}
-                className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-1 cursor-pointer"
-              >
-                <UserPlus className="w-3.5 h-3.5" />
-                <span>Add friend</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => onViewGroupDetails && onViewGroupDetails(activeUserGroup.id)}
-                className="flex-1 py-2 bg-slate-900 hover:bg-black dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-1 cursor-pointer"
-              >
-                <span>Open chat</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          )}
-        </div>
       </div>
-
-      {/* Active Trip Quick Banner (If user belongs to a group) */}
-      {activeUserGroup && (
-        <div className="bg-white dark:bg-slate-900 border border-blue-200/90 dark:border-blue-900/60 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4 transition-colors">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
-              <div className="w-11 h-11 rounded-xl bg-blue-600 text-white font-bold flex items-center justify-center text-sm shadow-xs shrink-0">
-                #{activeUserGroup.id}
-              </div>
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold bg-blue-50 dark:bg-blue-950/70 text-blue-800 dark:text-blue-300 px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-900">
-                    Active ride
-                  </span>
-                  <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                    {activeUserGroup.members?.length || 1}/{activeUserGroup.maxMembers || 4} riders
-                  </span>
-                </div>
-                <h4 className="font-bold text-slate-900 dark:text-white text-base">
-                  TIET ➔ {activeUserGroup.destinationName}
-                </h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2 flex-wrap">
-                  <span>Departure: <strong className="text-slate-700 dark:text-slate-200">{activeUserGroup.departureTime}</strong></span>
-                  <span>•</span>
-                  <span>Pickup: <strong className="text-slate-700 dark:text-slate-200">{activeUserGroup.pickupPoint}</strong></span>
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              {(activeUserGroup.members?.length || 0) < (activeUserGroup.maxMembers || 4) && (
-                <button
-                  type="button"
-                  onClick={() => setIsAddFriendOpen(true)}
-                  disabled={friendActionLoading}
-                  className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer shrink-0"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  <span>Add friend</span>
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => onViewGroupDetails && onViewGroupDetails(activeUserGroup.id)}
-                className="w-full sm:w-auto px-5 py-2.5 bg-slate-900 hover:bg-black dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer shrink-0"
-              >
-                <span>Open group chat</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Members & Companions in Active Group */}
-          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center gap-2">
-            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 mr-1">Riders:</span>
-            {(activeUserGroup.members || []).map((m) => {
-              const isCompanion = Boolean(m.isCompanion);
-              const isMyCompanion = isCompanion && (m.addedBy === user?.id || activeUserGroup.adminId === user?.id);
-              const memberId = m.id || m.user_id || m.userId;
-              return (
-                <div
-                  key={memberId}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold ${
-                    isCompanion
-                      ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200 border border-amber-200 dark:border-amber-800'
-                      : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
-                  }`}
-                >
-                  <span>{m.name}</span>
-                  {isCompanion && (
-                    <span className="text-[10px] bg-amber-200/70 dark:bg-amber-800/60 px-1.5 py-0.2 rounded font-bold text-amber-800 dark:text-amber-200">
-                      Friend
-                    </span>
-                  )}
-                  {isMyCompanion && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveFriend(memberId, m.name)}
-                      disabled={friendActionLoading}
-                      title="Remove friend from slot"
-                      className="ml-1 text-rose-500 hover:text-rose-700 hover:bg-rose-100/60 dark:hover:bg-rose-950/60 rounded-full p-0.5 transition-colors cursor-pointer"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {/* MAIN VIEW: EITHER POPULAR DISCOVERY OR AVAILABLE DEPARTURES */}
       {!hasSearched ? (
@@ -1135,24 +884,12 @@ export default function DashboardPage({
             slots={slots}
             loading={slotsLoading}
             onJoinSlot={handleJoinSlot}
-            onViewGroup={onViewGroupDetails}
             joiningSlotKey={joiningSlotKey}
             initialJumpTime={selectedTime}
-            activeGroupId={activeUserGroup?.id}
             direction={direction}
           />
         </div>
       )}
-
-      {/* Add Friend to Slot Modal */}
-      <AddFriendModal
-        isOpen={isAddFriendOpen}
-        onClose={() => setIsAddFriendOpen(false)}
-        onAddFriend={handleAddFriend}
-        groupDestination={activeUserGroup ? activeUserGroup.destinationName : 'Travel Slot'}
-        currentSeats={activeUserGroup?.members?.length || 1}
-        maxSeats={activeUserGroup?.maxMembers || 4}
-      />
 
       </div>
     </div>

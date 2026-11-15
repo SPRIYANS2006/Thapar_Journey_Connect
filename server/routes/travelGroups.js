@@ -14,8 +14,8 @@ import {
   serializeTravelGroup,
   serializeTravelGroupMessage
 } from '../services/serializers.js';
-import { getSocketIO } from '../services/notifications.js';
-import { normalizeDateStr, validateTravelDateTime } from '../utils/time.js';
+import { notifyUser, notifyGroupMembersUpdated, getSocketIO } from '../services/notifications.js';
+import { normalizeDateStr, validateTravelDateTime, getHoursUntilDeparture } from '../utils/time.js';
 
 const router = transactionalRouter(express.Router());
 
@@ -25,8 +25,9 @@ router.use(requireAuth, mutationLimit);
 // 1. List and search travel groups (Train / Bus) across all or specific communities
 router.get('/', async (req, res, next) => {
   try {
-    const { type, communityId, search, date } = req.query;
-    const filter = { status: { $ne: 'Cancelled' } };
+    const { type, communityId, search, date, excludeJoined } = req.query;
+    const filter = { status: 'Open' };
+    if (excludeJoined === 'true') filter['members.user_id'] = { $ne: req.user.id };
 
     if (type && type !== 'All') {
       filter.type = type;
@@ -58,7 +59,7 @@ router.get('/', async (req, res, next) => {
       .sort({ date: 1, departure_time: 1, created_at: -1 })
       .lean();
 
-    res.json(groups.map((g) => serializeTravelGroup(g, req.user.id)));
+    res.json(groups.filter(g => getHoursUntilDeparture(g.date, g.departure_time) > 0).map(g => serializeTravelGroup(g, req.user.id)));
   } catch (err) {
     next(err);
   }
@@ -207,6 +208,7 @@ router.post('/', async (req, res, next) => {
       ]
     });
 
+    notifyGroupMembersUpdated(newGroup);
     res.status(201).json({
       success: true,
       message: `${type} travel group created!`,
@@ -225,6 +227,8 @@ router.post('/:id/join', async (req, res, next) => {
     if (!group) {
       throw new HttpError(404, 'Travel group not found.');
     }
+
+    if (group.status !== 'Open' || getHoursUntilDeparture(group.date, group.departure_time) <= 0) throw new HttpError(409, 'This departure is closed. Choose an upcoming group.');
 
     // Prevent duplicate membership
     const isMember = (group.members || []).some((m) => m.user_id === req.user.id);
@@ -259,6 +263,7 @@ router.post('/:id/join', async (req, res, next) => {
       throw new HttpError(400, 'Unable to join travel group: already joined.');
     }
 
+    notifyGroupMembersUpdated(updated);
     res.json({
       success: true,
       message: `Joined ${updated.title}!`,
@@ -285,6 +290,7 @@ router.post('/:id/leave', async (req, res, next) => {
     const leavingWasAdmin = group.members[memberIndex].role === 'Admin';
     evictUserFromRoom(req.user.id, `tg_${group.id}`);
     group.members.splice(memberIndex, 1);
+    notifyUser(req.user.id, 'journeys_updated', { groupId: group.id });
     group.members_count = group.members.length;
 
     // Admin succession if admin left
@@ -306,6 +312,7 @@ router.post('/:id/leave', async (req, res, next) => {
     }
 
     await group.save();
+    notifyGroupMembersUpdated(group);
 
     res.json({
       success: true,

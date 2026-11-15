@@ -1,409 +1,50 @@
 import React, { useState } from 'react';
-import { 
-  X, 
-  Train, 
-  Bus, 
-  Calendar, 
-  Clock, 
-  MapPin, 
-  Info
-} from 'lucide-react';
+import { X, Train, Bus } from 'lucide-react';
 import { api } from '../services/api';
+import { useModalFocus } from '../hooks/useModalFocus';
+import { istDate, tripInput, tripButton } from '../utils/tripUi';
 
-export default function CreateTravelGroupModal({
-  isOpen,
-  onClose,
-  defaultType = 'Train',
-  community,
-  allCommunities = [],
-  onSuccess,
-  triggerToast
-}) {
-  const [type, setType] = useState(defaultType); // 'Train' | 'Bus'
-  const [selectedCommunityId, setSelectedCommunityId] = useState(community?.id || (allCommunities[0]?.id || 'del'));
-  const [title, setTitle] = useState('');
-  const [date, setDate] = useState(() => {
-    const d = new Date();
-    return d.toISOString().split('T')[0];
-  });
-  const [departureTime, setDepartureTime] = useState('08:00');
-  const [boardingPoint, setBoardingPoint] = useState(() => {
-    return defaultType === 'Train' ? 'Patiala Railway Station' : 'Patiala Bus Stand';
-  });
-  const [destination, setDestination] = useState(() => community?.name || 'New Delhi');
-  const [trainNumber, setTrainNumber] = useState('');
+export default function CreateTravelGroupModal({ isOpen, onClose, defaultType = 'Train', community, onSuccess, triggerToast }) {
+  const isTrain = defaultType === 'Train';
+  const [service, setService] = useState('');
+  const [date, setDate] = useState(() => istDate(1));
+  const [time, setTime] = useState('08:00');
+  const [origin, setOrigin] = useState(isTrain ? 'Patiala Railway Station' : 'Patiala Bus Stand');
+  const [destination, setDestination] = useState(community?.name || '');
   const [travelClass, setTravelClass] = useState('CC');
-  const [busOperator, setBusOperator] = useState('');
   const [description, setDescription] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-
+  const dialogRef = useModalFocus(isOpen, () => { if (!busy) onClose(); });
+  const Icon = isTrain ? Train : Bus;
   if (!isOpen) return null;
 
-  const handleTypeChange = (newType) => {
-    setType(newType);
-    setError('');
-    if (newType === 'Train') {
-      if (!boardingPoint || boardingPoint === 'Patiala Bus Stand') {
-        setBoardingPoint('Patiala Railway Station');
-      }
-    } else {
-      if (!boardingPoint || boardingPoint === 'Patiala Railway Station') {
-        setBoardingPoint('Patiala Bus Stand');
-      }
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-
-    if (!title.trim() || title.trim().length < 3) {
-      setError('Title must be at least 3 characters.');
-      return;
-    }
-
-    if (!date) {
-      setError('Please select travel date.');
-      return;
-    }
-
-    if (!departureTime || !/^\d{1,2}:\d{2}$/.test(departureTime.trim())) {
-      setError('Valid departure time in HH:mm format is required.');
-      return;
-    }
-
-    if (!boardingPoint.trim()) {
-      setError(type === 'Train' ? 'Boarding station is required.' : 'Boarding point is required.');
-      return;
-    }
-
-    if (!destination.trim()) {
-      setError('Destination is required.');
-      return;
-    }
-
-    if (type === 'Train' && !trainNumber.trim()) {
-      setError('Train number or train name is required.');
-      return;
-    }
-
-    if (type === 'Bus' && !busOperator.trim()) {
-      setError('Bus operator name is required.');
-      return;
-    }
-
-    setLoading(true);
+  async function submit(event) {
+    event.preventDefault(); if (busy) return;
+    if (!community?.id) { setError('Choose a community before creating a group.'); return; }
+    setBusy(true); setError('');
     try {
-      const payload = {
-        type,
-        communityId: selectedCommunityId,
-        title: title.trim(),
-        date,
-        departureTime: departureTime.trim(),
-        boardingPoint: boardingPoint.trim(),
-        destination: destination.trim(),
-        trainNumber: type === 'Train' ? trainNumber.trim() : '',
-        travelClass: type === 'Train' ? travelClass : '',
-        busOperator: type === 'Bus' ? busOperator.trim() : '',
-        description: description.trim()
-      };
+      const result = await api.createTravelGroup({ type: defaultType, communityId: community.id, title: `${service.trim()} to ${destination.trim()}`.slice(0, 120), date, departureTime: time, boardingPoint: origin.trim(), destination: destination.trim(), trainNumber: isTrain ? service.trim() : '', travelClass: isTrain ? travelClass : '', busOperator: isTrain ? '' : service.trim(), description: description.trim() });
+      triggerToast?.({ id: `travel_created_${result.group.id}`, type: 'success', title: 'Group created', message: 'Your group is ready in My Journeys.' });
+      await onSuccess?.(result.group); onClose();
+    } catch (failure) { setError(failure.message || 'Could not create the group. Your details are saved here; please try again.'); }
+    finally { setBusy(false); }
+  }
 
-      const res = await api.createTravelGroup(payload);
-      if (triggerToast) {
-        triggerToast({
-          id: `tg_created_${Date.now()}`,
-          type: 'success',
-          title: 'Group created',
-          message: `${type} group "${title.trim()}" is now live!`
-        });
-      }
-      if (onSuccess) {
-        onSuccess(res.group);
-      }
-      onClose();
-    } catch (err) {
-      setError(err.message || 'Failed to create travel group.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 max-w-lg w-full shadow-2xl space-y-4 my-8 animate-in zoom-in-95 duration-200">
-        
-        {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-              type === 'Train' 
-                ? 'bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400' 
-                : 'bg-amber-50 dark:bg-amber-950/70 text-amber-600 dark:text-amber-400'
-            }`}>
-              {type === 'Train' ? <Train className="w-5 h-5" /> : <Bus className="w-5 h-5" />}
-            </div>
-            <div>
-              <h3 className="font-bold text-slate-900 dark:text-white text-base">
-                Create {type} Travel Group
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Coordinate group travel with fellow students
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 flex items-center justify-center cursor-pointer transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Type Toggle */}
-        <div className="grid grid-cols-2 gap-2 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl">
-          <button
-            type="button"
-            onClick={() => handleTypeChange('Train')}
-            className={`py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-              type === 'Train'
-                ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-            }`}
-          >
-            <Train className="w-4 h-4" />
-            <span>Train Group</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleTypeChange('Bus')}
-            className={`py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-              type === 'Bus'
-                ? 'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-            }`}
-          >
-            <Bus className="w-4 h-4" />
-            <span>Bus Group</span>
-          </button>
-        </div>
-
-        {/* Policy Info Notice */}
-        <div className="p-3 bg-blue-50/70 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/60 rounded-xl text-xs text-blue-800 dark:text-blue-200 flex items-start gap-2.5">
-          <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-          <div className="space-y-0.5">
-            <span className="font-bold">Self-booked tickets:</span>
-            <p className="text-[11px] text-blue-700/90 dark:text-blue-300">
-              Students purchase their own tickets individually. This group is for coordinating cohort departure, meetup, and journeying together.
-            </p>
-          </div>
-        </div>
-
-        {/* Error Alert */}
-        {error && (
-          <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300 text-xs">
-            {error}
-          </div>
-        )}
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-3.5">
-          {/* Destination Community & Group Title */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                City Community
-              </label>
-              <select
-                value={selectedCommunityId}
-                onChange={(e) => {
-                  setSelectedCommunityId(e.target.value);
-                  const found = allCommunities.find((c) => c.id === e.target.value);
-                  if (found) setDestination(found.name);
-                }}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              >
-                {allCommunities.length > 0 ? (
-                  allCommunities.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))
-                ) : (
-                  <option value="del">Delhi NCR</option>
-                )}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Group Title <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder={type === 'Train' ? 'e.g. Shatabdi Cohort to Delhi' : 'e.g. PRTC Volvo to Delhi ISBT'}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                required
-              />
-            </div>
-          </div>
-
-          {/* Train/Bus Specific Fields */}
-          {type === 'Train' ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Train Number / Name <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={trainNumber}
-                  onChange={(e) => setTrainNumber(e.target.value)}
-                  placeholder="e.g. 12005 / Kalka Shatabdi"
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Travel Class
-                </label>
-                <select
-                  value={travelClass}
-                  onChange={(e) => setTravelClass(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                >
-                  <option value="CC">CC (AC Chair Car)</option>
-                  <option value="EC">EC (Executive Chair Car)</option>
-                  <option value="3A">3A (AC 3 Tier)</option>
-                  <option value="2A">2A (AC 2 Tier)</option>
-                  <option value="1A">1A (First AC)</option>
-                  <option value="SL">SL (Sleeper)</option>
-                  <option value="2S">2S (Second Sitting)</option>
-                </select>
-              </div>
-            </div>
-          ) : (
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Bus Operator / Service <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={busOperator}
-                onChange={(e) => setBusOperator(e.target.value)}
-                placeholder="e.g. PRTC Express, Zingbus, IntrCity SmartBus, Volvo AC"
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                required
-              />
-            </div>
-          )}
-
-          {/* Date & Departure Time */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                <span>Date <span className="text-rose-500">*</span></span>
-              </label>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-slate-400" />
-                <span>Departure Time <span className="text-rose-500">*</span></span>
-              </label>
-              <input
-                type="time"
-                value={departureTime}
-                onChange={(e) => setDepartureTime(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                required
-              />
-            </div>
-          </div>
-
-          {/* Boarding Point & Destination */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                <span>{type === 'Train' ? 'Boarding Station' : 'Boarding Point'} <span className="text-rose-500">*</span></span>
-              </label>
-              <input
-                type="text"
-                value={boardingPoint}
-                onChange={(e) => setBoardingPoint(e.target.value)}
-                placeholder={type === 'Train' ? 'e.g. Patiala Railway Station' : 'e.g. Patiala Bus Stand / Bypass'}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Destination <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={destination}
-                onChange={(e) => setDestination(e.target.value)}
-                placeholder="e.g. New Delhi, Chandigarh Sector 43"
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                required
-              />
-            </div>
-          </div>
-
-          {/* Notes / Description */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-              Journey Notes (optional)
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="e.g. Meeting at Station Gate 1 at 5:00 PM; coach C3 booking recommended"
-              rows={2}
-              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
-            />
-          </div>
-
-          {/* Buttons */}
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className={`px-5 py-2 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer ${
-                type === 'Train'
-                  ? 'bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50'
-                  : 'bg-amber-600 hover:bg-amber-700 disabled:opacity-50'
-              }`}
-            >
-              {loading ? 'Creating...' : `Create ${type} Group`}
-            </button>
-          </div>
-        </form>
-
-      </div>
+  return <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="create-travel-title" tabIndex={-1} className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="max-w-xl w-full max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800">
+      <header className="p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between gap-3"><div><h2 id="create-travel-title" className="text-lg font-bold flex items-center gap-2"><Icon className="w-5 h-5 text-blue-600" />Create {defaultType.toLowerCase()} group</h2><p className="text-sm text-slate-500 mt-1">Find co-travellers for your service to {community?.name}.</p></div><button type="button" disabled={busy} onClick={onClose} aria-label="Close create group" className="self-start p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800"><X className="w-5 h-5" /></button></header>
+      <form className="p-5 sm:p-6 space-y-4" onSubmit={submit}>
+        {error && <p role="alert" className="text-sm text-red-600 bg-red-50 dark:bg-red-950/30 rounded-xl p-3">{error}</p>}
+        <label className="block text-sm font-semibold">{isTrain ? 'Train number / name' : 'Bus operator / service'}<input className={tripInput} required maxLength={100} value={service} onChange={e => setService(e.target.value)} placeholder={isTrain ? '12006 · Shatabdi Express' : 'PRTC AC · Delhi service'} /></label>
+        <div className="grid sm:grid-cols-2 gap-4"><label className="text-sm font-semibold">Travel date<input className={tripInput} type="date" required min={istDate()} max={istDate(30)} value={date} onChange={e => setDate(e.target.value)} /></label><label className="text-sm font-semibold">Departure time<input className={tripInput} type="time" required value={time} onChange={e => setTime(e.target.value)} /></label></div>
+        <label className="block text-sm font-semibold">{isTrain ? 'Boarding station' : 'Boarding point'}<input className={tripInput} required maxLength={150} value={origin} onChange={e => setOrigin(e.target.value)} /></label>
+        <label className="block text-sm font-semibold">Destination<input className={tripInput} required maxLength={150} value={destination} onChange={e => setDestination(e.target.value)} /></label>
+        {isTrain && <label className="block text-sm font-semibold">Travel class<select className={tripInput} value={travelClass} onChange={e => setTravelClass(e.target.value)}>{['CC', 'EC', '3A', '2A', '1A', 'SL', '2S'].map(value => <option key={value}>{value}</option>)}</select></label>}
+        <label className="block text-sm font-semibold">Notes (optional)<textarea className={tripInput} maxLength={500} rows={2} value={description} onChange={e => setDescription(e.target.value)} placeholder="Where to meet or anything co-travellers should know" /></label>
+        <p className="text-xs text-slate-500">This creates a coordination group, not a ticket reservation. Buy your ticket separately.</p>
+        <div className="flex justify-end gap-3 pt-2"><button type="button" disabled={busy} onClick={onClose} className="text-sm px-3 py-2 text-slate-500">Cancel</button><button disabled={busy} className={tripButton}>{busy ? 'Creating…' : 'Create group'}</button></div>
+      </form>
     </div>
-  );
+  </div>;
 }

@@ -55,7 +55,7 @@ function AppContent() {
     return communities.find((c) => c.id === commId) || null;
   }, [user?.joinedCommunity, communities]);
 
-  const activeCommunityHub = userCommunity || selectedCityHub;
+  const activeCommunityHub = selectedCityHub || userCommunity;
 
   // Notifications State for Real-Time Toast Popups
   const [notifications, setNotifications] = useState([]);
@@ -354,13 +354,9 @@ function AppContent() {
               user={user}
               communities={communities}
               onNavigateToCommunities={() => setActivePage('communities')}
-              activeGroups={groups}
               triggerToast={triggerToast}
               onRefreshGroups={fetchGroups}
-              onViewGroupDetails={(gId) => {
-                setSelectedGroupId(gId);
-                setActivePage('group-details');
-              }}
+              onNavigateMyJourneys={() => setActivePage('my-journeys')}
             />
           )}
 
@@ -393,7 +389,6 @@ function AppContent() {
 
           {activePage === 'my-journeys' && (
             <MyJourneysPage
-              activeGroups={groups}
               currentUser={user}
               onRefresh={fetchGroups}
               onFindRide={() => setActivePage('dashboard')}
@@ -415,20 +410,13 @@ function AppContent() {
 
           {activePage === 'city-hub' && activeCommunityHub ? (
             <CityCommunityHubPage
+              key={activeCommunityHub.id}
+              onNavigateMyJourneys={() => setActivePage('my-journeys')}
               community={activeCommunityHub}
-              allCommunities={communities}
               user={user}
-              activeGroup={activeGroup}
               posts={communityPosts}
               onBack={() => setActivePage('communities')}
               onRefreshGroups={fetchGroups}
-              onRefreshPosts={(commId) => fetchPosts(commId || activeCommunityHub?.id)}
-              onViewGroupDetails={(gId) => {
-                setSelectedGroupId(gId);
-                setActivePage('group-details');
-              }}
-              onOpenChat={handleOpenChatModal}
-              onLeaveGroup={handleLeaveGroup}
               onJoinCommunity={async (commId) => {
                 try {
                   await joinCommunity(commId);
@@ -451,6 +439,7 @@ function AppContent() {
                 try {
                   await leaveCommunity(commId);
                   setSelectedCityHub(null);
+                  setActivePage('communities');
                   triggerToast({
                     id: `comm_leave_${Date.now()}`,
                     type: 'info',
@@ -492,97 +481,13 @@ function AppContent() {
           ) : activePage === 'communities' ? (
             <CommunitiesPage
               communities={communities}
-              posts={communityPosts}
               user={user}
-              onOpenCityHub={(comm) => {
-                setSelectedCityHub(comm);
-                fetchPosts(comm.id);
+              onOpenCityHub={(community) => {
+                setSelectedCityHub(community);
+                fetchPosts(community.id);
                 setActivePage('city-hub');
               }}
-              onJoinCommunity={async (commId) => {
-                try {
-                  await joinCommunity(commId);
-                  setSelectedCityHub(null);
-                  triggerToast({
-                    id: `comm_join_${Date.now()}`,
-                    type: 'success',
-                    title: 'Joined Community!',
-                    message: 'You are now an enrolled member of this hometown hub.'
-                  });
-                } catch (err) {
-                  triggerToast({
-                    id: `comm_err_${Date.now()}`,
-                    type: 'error',
-                    title: 'Could Not Join',
-                    message: err.message
-                  });
-                }
-              }}
-              onLeaveCommunity={async (commId) => {
-                try {
-                  await leaveCommunity(commId);
-                  triggerToast({
-                    id: `comm_leave_${Date.now()}`,
-                    type: 'info',
-                    title: 'Left Community',
-                    message: 'You left this hometown hub.'
-                  });
-                } catch (err) {
-                  triggerToast({
-                    id: `comm_err_${Date.now()}`,
-                    type: 'error',
-                    title: 'Error Leaving Community',
-                    message: err.message
-                  });
-                }
-              }}
-              onCreateCommunity={async (data) => {
-                try {
-                  const res = await createCommunity(data);
-                  triggerToast({
-                    id: `comm_created_${Date.now()}`,
-                    type: 'success',
-                    title: 'Community Created!',
-                    message: `${data.name} hub is now active on campus.`
-                  });
-                  return res;
-                } catch (err) {
-                  triggerToast({
-                    id: `comm_create_err_${Date.now()}`,
-                    type: 'error',
-                    title: 'Creation Failed',
-                    message: err.message
-                  });
-                  throw err;
-                }
-              }}
-              onAddPost={async (newPost) => {
-                try {
-                  await handleAddCommunityPost(newPost.communityId, newPost);
-                  triggerToast({
-                    id: `post_add_${Date.now()}`,
-                    type: 'success',
-                    title: 'Post Published',
-                    message: 'Your notice has been posted to the community board.'
-                  });
-                } catch (err) {
-                  triggerToast({
-                    id: `post_err_${Date.now()}`,
-                    type: 'error',
-                    title: 'Could not post',
-                    message: err.message
-                  });
-                }
-              }}
-              onSelectCommunityTravel={(comm) => {
-                setSelectedCityHub(comm);
-                fetchPosts(comm.id);
-              }}
-              onLikePost={handleLikePost}
-              onAddComment={handleAddComment}
-              onSelectCommunity={(commId) => {
-                fetchPosts(commId);
-              }}
+              onCreateCommunity={createCommunity}
             />
           ) : null}
 

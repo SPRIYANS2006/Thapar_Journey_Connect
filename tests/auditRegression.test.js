@@ -6,7 +6,7 @@ import { MongoMemoryReplSet } from 'mongodb-memory-server';
 process.env.NODE_ENV = 'test';
 process.env.SESSION_SECRET = 'audit-regression-session-secret-32-characters';
 const { createApp } = await import('../server/app.js');
-const { User, Group, CityRide, Destination, Counter } = await import('../server/models/index.js');
+const { User, Group, CityRide, Destination, Counter, TravelGroup, Community } = await import('../server/models/index.js');
 const { generateSessionToken } = await import('../server/middleware/auth.js');
 const { setSocketIO } = await import('../server/services/notifications.js');
 const { validateTravelDateTime } = await import('../server/utils/time.js');
@@ -29,6 +29,9 @@ describe('Audit regressions', () => {
   async function group(overrides = {}) {
     return Group.create({ id: 'original', destination_id: 'railway', destination_name: 'Station', date, departure_time: '12:00', admin_id: user.id,
       members: [{ id: 'member', user_id: user.id, name: user.name, role: 'Group Admin' }], ...overrides });
+  }
+  async function travel(type = 'Train', overrides = {}) {
+    return TravelGroup.create({ id: `tg_${type}`, type, title: `${type} to Delhi`, community_id: 'del', community_name: 'Delhi', creator_id: 'host', creator_name: 'Host', date, departure_time: '13:00', boarding_point: 'Patiala', destination: 'Delhi', train_number: type === 'Train' ? '12006 Shatabdi' : '', bus_operator: type === 'Bus' ? 'PRTC' : '', members: [{ user_id: 'host', name: 'Host', role: 'Admin' }], ...overrides });
   }
   it('concurrent joins to different slots leave exactly one active membership', async () => {
     const results = await Promise.all([post('/api/slots/join', slot('12:00')), post('/api/slots/join', slot('13:00'))]);
@@ -117,5 +120,57 @@ describe('Audit regressions', () => {
     const mute = value => request(app).put('/api/safety/mute').set('Authorization', `Bearer ${token}`).send({ userId: 'other', muted: value });
     assert.equal((await mute(true)).status, 200); assert.deepEqual((await User.findOne({ id: user.id })).muted_users.toObject(), ['other']);
     assert.equal((await mute(false)).status, 200); assert.equal((await User.findOne({ id: user.id })).muted_users.length, 0);
+  });
+  it('the unified journey feed requires authentication', async () => {
+    assert.equal((await request(app).get('/api/my-journeys')).status, 401);
+  });
+  it('My Journeys combines campus rides, confirmed city cabs, trains and buses without exposing other memberships', async () => {
+    await group();
+    await CityRide.create({ id: 'city', community_id: 'del', community_name: 'Delhi', creator_id: user.id, creator_name: user.name, origin: 'Delhi', destination: 'Thapar', date, time: '09:00', direction: 'returning', mode: 'Cab', status: 'Confirmed', members: [{ user_id: user.id, name: user.name }] });
+    await travel('Train', { members: [{ user_id: user.id, name: user.name }] });
+    await travel('Bus', { departure_time: '18:00', members: [{ user_id: user.id, name: user.name }] });
+    await travel('Train', { id: 'tg_other' });
+    const result = await request(app).get('/api/my-journeys').set('Authorization', `Bearer ${token}`);
+    assert.equal(result.status, 200);
+    assert.deepEqual(result.body.upcoming.map(item => item.id), ['city', 'original', 'tg_Train', 'tg_Bus']);
+    assert.deepEqual(result.body.upcoming.map(item => item.mode), ['Cab', 'Cab', 'Train', 'Bus']);
+    assert.equal(result.body.upcoming[0].origin, 'Delhi'); assert.equal(result.body.upcoming[0].direction, 'returning');
+    assert.equal(result.body.upcoming[0].status, 'Confirmed'); assert.equal(result.body.past.length, 0);
+  });
+  it('joining a train moves it from discovery to My Journeys and leaving reverses it', async () => {
+    const trip = await travel();
+    const discovery = () => request(app).get('/api/travel-groups?communityId=del&type=Train&excludeJoined=true').set('Authorization', `Bearer ${token}`);
+    const mine = () => request(app).get('/api/my-journeys').set('Authorization', `Bearer ${token}`);
+    assert.equal((await discovery()).body.length, 1);
+    assert.equal((await post(`/api/travel-groups/${trip.id}/join`, {})).status, 200);
+    assert.equal((await discovery()).body.length, 0);
+    assert.equal((await mine()).body.upcoming[0].id, trip.id);
+    assert.equal((await post(`/api/travel-groups/${trip.id}/leave`, {})).status, 200);
+    assert.equal((await mine()).body.upcoming.length, 0); assert.equal((await discovery()).body.length, 1);
+  });
+  it('creating a bus adds it directly to My Journeys and hides it from the creator discovery list', async () => {
+    await Community.create({ id: 'del', name: 'Delhi', state: 'Delhi' });
+    const result = await post('/api/travel-groups', { type: 'Bus', title: 'PRTC to Delhi', communityId: 'del', date, departureTime: '18:00', boardingPoint: 'Patiala Bus Stand', destination: 'Delhi', busOperator: 'PRTC' });
+    assert.equal(result.status, 201);
+    const mine = await request(app).get('/api/my-journeys').set('Authorization', `Bearer ${token}`);
+    assert.equal(mine.body.upcoming[0].mode, 'Bus'); assert.equal(mine.body.upcoming[0].id, result.body.group.id);
+    const discovery = await request(app).get('/api/travel-groups?type=Bus&excludeJoined=true').set('Authorization', `Bearer ${token}`);
+    assert.deepEqual(discovery.body, []);
+  });
+  it('past train journeys stay in history but cannot be joined through discovery or direct requests', async () => {
+    const yesterday = new Date(Date.now() - 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+    await travel('Train', { date: yesterday, members: [{ user_id: user.id, name: user.name }] });
+    const past = await travel('Bus', { date: yesterday });
+    const mine = await request(app).get('/api/my-journeys').set('Authorization', `Bearer ${token}`);
+    assert.equal(mine.body.past[0].id, 'tg_Train'); assert.equal(mine.body.upcoming.length, 0);
+    assert.equal((await request(app).get('/api/travel-groups').set('Authorization', `Bearer ${token}`)).body.length, 0);
+    assert.equal((await post(`/api/travel-groups/${past.id}/join`, {})).status, 409);
+  });
+  it('leaving a travel group notifies all of the account sessions to refresh My Journeys', async () => {
+    const trip = await travel('Train', { members: [{ user_id: 'host', name: 'Host', role: 'Admin' }, { user_id: user.id, name: user.name }] });
+    const events = [];
+    setSocketIO({ to: room => ({ emit: (event, payload) => events.push({ room, event, payload }) }), sockets: { adapter: { rooms: new Map() } } });
+    assert.equal((await post(`/api/travel-groups/${trip.id}/leave`, {})).status, 200);
+    assert.ok(events.some(event => event.room === `user_${user.id}` && event.event === 'journeys_updated'));
   });
 });

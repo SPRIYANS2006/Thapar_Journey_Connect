@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import SlotPicker from '../components/SlotPicker';
 import HeroBanner from '../components/HeroBanner';
-import { DESTINATIONS, HOSTELS } from '../data/mockData';
+import { DESTINATIONS } from '../data/mockData';
+import { istDate, tripInput } from '../utils/tripUi';
 import { TIME_SLOT_OPTIONS_15MIN } from '../utils/timeSlots';
 import { 
   ArrowRight, 
@@ -74,7 +75,7 @@ export default function DashboardPage({
   const [selectedDate, setSelectedDate] = useState(dateOptions[0].value);
   const [selectedTime, setSelectedTime] = useState(() => getCurrentSlotTime());
   const [selectedVehicle, setSelectedVehicle] = useState('Shared Cab');
-  const [selectedHostel, setSelectedHostel] = useState(user?.hostel || HOSTELS[0].name);
+  const selectedHostel = user?.hostel || 'Main Gate (Near Executive Mess)';
   const direction = 'departing';
 
   // Slots State
@@ -351,18 +352,15 @@ export default function DashboardPage({
                 <span>Date</span>
               </span>
               <label htmlFor="travel-date-select" className="sr-only">Date</label>
-              <select
+              <input
+                type="date"
                 id="travel-date-select"
+                min={istDate()}
+                max={istDate(30)}
                 value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="w-full bg-transparent font-extrabold text-slate-900 dark:text-slate-100 text-sm mt-1 focus:outline-none cursor-pointer"
-              >
-                {dateOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+                onChange={event => { if (event.target.value) setSelectedDate(event.target.value); }}
+                className={tripInput}
+              />
             </div>
 
             {/* 4. DEPARTURE TIME */}
@@ -433,22 +431,8 @@ export default function DashboardPage({
               <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 px-1">
                 <span className="flex items-center gap-1">
                   <Home className="w-3 h-3 text-blue-600 dark:text-blue-400" />
-                  <span className="font-semibold">{direction === 'returning' ? 'Drop at' : 'Pickup from'} {selectedHostel.split(' ')[0]}</span>
+                  <span className="font-semibold">Pickup from {selectedHostel}</span>
                 </span>
-                <label htmlFor="hostel-quick-override" className="sr-only">Change hostel pickup</label>
-                <select
-                  id="hostel-quick-override"
-                  value={selectedHostel}
-                  onChange={(e) => setSelectedHostel(e.target.value)}
-                  className="text-[10px] bg-transparent text-blue-700 dark:text-blue-400 font-bold focus:outline-none cursor-pointer"
-                  title="Change hostel pickup"
-                >
-                  {HOSTELS.map((h) => (
-                    <option key={h.id} value={h.name} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-                      {h.id}
-                    </option>
-                  ))}
-                </select>
               </div>
 
               <button

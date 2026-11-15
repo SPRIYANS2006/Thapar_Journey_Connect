@@ -127,6 +127,17 @@ describe('Audit regressions', () => {
     assert.equal((await post('/api/groups/original/leave', {})).status, 200);
     assert.deepEqual(left, ['group_original', 'group_original']);
   });
+  it('profile hostel changes propagate to cab, city and train memberships', async () => {
+    await group();
+    await travel('Train', { members: [{ user_id: user.id, name: user.name, hostel: 'Old hostel' }] });
+    await CityRide.create({ id: 'city', community_id: 'del', community_name: 'Delhi', creator_id: user.id, creator_name: user.name, destination: 'Delhi', date, time: '12:00', mode: 'Cab', members: [{ user_id: user.id, name: user.name, hostel: 'Old hostel' }] });
+    const result = await request(app).put('/api/auth/profile').set('Authorization', 'Bearer ' + token).send({ hostel: 'Hostel J' });
+    assert.equal(result.status, 200);
+    for (const Model of [Group, CityRide, TravelGroup]) {
+      const trip = await Model.findOne({ 'members.user_id': user.id });
+      assert.equal(trip.members.find(member => member.user_id === user.id).hostel, 'Hostel J');
+    }
+  });
   it('profile settings survive a new session fetch', async () => {
     const saved = await request(app).put('/api/auth/profile').set('Authorization', `Bearer ${token}`).send({ rollNumber: '1234', preferredTransport: 'Auto', timeWindow: 'Every 30 Minutes', frequentRoutes: ['Delhi'], rideNotifications: false });
     assert.equal(saved.status, 200);

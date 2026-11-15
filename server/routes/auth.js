@@ -3,12 +3,13 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'node:crypto';
 import { OAuth2Client } from 'google-auth-library';
-import { User, Group, CityRide } from '../models/index.js';
+import { User, Group, CityRide, TravelGroup } from '../models/index.js';
 import { generateSessionToken, requireAuth, parseCookieToken, JWT_SECRET } from '../middleware/auth.js';
 import { authRateLimiter } from '../middleware/rateLimit.js';
 import { serializeUser } from '../services/serializers.js';
 
-import { disconnectUserSessions } from '../services/notifications.js';
+import { runCommittedTransaction } from '../services/transactions.js';
+import { disconnectUserSessions, notifyGroupMembersUpdated } from '../services/notifications.js';
 
 const router = express.Router();
 export const googleClient = new OAuth2Client();
@@ -223,51 +224,57 @@ router.get('/me', requireAuth, (req, res) => {
 router.put('/profile', requireAuth, async (req, res, next) => {
   try {
     const { name, hostel, phone, degree, year, hometown } = req.body;
-    const user = req.user;
+    const profile = await runCommittedTransaction(async () => {
+      const user = await User.findOne({ id: req.user.id });
 
-    if (typeof phone === 'string' && phone.trim() && !/^\+?[\d ()-]{7,20}$/.test(phone.trim())) {
-      return res.status(400).json({ error: 'Enter a valid contact phone number.' });
-    }
+      if (typeof phone === 'string' && phone.trim() && !/^\+?[\d ()-]{7,20}$/.test(phone.trim())) {
+        const error = new Error('Enter a valid contact phone number.');
+        error.status = 400;
+        throw error;
+      }
 
-    if (typeof name === 'string' && name.trim()) {
-      user.name = name.trim().slice(0, 100);
-    }
-    if (typeof hostel === 'string') {
-      user.hostel = hostel.trim().slice(0, 100);
-    }
-    if (typeof phone === 'string') {
-      user.phone = phone.trim().slice(0, 30);
-      await Group.updateMany(
-        { 'members.user_id': user.id },
-        { $set: { 'members.$[elem].phone': user.phone } },
-        { arrayFilters: [{ 'elem.user_id': user.id }] }
-      ).catch(() => {});
-      await CityRide.updateMany(
-        { 'members.user_id': user.id },
-        { $set: { 'members.$[elem].phone': user.phone } },
-        { arrayFilters: [{ 'elem.user_id': user.id }] }
-      ).catch(() => {});
-    }
-    if (typeof degree === 'string') {
-      user.degree = degree.trim().slice(0, 100);
-    }
-    if (typeof year === 'string') {
-      user.year = year.trim().slice(0, 50);
-    }
-    if (typeof hometown === 'string') {
-      user.hometown = hometown.trim().slice(0, 100);
-    }
+      if (typeof name === 'string' && name.trim()) {
+        user.name = name.trim().slice(0, 100);
+      }
+      if (typeof hostel === 'string') {
+        user.hostel = hostel.trim().slice(0, 100);
+      }
+      if (typeof phone === 'string') {
+        user.phone = phone.trim().slice(0, 30);
+      }
+      if (typeof degree === 'string') {
+        user.degree = degree.trim().slice(0, 100);
+      }
+      if (typeof year === 'string') {
+        user.year = year.trim().slice(0, 50);
+      }
+      if (typeof hometown === 'string') {
+        user.hometown = hometown.trim().slice(0, 100);
+      }
 
-    for (const [input, field] of [['rollNumber', 'roll_number'], ['preferredTransport', 'preferred_transport'], ['timeWindow', 'time_window']]) {
-      if (typeof req.body[input] === 'string') user[field] = req.body[input].trim().slice(0, 100);
-    }
-    if (Array.isArray(req.body.frequentRoutes)) user.frequent_routes = req.body.frequentRoutes.filter(v => typeof v === 'string').slice(0, 10).map(v => v.trim().slice(0, 100));
-    if (typeof req.body.rideNotifications === 'boolean') user.ride_notifications = req.body.rideNotifications;
-    await user.save();
-    res.json({
-      success: true,
-      user: serializeUser(user)
+      for (const [input, field] of [['rollNumber', 'roll_number'], ['preferredTransport', 'preferred_transport'], ['timeWindow', 'time_window']]) {
+        if (typeof req.body[input] === 'string') user[field] = req.body[input].trim().slice(0, 100);
+      }
+      if (Array.isArray(req.body.frequentRoutes)) user.frequent_routes = req.body.frequentRoutes.filter(v => typeof v === 'string').slice(0, 10).map(v => v.trim().slice(0, 100));
+      if (typeof req.body.rideNotifications === 'boolean') user.ride_notifications = req.body.rideNotifications;
+      await user.save();
+      const fields = {};
+      if (typeof hostel === 'string') fields['members.$[member].hostel'] = user.hostel;
+      if (typeof phone === 'string') fields['members.$[member].phone'] = user.phone;
+      if (Object.keys(fields).length) {
+        for (const Model of [Group, CityRide, TravelGroup]) {
+          await Model.updateMany(
+            { 'members.user_id': user.id },
+            { $set: fields },
+            { arrayFilters: [{ 'member.user_id': user.id }] }
+          );
+          const groups = await Model.find({ 'members.user_id': user.id }).lean();
+          for (const group of groups) notifyGroupMembersUpdated(group);
+        }
+      }
+      return serializeUser(user);
     });
+    res.json({ success: true, user: profile });
   } catch (err) {
     next(err);
   }

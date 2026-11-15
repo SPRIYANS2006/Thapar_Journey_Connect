@@ -155,35 +155,10 @@ export default function DashboardPage({
     };
   }, [selectedDestId, selectedDate, selectedVehicle, direction]);
 
-  // Featured 3 slots for top dashboard view
+  // Featured 3 slots for top dashboard view (strictly uses real slots, no preview/fake occupancy)
   const featuredSlots = useMemo(() => {
     if (!slots || slots.length === 0) {
-      const baseTime = selectedTime || '13:30';
-      const [hStr, mStr] = baseTime.split(':');
-      const h = parseInt(hStr || '13', 10);
-      const m = parseInt(mStr || '30', 10);
-
-      const makePreview = (minsToAdd) => {
-        const total = h * 60 + m + minsToAdd;
-        const slotH = Math.floor(total / 60) % 24;
-        const slotM = total % 60;
-        const time24 = `${String(slotH).padStart(2, '0')}:${String(slotM).padStart(2, '0')}`;
-        const ampm = slotH >= 12 ? 'PM' : 'AM';
-        const h12 = slotH % 12 || 12;
-        const label12 = `${h12}:${String(slotM).padStart(2, '0')} ${ampm}`;
-        return {
-          slotKey: `preview_${time24}`,
-          destinationId: selectedDestId,
-          date: selectedDate,
-          time: time24,
-          time12: label12,
-          vehicle: selectedVehicle === 'Either' ? 'Shared Cab' : selectedVehicle,
-          memberCount: minsToAdd === 0 ? 3 : minsToAdd === 15 ? 2 : 4,
-          capacity: 4,
-          farePerRider: '₹350'
-        };
-      };
-      return [makePreview(0), makePreview(15), makePreview(30)];
+      return [];
     }
 
     let subset = slots;
@@ -201,7 +176,7 @@ export default function DashboardPage({
       time12: s.time12 || s.time,
       farePerRider: s.farePerRider || (s.fare && s.capacity ? `₹${Math.round(s.fare / s.capacity)}` : '₹350')
     }));
-  }, [slots, selectedTime, selectedDestId, selectedDate, selectedVehicle]);
+  }, [slots, selectedTime]);
 
   const handleSearchSubmit = (e) => {
     if (e) e.preventDefault();
@@ -804,54 +779,65 @@ export default function DashboardPage({
           </div>
 
           {/* 3 Featured Slot Cards Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-            {featuredSlots.map((slot, idx) => {
-              const isFull = (slot.memberCount || slot.members?.length || 0) >= (slot.capacity || 4);
-              return (
-                <div
-                  key={slot.slotKey || `featured_${idx}`}
-                  className="rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 bg-slate-50/50 dark:bg-slate-800/40 hover:border-blue-300 dark:hover:border-blue-700 transition-all flex flex-col justify-between"
-                >
-                  <div>
-                    <div className="flex items-start justify-between">
-                      <span className="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-1.5">
-                        <Clock className="w-4 h-4 text-blue-600" />
-                        <span>{slot.time12 || slot.time}</span>
-                      </span>
-                      <div className="text-right">
-                        <span className="font-extrabold text-slate-900 dark:text-white text-sm">
-                          {slot.farePerRider || '₹350'}
+          {slotsLoading ? (
+            <div className="py-8 text-center text-xs text-slate-400 bg-slate-50/50 dark:bg-slate-800/40 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+              Loading available ride slots...
+            </div>
+          ) : featuredSlots.length === 0 ? (
+            <div className="py-8 text-center text-xs text-slate-400 bg-slate-50/50 dark:bg-slate-800/40 rounded-2xl border border-dashed border-slate-200/80 dark:border-slate-800 space-y-1">
+              <p className="font-semibold text-slate-600 dark:text-slate-300">No ride slots available</p>
+              <p className="text-[11px] text-slate-400">Select another destination or date to view available 15-minute departures.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+              {featuredSlots.map((slot, idx) => {
+                const isFull = (slot.memberCount || slot.members?.length || 0) >= (slot.capacity || 4);
+                return (
+                  <div
+                    key={slot.slotKey || `featured_${idx}`}
+                    className="rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 bg-slate-50/50 dark:bg-slate-800/40 hover:border-blue-300 dark:hover:border-blue-700 transition-all flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-start justify-between">
+                        <span className="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-1.5">
+                          <Clock className="w-4 h-4 text-blue-600" />
+                          <span>{slot.time12 || slot.time}</span>
                         </span>
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500 block">
-                          per rider
-                        </span>
+                        <div className="text-right">
+                          <span className="font-extrabold text-slate-900 dark:text-white text-sm">
+                            {slot.farePerRider || '₹350'}
+                          </span>
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500 block">
+                            per rider
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-xs text-slate-600 dark:text-slate-400 font-medium mt-2">
+                        {slot.vehicle === 'Shared Cab' ? 'Cab' : 'Auto'} • {slot.memberCount || slot.members?.length || 0} / {slot.capacity || 4} seats
                       </div>
                     </div>
-                    <div className="text-xs text-slate-600 dark:text-slate-400 font-medium mt-2">
-                      {slot.vehicle === 'Shared Cab' ? 'Cab' : 'Auto'} • {slot.memberCount || slot.members?.length || 0} / {slot.capacity || 4} seats
-                    </div>
-                  </div>
 
-                  <div className="mt-4">
-                    {isFull ? (
-                      <div className="w-full py-2 bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 font-bold text-xs rounded-xl text-center">
-                        Full
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleJoinSlot(slot)}
-                        disabled={joiningSlotKey === slot.slotKey}
-                        className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer text-center"
-                      >
-                        {joiningSlotKey === slot.slotKey ? 'Joining...' : 'Join Slot'}
-                      </button>
-                    )}
+                    <div className="mt-4">
+                      {isFull ? (
+                        <div className="w-full py-2 bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 font-bold text-xs rounded-xl text-center">
+                          Full
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleJoinSlot(slot)}
+                          disabled={joiningSlotKey === slot.slotKey}
+                          className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer text-center"
+                        >
+                          {joiningSlotKey === slot.slotKey ? 'Joining...' : 'Join Slot'}
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* Expandable full SlotPicker if View All Slots is toggled */}
           {showAllSlots && (

@@ -58,7 +58,7 @@ At Thapar Institute, thousands of students travel between the Patiala campus, ra
 
 ### ⚡ 4. Intelligent Deterministic Matching Engine
 - **Compatibility Scoring**: Matches students traveling to identical destinations based on vehicle preference, flexibility, and hostel quad location.
-- **Midnight-Wrap Calculation**: Circular time-distance algorithm correctly accounts for midnight boundaries: $\min(|a-b|, 1440 - |a-b|)$.
+- **Same-Day Linear Departure Calculation**: Evaluates the actual same-day minute difference between requested departures ($|a - b|$), ensuring early morning departures (e.g. `00:05`) are accurately separated from late-night departures (e.g. `23:55`) on the same travel date.
 - **Campus Proximity Resolution**: Incorporates all 18 official TIET hostel halls (Hostel A through Q, PG Residences, and Day Scholar sectors) for optimal pickup clustering.
 
 ### 💬 5. Real-Time Chat & Safe Travel Operations

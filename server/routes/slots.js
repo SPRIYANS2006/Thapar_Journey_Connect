@@ -94,7 +94,7 @@ export function generateTenMinuteSlots(dateStr, destObj, vehicle, existingGroups
   return slots;
 }
 
-// 1. GET /api/slots: Returns merged list of 10-minute slots (virtual and real)
+// 1. GET /api/slots: Returns merged list of 15-minute slots (virtual and real, 96 slots per day)
 router.get('/', async (req, res, next) => {
   try {
     const { destinationId, date, vehicle, direction } = req.query;

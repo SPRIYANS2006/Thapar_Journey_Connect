@@ -14,5 +14,4 @@ export {
   ALLOWED_COMMUNITY_GROUP_CATEGORIES
 } from './CommunityGroup.js';
 export { CityRide } from './CityRide.js';
-export { Luggage } from './Luggage.js';
 export { TravelGroup, TravelGroupMessage } from './TravelGroup.js';

@@ -77,7 +77,7 @@ export default function MyJourneysPage({
           <Calendar className="w-5 h-5 text-blue-600" />
           <h2 className="text-lg font-bold text-slate-900 dark:text-white">Active Journeys</h2>
           <span className="text-xs font-bold bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full border border-blue-200/60 dark:border-blue-800">
-            {upcomingJourneys.length > 0 ? upcomingJourneys.length : 2}
+            {upcomingJourneys.length}
           </span>
         </div>
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-5">
@@ -85,32 +85,16 @@ export default function MyJourneysPage({
         </p>
 
         <div className="space-y-3.5">
-          {(upcomingJourneys.length > 0 ? upcomingJourneys : [
-            {
-              id: '101',
-              destinationName: 'Patiala',
-              date: 'Today, Nov 13',
-              departureTime: '13:30',
-              pickupPoint: 'Agira Hostel',
-              members: [{ id: 1 }, { id: 2 }, { id: 3 }],
-              maxMembers: 4,
-              vehicle: 'Cab',
-              farePerPerson: 350,
-              status: 'Confirmed'
-            },
-            {
-              id: '102',
-              destinationName: 'Delhi',
-              date: 'Sat, Nov 15',
-              departureTime: '07:00',
-              pickupPoint: 'Thapar Institute',
-              members: [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }, { id: 5 }],
-              maxMembers: 6,
-              vehicle: 'Cab',
-              farePerPerson: 1600,
-              status: 'Grouped'
-            }
-          ]).map((group) => {
+          {upcomingJourneys.length === 0 ? (
+            <div className="py-12 text-center bg-slate-50/50 dark:bg-slate-800/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 space-y-2">
+              <Car className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto" />
+              <h3 className="font-bold text-sm text-slate-700 dark:text-slate-300">No active journeys</h3>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                You do not have any upcoming shared rides right now. Find available 15-minute slots on the dashboard to plan your trip!
+              </p>
+            </div>
+          ) : (
+            upcomingJourneys.map((group) => {
             const isConfirmed = group.status === 'Confirmed';
             const isGrouped = group.status === 'Grouped' || group.status === 'Open';
             return (
@@ -209,7 +193,7 @@ export default function MyJourneysPage({
                 </div>
               </div>
             );
-          })}
+          }))}
         </div>
       </div>
 
@@ -219,7 +203,7 @@ export default function MyJourneysPage({
           <Clock className="w-5 h-5 text-blue-600" />
           <h2 className="text-lg font-bold text-slate-900 dark:text-white">Recent Journeys</h2>
           <span className="text-xs font-bold bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full border border-blue-200/60 dark:border-blue-800">
-            {completedJourneys.length > 0 ? completedJourneys.length : 2}
+            {completedJourneys.length}
           </span>
         </div>
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-5">
@@ -227,32 +211,16 @@ export default function MyJourneysPage({
         </p>
 
         <div className="space-y-3.5">
-          {(completedJourneys.length > 0 ? completedJourneys : [
-            {
-              id: '99',
-              destinationName: 'Chandigarh',
-              date: 'Fri, Nov 8',
-              departureTime: '14:00',
-              pickupPoint: 'Agira Hostel',
-              members: [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }],
-              maxMembers: 4,
-              vehicle: 'Cab',
-              farePerPerson: 700,
-              status: 'Confirmed'
-            },
-            {
-              id: '98',
-              destinationName: 'Delhi',
-              date: 'Sun, Nov 3',
-              departureTime: '11:00',
-              pickupPoint: 'Thapar Institute',
-              members: [],
-              maxMembers: 4,
-              vehicle: 'Cab',
-              farePerPerson: 1600,
-              status: 'Cancelled'
-            }
-          ]).map((trip) => {
+          {completedJourneys.length === 0 ? (
+            <div className="py-12 text-center bg-slate-50/50 dark:bg-slate-800/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 space-y-2">
+              <Clock className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto" />
+              <h3 className="font-bold text-sm text-slate-700 dark:text-slate-300">No recent journeys</h3>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                Your completed and past rides will appear here once your journeys finish.
+              </p>
+            </div>
+          ) : (
+            completedJourneys.map((trip) => {
             const isCancelled = trip.status === 'Cancelled';
             return (
               <div
@@ -330,7 +298,7 @@ export default function MyJourneysPage({
                 </div>
               </div>
             );
-          })}
+          }))}
         </div>
       </div>
 

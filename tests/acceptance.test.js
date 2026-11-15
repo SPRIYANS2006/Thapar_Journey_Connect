@@ -13,7 +13,7 @@ process.env.APP_ORIGIN = 'http://localhost:5173';
 const { createApp } = await import('../server/app.js');
 const { seedDefaultData } = await import('../server/config/db.js');
 const { googleClient } = await import('../server/routes/auth.js');
-const { User, Group, Journey, Counter, getNextGroupId, Message, RateLimit, RideRecord, CommunityGroup, CommunityGroupMessage, CityRide, Luggage } = await import('../server/models/index.js');
+const { User, Group, Journey, Counter, getNextGroupId, Message, RateLimit, RideRecord, CommunityGroup, CommunityGroupMessage, CityRide } = await import('../server/models/index.js');
 const { generateSessionToken } = await import('../server/middleware/auth.js');
 const { getNowIST } = await import('../server/utils/time.js');
 
@@ -50,7 +50,6 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     await CommunityGroup.deleteMany({});
     await CommunityGroupMessage.deleteMany({});
     await CityRide.deleteMany({});
-    await Luggage.deleteMany({});
     await Counter.create({ id: 'group_id', seq: 0 });
   });
 
@@ -1943,129 +1942,28 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     assert.equal(checkOldGroup, null);
   });
 
-  // 42. Luggage Transport: 4-step booking, instant quote with pooling savings, 4-digit pickup OTP
-  it('42. Luggage Transport: 4-step booking, instant quote with pooling savings, 4-digit pickup OTP', async () => {
-    const { token: student1Token } = await createTestStudent({ name: 'Luggage Sender 1' });
-    const { token: student2Token } = await createTestStudent({ name: 'Luggage Sender 2' });
+  // 42. Deprecated endpoints: /api/luggage is permanently disabled and returns HTTP 404
+  it('42. Deprecated endpoints: /api/luggage is permanently disabled and returns HTTP 404', async () => {
+    const { token } = await createTestStudent();
+    const resGet = await request(app)
+      .get('/api/luggage/quote')
+      .set('Authorization', `Bearer ${token}`);
+    assert.equal(resGet.status, 404);
 
-    // 1. Get quote for single sender to Chandigarh
-    const resQuote1 = await request(app)
-      .get('/api/luggage/quote?destination=Chandigarh+ISBT-43&date=Tomorrow&time=11:00&vehicleType=Tempo%2FMini-truck&items=' + encodeURIComponent(JSON.stringify([{ size: 'Trunk-Box', count: 1 }])))
-      .set('Authorization', `Bearer ${student1Token}`);
-    assert.equal(resQuote1.status, 200);
-    assert.ok(resQuote1.body.quote.estimatedFare > 0);
-
-    // 2. Student 1 books luggage
-    const resBook1 = await request(app)
+    const resPost = await request(app)
       .post('/api/luggage')
-      .set('Authorization', `Bearer ${student1Token}`)
-      .send({
-        pickupLocation: 'Tejas Hall (Hostel-J)',
-        destination: 'Chandigarh ISBT Sector 43',
-        date: 'Tomorrow',
-        slotTime: '11:00',
-        vehicleType: 'Tempo/Mini-truck',
-        items: [{ size: 'Trunk-Box', count: 1 }],
-        notes: 'Iron trunk handle with care'
-      });
-
-    assert.equal(resBook1.status, 201);
-    assert.equal(resBook1.body.luggage.status, 'Requested');
-    assert.match(resBook1.body.luggage.pickupOtp, /^\d{4}$/); // 4-digit OTP
-    const order1Id = resBook1.body.luggage.id;
-
-    // 3. Student 2 gets quote for same destination & slot -> Pool & Save applies!
-    const resQuote2 = await request(app)
-      .get('/api/luggage/quote?destination=Chandigarh+ISBT+Sector+43&date=Tomorrow&time=11:00&vehicleType=Tempo%2FMini-truck&items=' + encodeURIComponent(JSON.stringify([{ size: 'Medium', count: 1 }])))
-      .set('Authorization', `Bearer ${student2Token}`);
-    assert.equal(resQuote2.status, 200);
-    assert.ok(resQuote2.body.quote.pooledSavings > 0, 'Pooling discount must apply for second student in same slot');
-
-    // 4. Student 1 checks /api/luggage/mine
-    const resMine = await request(app)
-      .get('/api/luggage/mine')
-      .set('Authorization', `Bearer ${student1Token}`);
-    assert.equal(resMine.status, 200);
-    assert.equal(resMine.body.active.length, 1);
-    assert.equal(resMine.body.active[0].id, order1Id);
+      .set('Authorization', `Bearer ${token}`)
+      .send({ items: [] });
+    assert.equal(resPost.status, 404);
   });
 
-  // 43. Vendor Operations & Role Checks: Student blocked from /api/vendor (HTTP 403), vendor dispatches driver, verifies OTP
-  it('43. Vendor Operations & Role Checks: Student blocked from /api/vendor (HTTP 403), vendor dispatches driver, verifies OTP', async () => {
-    const { token: studentToken } = await createTestStudent({ name: 'Regular Student', role: 'student' });
-    const { token: vendorToken } = await createTestStudent({ name: 'Vendor Dispatcher', email: 'partner@thapar.edu', role: 'vendor' });
-
-    // 1. Regular student attempts to access /api/vendor/requests -> HTTP 403
-    const resForbidden = await request(app)
+  // 43. Deprecated endpoints: /api/vendor is permanently disabled and returns HTTP 404
+  it('43. Deprecated endpoints: /api/vendor is permanently disabled and returns HTTP 404', async () => {
+    const { token } = await createTestStudent();
+    const res = await request(app)
       .get('/api/vendor/requests')
-      .set('Authorization', `Bearer ${studentToken}`);
-    assert.equal(resForbidden.status, 403);
-
-    // 2. Student creates a luggage order
-    const resBook = await request(app)
-      .post('/api/luggage')
-      .set('Authorization', `Bearer ${studentToken}`)
-      .send({
-        pickupLocation: 'Hostel-M Gate',
-        destination: 'Patiala Railway Station',
-        date: 'Tomorrow',
-        slotTime: '15:20',
-        vehicleType: 'Auto/e-rickshaw',
-        items: [{ size: 'Medium', count: 2 }]
-      });
-    assert.equal(resBook.status, 201);
-    const orderId = resBook.body.luggage.id;
-    const studentOtp = resBook.body.luggage.pickupOtp;
-
-    // 3. Vendor accesses /api/vendor/requests -> HTTP 200
-    const resVendorOrders = await request(app)
-      .get('/api/vendor/requests')
-      .set('Authorization', `Bearer ${vendorToken}`);
-    assert.equal(resVendorOrders.status, 200);
-    assert.ok(resVendorOrders.body.allRequests.some((o) => o.id === orderId));
-
-    // 4. Vendor assigns driver and vehicle
-    const resAssign = await request(app)
-      .post(`/api/vendor/requests/${orderId}/assign`)
-      .set('Authorization', `Bearer ${vendorToken}`)
-      .send({
-        driverName: 'Manjit Singh',
-        driverPhone: '9888123456',
-        vehicleNumber: 'PB 11 AZ 9988'
-      });
-    assert.equal(resAssign.status, 200);
-    assert.equal(resAssign.body.luggage.status, 'Vendor Assigned');
-    assert.equal(resAssign.body.luggage.driverName, 'Manjit Singh');
-
-    // 5. Vendor attempts to verify pickup with WRONG OTP -> HTTP 400 rejection
-    const resWrongOtp = await request(app)
-      .post(`/api/vendor/requests/${orderId}/verify-pickup`)
-      .set('Authorization', `Bearer ${vendorToken}`)
-      .send({ otp: '0000' });
-    assert.equal(resWrongOtp.status, 400);
-
-    // 6. Vendor verifies pickup with correct student OTP -> HTTP 200 Picked Up
-    const resCorrectOtp = await request(app)
-      .post(`/api/vendor/requests/${orderId}/verify-pickup`)
-      .set('Authorization', `Bearer ${vendorToken}`)
-      .send({ otp: studentOtp });
-    assert.equal(resCorrectOtp.status, 200);
-    assert.equal(resCorrectOtp.body.luggage.status, 'Picked Up');
-
-    // 7. Student can NO LONGER cancel order once Picked Up -> HTTP 400
-    const resCancelBlocked = await request(app)
-      .post(`/api/luggage/${orderId}/cancel`)
-      .set('Authorization', `Bearer ${studentToken}`);
-    assert.equal(resCancelBlocked.status, 400);
-    assert.match(resCancelBlocked.body.error, /already been collected/i);
-
-    // 8. Vendor transitions to In Transit and Delivered
-    const resDelivered = await request(app)
-      .post(`/api/vendor/requests/${orderId}/status`)
-      .set('Authorization', `Bearer ${vendorToken}`)
-      .send({ status: 'Delivered', note: 'Safely handed over at station' });
-    assert.equal(resDelivered.status, 200);
-    assert.equal(resDelivered.body.luggage.status, 'Delivered');
+      .set('Authorization', `Bearer ${token}`);
+    assert.equal(res.status, 404);
   });
 
   // 44. City Community Slots: 96 slots generation (15-min intervals), virtual slots (0/4), fare calculation, and enrolled hometown access control
@@ -2404,31 +2302,18 @@ describe('Thapar Journey Connect - Acceptance Tests', () => {
     assert.equal(slot16.members[0].name, 'Private');
   });
 
-  // 53. Luggage Lifecycle: Invalid status transitions rejected (e.g. Requested -> In Transit without OTP)
-  it('53. Luggage Lifecycle: Invalid status transitions rejected (e.g. Requested -> In Transit without OTP)', async () => {
-    const { token: studentToken } = await createTestStudent({ name: 'Luggage Owner' });
-    const { token: vendorToken } = await createTestStudent({ name: 'Vendor Officer', role: 'vendor' });
-
-    // 1. Create luggage booking in "Requested"
-    const resCreate = await request(app)
-      .post('/api/luggage')
-      .set('Authorization', `Bearer ${studentToken}`)
-      .send({
-        pickupLocation: 'Hostel B',
-        destination: 'Railway Station',
-        date: 'Tomorrow',
-        slotTime: '15:00',
-        items: [{ size: 'Large', count: 1 }]
-      });
-    const luggageId = resCreate.body.luggage.id;
-
-    // 2. Vendor attempts to jump straight from "Requested" to "In Transit" -> HTTP 400
-    const resInvalid = await request(app)
-      .post(`/api/vendor/requests/${luggageId}/status`)
-      .set('Authorization', `Bearer ${vendorToken}`)
-      .send({ status: 'In Transit' });
-    assert.equal(resInvalid.status, 400);
-    assert.match(resInvalid.body.error, /must be picked up with OTP first/i);
+  // 53. 15-Minute Slot Engine: Generates exactly 96 departure slots per day at 15-min intervals
+  it('53. 15-Minute Slot Engine: Generates exactly 96 departure slots per day at 15-min intervals', async () => {
+    const { token } = await createTestStudent();
+    const res = await request(app)
+      .get('/api/slots?destinationId=dest_chd_isbt43&date=Tomorrow&vehicle=Shared%20Cab')
+      .set('Authorization', `Bearer ${token}`);
+    assert.equal(res.status, 200);
+    assert.equal(res.body.slots.length, 96);
+    assert.equal(res.body.slots[0].time, '00:00');
+    assert.equal(res.body.slots[1].time, '00:15');
+    assert.equal(res.body.slots[2].time, '00:30');
+    assert.equal(res.body.slots[95].time, '23:45');
   });
 
   // 54. Date/Time Matching: True departure minute diff distinguishes 00:05 and 23:55 on same date

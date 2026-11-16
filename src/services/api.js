@@ -149,6 +149,14 @@ export const api = {
       body: JSON.stringify(profileData)
     }),
 
+  // Ride chat uses the same endpoint for campus and community cab groups.
+  getMessages: (id) => request('/groups/' + encodeURIComponent(id) + '/messages'),
+
+  sendMessage: (id, text) => request('/groups/' + encodeURIComponent(id) + '/messages', {
+    method: 'POST',
+    body: JSON.stringify({ text })
+  }),
+
   // Groups
   getMyGroups: () => request('/groups/mine'),
 

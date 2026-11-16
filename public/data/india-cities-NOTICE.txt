@@ -1,0 +1,7 @@
+Data by Countries States Cities Database
+https://github.com/dr5hn/countries-states-cities-database
+ODbL v1.0. India subset retrieved 2026-11-16.
+Adapted to state and city names, sorted and deduplicated. District and abandoned-place records excluded. Jalandhar excluded per project configuration.
+Derived database available at /data/india-cities.json under ODbL v1.0.
+Source credits include GeoNames (CC BY 4.0), OpenStreetMap contributors (ODbL 1.0), and Wikidata (CC0).
+See https://github.com/dr5hn/countries-states-cities-database/blob/master/.github/licenses/SOURCES.txt for upstream source credits.

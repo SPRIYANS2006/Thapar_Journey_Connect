@@ -189,6 +189,16 @@ describe('Audit regressions', () => {
     const other = await User.create({id:'outsider-cap', name:'Other', email:'cap@thapar.edu'});
     assert.equal((await request(app).post('/api/groups/original/capacity').set('Authorization', 'Bearer ' + generateSessionToken(other)).send({maxMembers: 6})).status, 403);
   });
+  it('expanded catalogue supports smaller towns and same-named cities in different states', async () => {
+    assert.equal((await post('/api/communities', {name: 'Adampur', state: 'Punjab'})).status, 201);
+    const first = await post('/api/communities', {name: 'Bilaspur', state: 'Haryana'});
+    const second = await post('/api/communities', {name: 'Bilaspur', state: 'Chhattisgarh'});
+    assert.equal(first.status, 201);
+    assert.equal(second.status, 201);
+    assert.notEqual(first.body.community.id, second.body.community.id);
+    assert.equal((await post('/api/communities', {name: 'Bilaspur', state: 'Haryana'})).status, 400);
+    assert.equal((await post('/api/communities', {name: 'Adampur', state: 'Goa'})).status, 400);
+  });
   it('profile settings survive a new session fetch', async () => {
     const saved = await request(app).put('/api/auth/profile').set('Authorization', `Bearer ${token}`).send({ rollNumber: '1234', preferredTransport: 'Auto', timeWindow: 'Every 30 Minutes', frequentRoutes: ['Delhi'], rideNotifications: false });
     assert.equal(saved.status, 200);

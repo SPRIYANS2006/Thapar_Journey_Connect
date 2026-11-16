@@ -62,15 +62,15 @@ router.post('/', async (req, res, next) => {
     if (!preset) throw new HttpError(400, 'Choose a city from the selected state.');
     const cleanName = preset.name;
     const cleanState = state.trim().slice(0, 100);
-    const idSlug = cleanName
+    const idSlug = (cleanState + '-' + cleanName)
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '')
-      .slice(0, 30) || `comm_${Date.now() % 10000}`;
+      .slice(0, 100) || `comm_${Date.now() % 10000}`;
 
     const escapedName = cleanName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const existing = await Community.findOne({
-      $or: [{ id: idSlug }, { name: new RegExp(`^${escapedName}$`, 'i') }]
+      $or: [{ id: idSlug }, { name: new RegExp(`^${escapedName}$`, 'i'), state: cleanState }]
     });
 
     if (existing) {

@@ -199,6 +199,27 @@ describe('Audit regressions', () => {
     assert.equal((await post('/api/communities', {name: 'Bilaspur', state: 'Haryana'})).status, 400);
     assert.equal((await post('/api/communities', {name: 'Adampur', state: 'Goa'})).status, 400);
   });
+  it('airport slots and joins allow cabs and reject autos for both airports', async () => {
+    for (const destinationId of ['chd_airport', 'del_airport']) {
+      const list = await request(app).get('/api/slots').query({destinationId, date, vehicle: 'Either'});
+      assert.equal(list.status, 200);
+      assert.ok(list.body.slots.every(slot => slot.vehicle === 'Shared Cab'));
+      assert.equal((await request(app).get('/api/slots').query({destinationId, date, vehicle: 'Shared Auto'})).status, 400);
+      assert.equal((await post('/api/slots/join', {...slot('12:00'), destinationId, vehicle:'Shared Auto'})).status, 400);
+      const cab = await post('/api/slots/join', {...slot('12:00'), destinationId});
+      assert.equal(cab.status, 201);
+      assert.equal(cab.body.group.transport, 'Shared Cab');
+      await post('/api/groups/' + cab.body.group.id + '/leave', {});
+    }
+  });
+  it('rescheduling to an airport rejects autos and retains the original membership', async () => {
+    await group();
+    for (const targetDestinationId of ['chd_airport','del_airport']) {
+      const response = await post('/api/slots/reschedule', {oldGroupId:'original', targetDestinationId, targetDate:date, targetTime:'13:00', targetVehicle:'Shared Auto'});
+      assert.equal(response.status, 400);
+      assert.equal((await Group.findOne({id:'original'})).members[0].user_id, user.id);
+    }
+  });
   it('profile settings survive a new session fetch', async () => {
     const saved = await request(app).put('/api/auth/profile').set('Authorization', `Bearer ${token}`).send({ rollNumber: '1234', preferredTransport: 'Auto', timeWindow: 'Every 30 Minutes', frequentRoutes: ['Delhi'], rideNotifications: false });
     assert.equal(saved.status, 200);

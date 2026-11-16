@@ -1,3 +1,4 @@
+import { isCabOnlyDestination } from '../../src/utils/ridePolicy.js';
 import { mutationLimit } from '../middleware/abuseLimit.js';
 import { runCommittedTransaction, transactionalRouter } from '../services/transactions.js';
 import express from 'express';
@@ -93,7 +94,9 @@ export function generateTenMinuteSlots(dateStr, destObj, vehicle, existingGroups
 // 1. GET /api/slots: Returns merged list of 15-minute slots (virtual and real, 96 slots per day)
 router.get('/', optionalAuth, async (req, res, next) => {
   try {
-    const { destinationId, date, vehicle, direction } = req.query;
+    const { destinationId, date, vehicle: requestedVehicle, direction } = req.query;
+    if (isCabOnlyDestination(destinationId) && requestedVehicle === 'Shared Auto') throw new HttpError(400, 'Airport rides support cabs only.');
+    const vehicle = isCabOnlyDestination(destinationId) ? 'Shared Cab' : requestedVehicle;
 
     if (!destinationId) {
       throw new HttpError(400, 'Destination ID is required.');
@@ -166,6 +169,7 @@ export async function joinSlot(req, res, next) {
     }
 
     const selectedVehicle = ['Shared Cab', 'Shared Auto'].includes(vehicle) ? vehicle : 'Shared Cab';
+    if (isCabOnlyDestination(destinationId) && selectedVehicle !== 'Shared Cab') throw new HttpError(400, 'Airport rides support cabs only.');
     const travelDate = normalizeDateStr(date || 'Today');
     const isReturn = direction === 'returning';
     const tripDirection = isReturn ? 'returning' : 'departing';
@@ -478,6 +482,7 @@ async function rescheduleGroupSlotInternal({
   const selectedVehicle = ['Shared Cab', 'Shared Auto'].includes(targetVehicle)
     ? targetVehicle
     : (oldGroup.transport || 'Shared Cab');
+  if (isCabOnlyDestination(destId) && selectedVehicle !== 'Shared Cab') throw new HttpError(400, 'Airport rides support cabs only.');
 
   const isTargetReturn = targetDirection === 'returning' || (!targetDirection && oldGroup.direction === 'returning');
   const targetDir = isTargetReturn ? 'returning' : 'departing';

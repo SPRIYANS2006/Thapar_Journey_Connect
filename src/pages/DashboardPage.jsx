@@ -19,6 +19,7 @@ import {
   Zap,
   Users,
 } from 'lucide-react';
+import { isCabOnlyDestination } from '../utils/ridePolicy';
 import { api } from '../services/api';
 
 let toastSeq = 0;
@@ -73,7 +74,9 @@ export default function DashboardPage({
 
   const [selectedDate, setSelectedDate] = useState(dateOptions[0].value);
   const [selectedTime, setSelectedTime] = useState(() => getCurrentSlotTime());
-  const [selectedVehicle, setSelectedVehicle] = useState('Shared Cab');
+  const [vehicleChoice, setSelectedVehicle] = useState('Shared Cab');
+  const cabOnly = isCabOnlyDestination(selectedDestId);
+  const selectedVehicle = cabOnly ? 'Shared Cab' : vehicleChoice;
   const selectedHostel = 'Main Gate';
   const direction = 'departing';
 
@@ -107,7 +110,7 @@ export default function DashboardPage({
       const res = await api.getSlots({
         destinationId: destId,
         date: dateStr,
-        vehicle: vehicleType,
+        vehicle: isCabOnlyDestination(destId) ? 'Shared Cab' : vehicleType,
         direction: tripDir
       });
       if (res && res.slots) {
@@ -426,7 +429,7 @@ export default function DashboardPage({
                 className="w-full bg-transparent font-extrabold text-slate-900 dark:text-slate-100 text-sm mt-1 focus:outline-none cursor-pointer"
               >
                 <option value="Shared Cab" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Cab</option>
-                <option value="Shared Auto" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Auto</option>
+                {!cabOnly && <option value="Shared Auto" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Auto</option>}
               </select>
             </div>
 

@@ -2,10 +2,11 @@ import { useModalFocus } from '../hooks/useModalFocus';
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, AlertTriangle, Clock, MapPin, CheckCircle2 } from 'lucide-react';
 import SlotPicker from './SlotPicker';
+import { isCabOnlyDestination } from '../utils/ridePolicy';
 import { api } from '../services/api';
 import { formatTime24to12 } from '../utils/timeSlots';
 
-const VEHICLES = ['Shared Cab', 'Shared Auto', 'Either'];
+const VEHICLES = ['Shared Cab', 'Shared Auto'];
 
 export default function RescheduleSlotModal({
   group,
@@ -16,7 +17,9 @@ export default function RescheduleSlotModal({
 }) {
   const dialogRef = useModalFocus(isOpen, onClose);
   const [selectedDate, setSelectedDate] = useState(group?.date || 'Today');
-  const [selectedVehicle, setSelectedVehicle] = useState(group?.transport || 'Shared Cab');
+  const [vehicleChoice, setSelectedVehicle] = useState(group?.transport || 'Shared Cab');
+  const cabOnly = isCabOnlyDestination(group?.destinationId || group?.destination_id);
+  const selectedVehicle = cabOnly ? 'Shared Cab' : vehicleChoice;
   const [slots, setSlots] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [targetSlot, setTargetSlot] = useState(null);
@@ -220,7 +223,7 @@ export default function RescheduleSlotModal({
               Vehicle
             </label>
             <div className="flex gap-2">
-              {VEHICLES.map((v) => (
+              {(cabOnly ? ['Shared Cab'] : VEHICLES).map((v) => (
                 <button
                   key={v}
                   type="button"

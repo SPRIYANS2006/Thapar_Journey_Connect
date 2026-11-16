@@ -169,6 +169,7 @@ export default function ProfilePage({ user, communities = [], onUpdateProfile })
       
       {/* Hero Banner Matching Image 1 */}
       <HeroBanner
+        compact
         tag="YOUR ACCOUNT"
         title="Your Profile"
         subtitle="Manage your personal details, travel preferences, and account settings."
